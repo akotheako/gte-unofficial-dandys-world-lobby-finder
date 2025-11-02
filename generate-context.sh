@@ -36,7 +36,7 @@ echo -e "\n\n" >> "$OUT"
 # --- file contents ---
 find . \( "${PRUNE_EXPR[@]}" \) -o -type f \
   "${OMIT_EXPR[@]}" \
-  ! -iregex '.*\.\(png\|jpg\|jpeg\|ico\|webp\|cache\|log\)$' -print0 |
+  ! -iregex '.*\.\(png\|jpg\|jpeg\|ico\|webp\|cache\|log\|svg\)$' -print0 |
 while IFS= read -r -d '' file; do
   {
     echo "=============================================="

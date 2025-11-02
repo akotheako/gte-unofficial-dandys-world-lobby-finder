@@ -1,170 +1,228 @@
 ===============================
 ======== PROJECT TREE =========
 ===============================
-./.firebase/hosting.cHVibGlj.cache
-./.firebaserc
 ./.gitignore
+./.npmrc
 ./.vscode/settings.json
+./eslint.config.js
 ./firebase.json
 ./firestore.indexes.json
 ./firestore.rules
-./firestore-debug.log
-./functions/.gitignore
-./functions/firestore-debug.log
-./functions/index.js
-./functions/package.json
 ./package.json
-./public/baseScript.js
-./public/baseStyle.css
-./public/components/navLink.js
-./public/components/showToast.js
-./public/firebase.js
-./public/index.html
-./public/media/favicon.ico
-./public/media/howtomakeprivateserver1.webp
-./public/media/howtomakeprivateserver2.webp
-./public/media/howtoverifyrobloxaccount.webp
-./public/media/toons/Astro_Render.webp
-./public/media/toons/Bassie_Render.webp
-./public/media/toons/Blot_Render.webp
-./public/media/toons/Bobette_Render.webp
-./public/media/toons/Boxten_Render.webp
-./public/media/toons/Brightney_Render.webp
-./public/media/toons/Brusha_Render.webp
-./public/media/toons/Coal_Render.webp
-./public/media/toons/Cocoa_Render.webp
-./public/media/toons/Connie_Render.webp
-./public/media/toons/Cosmo_Render.webp
-./public/media/toons/Eggson_Render.webp
-./public/media/toons/Finn_Render.webp
-./public/media/toons/Flutter_Render.webp
-./public/media/toons/Flyte_Render.webp
-./public/media/toons/Gigi_Render.webp
-./public/media/toons/Ginger_Render.webp
-./public/media/toons/Glisten_Render.webp
-./public/media/toons/Goob_Render.webp
-./public/media/toons/Looey_Render.webp
-./public/media/toons/Pebble_Render.webp
-./public/media/toons/Poppy_Render.webp
-./public/media/toons/Razzle_&_Dazzle_Render.webp
-./public/media/toons/Rodger_Render.webp
-./public/media/toons/Rudie_Render.webp
-./public/media/toons/Scraps_Render.webp
-./public/media/toons/Shelly_Render.webp
-./public/media/toons/Shrimpo_Render.webp
-./public/media/toons/Sprout_Render.webp
-./public/media/toons/Teagan_Render.webp
-./public/media/toons/Tisha_Render.webp
-./public/media/toons/Toodles_Render.webp
-./public/media/toons/Vee_Render.webp
-./public/media/toons/Yatta_Render.webp
-./public/pageHome.js
-./public/pageMe.js
-./public/pageSearch.js
+./README.md
+./server.mjs
+./src/app.css
+./src/app.d.ts
+./src/app.html
+./src/lib/assets/favicon.svg
+./src/lib/firebase.ts
+./src/lib/index.ts
+./src/lib/NavLink.svelte
+./src/lib/Toast.svelte
+./src/routes/+layout.svelte
+./src/routes/+layout.ts
+./src/routes/+page.server.js
+./src/routes/home/+page.svelte
+./src/routes/me/+page.svelte
+./src/routes/search/+page.svelte
+./static/favicon.ico
+./static/media/howtomakeprivateserver1.webp
+./static/media/howtomakeprivateserver2.webp
+./static/media/howtoverifyrobloxaccount.webp
+./static/media/toons/Astro_Render.webp
+./static/media/toons/Bassie_Render.webp
+./static/media/toons/Blot_Render.webp
+./static/media/toons/Bobette_Render.webp
+./static/media/toons/Boxten_Render.webp
+./static/media/toons/Brightney_Render.webp
+./static/media/toons/Brusha_Render.webp
+./static/media/toons/Coal_Render.webp
+./static/media/toons/Cocoa_Render.webp
+./static/media/toons/Connie_Render.webp
+./static/media/toons/Cosmo_Render.webp
+./static/media/toons/Eggson_Render.webp
+./static/media/toons/Finn_Render.webp
+./static/media/toons/Flutter_Render.webp
+./static/media/toons/Flyte_Render.webp
+./static/media/toons/Gigi_Render.webp
+./static/media/toons/Ginger_Render.webp
+./static/media/toons/Glisten_Render.webp
+./static/media/toons/Goob_Render.webp
+./static/media/toons/Looey_Render.webp
+./static/media/toons/Pebble_Render.webp
+./static/media/toons/Poppy_Render.webp
+./static/media/toons/Razzle_&_Dazzle_Render.webp
+./static/media/toons/Rodger_Render.webp
+./static/media/toons/Rudie_Render.webp
+./static/media/toons/Scraps_Render.webp
+./static/media/toons/Shelly_Render.webp
+./static/media/toons/Shrimpo_Render.webp
+./static/media/toons/Sprout_Render.webp
+./static/media/toons/Teagan_Render.webp
+./static/media/toons/Tisha_Render.webp
+./static/media/toons/Toodles_Render.webp
+./static/media/toons/Vee_Render.webp
+./static/media/toons/Yatta_Render.webp
+./static/robots.txt
+./svelte.config.js
+./tsconfig.json
+./vite.config.ts
 
 
-
-==============================================
->>> START FILE: ./.firebaserc
-==============================================
-{
-  "projects": {
-    "default": "storytect-e77d1"
-  }
-}
-
-==============================================
-<<< END FILE: ./.firebaserc
-==============================================
 
 ==============================================
 >>> START FILE: ./.gitignore
 ==============================================
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-firebase-debug.log*
-firebase-debug.*.log*
-
 node_modules
 package-lock.json
 
-# Firebase cache
-.firebase/
+# Output
+.output
+.vercel
+.netlify
+.wrangler
+/.svelte-kit
+/build
 
-# Firebase config
+# OS
+.DS_Store
+Thumbs.db
 
-# Uncomment this if you'd like others to create their own Firebase project.
-# For a team working on the same Firebase project(s), it is recommended to leave
-# it commented so all members can deploy to the same project(s) in .firebaserc.
-# .firebaserc
-
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Directory for instrumented libs generated by jscoverage/JSCover
-lib-cov
-
-# Coverage directory used by tools like istanbul
-coverage
-
-# nyc test coverage
-.nyc_output
-
-# Grunt intermediate storage (http://gruntjs.com/creating-plugins#storing-task-files)
-.grunt
-
-# Bower dependency directory (https://bower.io/)
-bower_components
-
-# node-waf configuration
-.lock-wscript
-
-# Compiled binary addons (http://nodejs.org/api/addons.html)
-build/Release
-
-# Dependency directories
-node_modules/
-
-# Optional npm cache directory
-.npm
-
-# Optional eslint cache
-.eslintcache
-
-# Optional REPL history
-.node_repl_history
-
-# Output of 'npm pack'
-*.tgz
-
-# Yarn Integrity file
-.yarn-integrity
-
-# dotenv environment variables file
+# Env
 .env
+.env.*
+!.env.example
+!.env.test
 
-# dataconnect generated files
-.dataconnect
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
 
 ==============================================
 <<< END FILE: ./.gitignore
 ==============================================
 
 ==============================================
+>>> START FILE: ./.npmrc
+==============================================
+engine-strict=true
+
+==============================================
+<<< END FILE: ./.npmrc
+==============================================
+
+==============================================
 >>> START FILE: ./.vscode/settings.json
 ==============================================
 {
-	"workbench.colorTheme": "Monokai"
+	// Hide built-in JS/TS diagnostics so ts(6133) disappears
+	"javascript.validate.enable": false,
+	"typescript.validate.enable": false,
+	// Hide Svelte’s TS diagnostics so the same message doesn’t reappear in .svelte
+	"svelte.plugin.typescript.enable": false,
+	// Keep formatting with supported formatters
+	"[javascript]": {
+		"editor.defaultFormatter": "vscode.typescript-language-features"
+	},
+	"[typescript]": {
+		"editor.defaultFormatter": "vscode.typescript-language-features"
+	},
+	"[svelte]": {
+		"editor.defaultFormatter": "svelte.svelte-vscode"
+	},
+	// Let ESLint provide warnings and fixes on save
+	"editor.codeActionsOnSave": {
+		"source.fixAll": "always",
+		"source.fixAll.eslint": "always"
+	},
+	"editor.tabSize": 4,
+	"editor.insertSpaces": false,
+	"editor.formatOnSave": true,
+	"editor.indentSize": "tabSize",
+	"editor.detectIndentation": false,
+	"files.insertFinalNewline": true,
+	"files.trimFinalNewlines": true
 }
+
 ==============================================
 <<< END FILE: ./.vscode/settings.json
+==============================================
+
+==============================================
+>>> START FILE: ./eslint.config.js
+==============================================
+// eslint.config.js
+import { includeIgnoreFile } from '@eslint/compat'
+import js from '@eslint/js'
+import svelte from 'eslint-plugin-svelte'
+import globals from 'globals'
+import { fileURLToPath } from 'node:url'
+import ts from 'typescript-eslint'
+import svelteParser from 'svelte-eslint-parser'
+import svelteConfig from './svelte.config.js'
+
+const gitignorePath = fileURLToPath(new URL('./.gitignore', import.meta.url))
+
+export default [
+	includeIgnoreFile(gitignorePath),
+
+	js.configs.recommended,
+	...ts.configs.recommended,
+	...svelte.configs.recommended,
+
+	// JS/TS
+	{
+		files: ['**/*.{js,cjs,mjs,ts,tsx}'],
+		languageOptions: {
+			globals: { ...globals.browser, ...globals.node },
+			parser: ts.parser,
+			parserOptions: { projectService: true },
+		},
+		rules: {
+			'no-undef': 'off',
+			'@typescript-eslint/no-unused-vars': ['warn', {
+				argsIgnorePattern: '^_',
+				varsIgnorePattern: '^_',
+				ignoreRestSiblings: true,
+			}],
+			'indent': ['error', 4, { SwitchCase: 1 }],
+			'eol-last': ['error', 'always'],
+			'no-multiple-empty-lines': ['error', { max: 2, maxEOF: 1 }],
+			'comma-dangle': ['error', 'always-multiline'],
+			'semi': ['error', 'never'],
+		},
+	},
+
+	// Svelte
+	{
+		files: ['**/*.svelte'],
+		languageOptions: {
+			globals: { ...globals.browser, ...globals.node },
+			parser: svelteParser,
+			parserOptions: {
+				parser: ts.parser,
+				projectService: true,
+				svelteConfig,
+				extraFileExtensions: ['.svelte'],
+			},
+		},
+		rules: {
+			'@typescript-eslint/no-unused-vars': ['warn', {
+				argsIgnorePattern: '^_',
+				varsIgnorePattern: '^_',
+				ignoreRestSiblings: true,
+			}],
+			'svelte/indent': ['error', { indent: 4 }],
+			'eol-last': ['error', 'always'],
+			'no-multiple-empty-lines': ['error', { max: 2, maxEOF: 1 }],
+			'comma-dangle': ['error', 'always-multiline'],
+			'semi': ['error', 'never'],
+		},
+	},
+]
+
+==============================================
+<<< END FILE: ./eslint.config.js
 ==============================================
 
 ==============================================
@@ -172,14 +230,12 @@ node_modules/
 ==============================================
 {
 	"firestore": {
-		"database": "(default)",
-		"location": "nam7",
 		"rules": "firestore.rules",
 		"indexes": "firestore.indexes.json"
 	},
 	"hosting": {
 		"site": "gte",
-		"public": "public",
+		"public": "build",
 		"ignore": [
 			"firebase.json",
 			"**/.*",
@@ -195,17 +251,11 @@ node_modules/
 	"functions": [
 		{
 			"source": "functions",
-			"codebase": "default",
-			"ignore": [
-				"node_modules",
-				".git",
-				"firebase-debug.log",
-				"firebase-debug.*.log",
-				"*.local"
-			]
+			"codebase": "default"
 		}
 	]
 }
+
 ==============================================
 <<< END FILE: ./firebase.json
 ==============================================
@@ -258,127 +308,50 @@ service cloud.firestore {
 ==============================================
 
 ==============================================
->>> START FILE: ./functions/.gitignore
-==============================================
-node_modules/
-*.local
-==============================================
-<<< END FILE: ./functions/.gitignore
-==============================================
-
-==============================================
->>> START FILE: ./functions/index.js
-==============================================
-const functions = require("firebase-functions");
-const fetch = require("node-fetch"); // v2
-const admin = require("firebase-admin");
-const { FieldValue } = require('firebase-admin/firestore');
-if (!admin.apps.length) admin.initializeApp();
-
-async function usernameToId(handle) {
-	const h = handle.replace(/^@/, "").trim();
-
-	// Primary: modern endpoint
-	try {
-		const r = await fetch("https://users.roblox.com/v1/usernames/users", {
-			method: "POST",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ usernames: [h], excludeBannedUsers: false })
-		});
-		if (r.ok) {
-			const j = await r.json();
-			const id = j?.data?.[0]?.id;
-			if (id) return id;
-		}
-	} catch (_) { }
-
-	// Fallback: legacy endpoint
-	const r2 = await fetch(
-		"https://api.roblox.com/users/get-by-username?username=" + encodeURIComponent(h)
-	);
-	if (!r2.ok) return null;
-	const j2 = await r2.json();
-	return j2?.Id || j2?.id || null;
-}
-
-exports.verifyRoblox = functions.https.onCall(async (payload) => {
-	const handle = payload?.data?.handle?.replace(/^@/, '')?.toLowerCase();
-	const code = payload?.data?.code;
-	if (!handle || !code) return { success: false, error: "Missing handle or code" };
-
-	// ...usernameToId + fetch description...
-	const found = desc.includes(code);
-	if (!found) return { success: false, error: "Code not found" };
-
-	await admin.firestore().doc(`users/${handle}`).set({
-		handle,
-		verified: true,
-		verifiedAt: FieldValue.serverTimestamp()
-	}, { merge: true });
-
-	return { success: true };
-});
-
-exports.saveUserProfile = functions.https.onCall(async (data) => {
-	const handle = String(data?.data?.handle || "").replace(/^@/, '').toLowerCase();
-	const privateServerUrl = String(data?.data?.privateServerUrl || "");
-	if (!handle) return { ok: false, error: "Missing handle" };
-
-	const snap = await admin.firestore().doc(`users/${handle}`).get();
-	if (!snap.exists || !snap.get('verified')) return { ok: false, error: "Not verified" };
-
-	await admin.firestore().doc(`users/${handle}`).set({
-		handle,
-		privateServerUrl,
-		updatedAt: FieldValue.serverTimestamp()
-	}, { merge: true });
-
-	return { ok: true };
-});
-
-==============================================
-<<< END FILE: ./functions/index.js
-==============================================
-
-==============================================
->>> START FILE: ./functions/package.json
-==============================================
-{
-  "name": "functions",
-  "description": "Cloud Functions for Firebase",
-  "scripts": {
-    "serve": "firebase emulators:start --only functions",
-    "shell": "firebase functions:shell",
-    "start": "npm run shell",
-    "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
-  },
-  "engines": {
-    "node": "22"
-  },
-  "main": "index.js",
-  "dependencies": {
-    "firebase-admin": "12.7.0",
-    "firebase-functions": "^6.0.1",
-    "node-fetch": "2.7.0"
-  },
-  "devDependencies": {
-    "firebase-functions-test": "^3.1.0"
-  },
-  "private": true
-}
-
-==============================================
-<<< END FILE: ./functions/package.json
-==============================================
-
-==============================================
 >>> START FILE: ./package.json
 ==============================================
 {
-  "dependencies": {
-    "firebase": "12.1.0"
-  }
+	"name": "myapp",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"api": "node server.mjs",
+		"api:watch": "nodemon --watch server.mjs --ext mjs --exec node server.mjs",
+		"build:watch": "vite build --watch",
+		"dev:all": "concurrently -n api,web -c auto \"npm:api:watch\" \"npm:dev\"",
+		"serve:watch": "concurrently -n build,serve -c auto \"npm:build:watch\" \"npm:api\"",
+		"emu": "firebase emulators:start --only functions,firestore"
+	},
+	"devDependencies": {
+		"concurrently": "^9.0.1",
+		"nodemon": "^3.1.7",
+		"@eslint/compat": "^1.2.5",
+		"@eslint/js": "^9.36.0",
+		"@sveltejs/adapter-auto": "^6.0.0",
+		"@sveltejs/adapter-static": "^3.0.9",
+		"@sveltejs/kit": "^2.22.0",
+		"@sveltejs/vite-plugin-svelte": "^6.0.0",
+		"eslint": "^9.36.0",
+		"eslint-plugin-svelte": "^3.12.4",
+		"globals": "^16.0.0",
+		"svelte": "^5.0.0",
+		"svelte-check": "^4.0.0",
+		"typescript": "^5.9.2",
+		"typescript-eslint": "^8.44.0",
+		"vite": "^7.0.4"
+	},
+	"dependencies": {
+		"@hono/node-server": "^1.19.2",
+		"firebase": "^12.3.0",
+		"hono": "^4.9.6"
+	},
+	"overrides": {
+		"cookie": "0.7.0"
+	}
 }
 
 ==============================================
@@ -386,1060 +359,795 @@ exports.saveUserProfile = functions.https.onCall(async (data) => {
 ==============================================
 
 ==============================================
->>> START FILE: ./public/baseScript.js
+>>> START FILE: ./README.md
 ==============================================
-// ---------------------------------------------- CALCULATIONS
+# Get To Ele — SvelteKit
+## Requirements
+- Node 18+  
+- Firebase CLI (for emulators and deploy): `npm i -g firebase-tools`
+## Install
+npm install
+## Scripts
+* `dev` — Vite dev server with HMR
+* `build` — SvelteKit build to `./build`
+* `preview` — Vite preview
+* `api` — start API server (`server.mjs`) on :3000
+* `api:watch` — API with autoreload (nodemon)
+* `build:watch` — rebuild on change
+* `dev:all` — run API (watch) + frontend HMR
+* `serve:watch` — watch build + serve API
+* `emu` — Firebase emulators (functions, firestore)
+## Development
+### Frontend and API in two terminals
+Terminal A:
+npm run api
+Terminal B:
+npm run dev
+### Single combined command (uses `concurrently`)
+npm run dev:all
+### With Firebase emulators
+npm run emu
+Vite runs on :5173. API runs on :3000. `/api` is proxied to :3000 in dev.
+## Production
+### Build
+npm run build
+### Serve built files
+### Serve and rebuild on change
+npm run serve:watch
+## Deploy (Firebase Hosting + Functions)
+Build, then deploy hosting:
+firebase deploy --only hosting:gte
+Deploy functions:
+firebase deploy --only functions
+## Notes
+* Static assets live in `static/` and are served at the site root.
+* `server.mjs` serves `/api` and static files from `./build`.
 
-const toKebab = key => key.replace(/([A-Z])/g, "-$1").toLowerCase()
+------------------------
 
-// ---------------------------------------------- ACTIONS - Events / Listeners / Observers / Intervals / OnLoad
+Minimal sequence to test everything locally:
 
-const windowOnLoadFuncs = []
+1. Install deps once:
 
-const windowEvents = {}
-const recordWindowEvent = (name, func) => {
-	if (!windowEvents[name]) windowEvents[name] = []
-	windowEvents[name].push(func)
-}
+npm install
 
-const documentEvents = {}
-const recordDocumentEvent = (name, func) => {
-	if (!documentEvents[name]) documentEvents[name] = []
-	documentEvents[name].push(func)
-}
+2. Start Firebase emulators (functions + firestore):
 
-const prepare = () => {
-	// Add window and document event listeners:
-	windowOnLoadFuncs.push(() => {
+npm run emu
 
-		// Window event listeners:
-		for (const eventName in windowEvents) {
-			window.addEventListener(eventName, e => {
-				const funcs = windowEvents[eventName]
-				funcs.forEach(func => func(e))
-			})
-		}
+3. In another terminal, run frontend + API together:
 
-		// Document event listeners:
-		for (const eventName in documentEvents) {
-			document.addEventListener(eventName, e => {
-				const funcs = documentEvents[eventName]
-				funcs.forEach(func => func(e))
-			})
-		}
-	})
+npm run dev:all
 
-	// Add onload event:
-	window.onload = () => Promise.all(windowOnLoadFuncs.map(fn => fn()))
-}
+That gives:
 
-// ---------------------------------------------- HTML - Base Functions
+* Frontend at [http://localhost:5173](http://localhost:5173) (with HMR).
+* API at [http://localhost:3000/api/...](http://localhost:3000/api/...) (proxied through Vite).
 
-const dynamicStyle = document.createElement("style")
-document.head.appendChild(dynamicStyle)
-const cssRules = new Set()
-const addCssRule = rule => {
-	if (cssRules.has(rule)) return;
-	try {
-		dynamicStyle.sheet.insertRule(rule, dynamicStyle.sheet.cssRules.length);
-		cssRules.add(rule);
-	} catch (err) {
-		console.error("insertRule failed for:", rule, err);
-	}
-};
-
-const getImgClass = (imgSrc) => "img_" + imgSrc.split("/").pop().replace(/[^\w]+/g, "_");
-
-function preloadImages(sources) {
-	return Promise.all(sources.map(src => new Promise(res => {
-		// make class name from filename
-		const name = getImgClass(src)
-		addCssRule(`.${name} {
-			background-image: url("${src}");
-			background-repeat: no-repeat;
-			background-size: cover;
-			background-position: center;
-		}`);
-		// warm cache
-		const img = new Image();
-		img.decoding = "async";
-		img.onload = img.onerror = res;
-		img.src = src;
-	})));
-}
-
-function makeHtml({ tag, style = {}, props = {}, on = {}, children = [] }) {
-	const el = document.createElement(tag)
-
-	// css
-	const baseStyle = {}
-	const pseudoStyles = {}
-	for (const [k, v] of Object.entries(style)) {
-		if (k.startsWith(":")) pseudoStyles[k.slice(1)] = v
-		else baseStyle[k] = v
-	}
-
-	if (Object.keys(pseudoStyles).length === 0) {
-		// no pseudos → everything inline
-		for (const [k, v] of Object.entries(baseStyle)) {
-			el.style[k] = v
-		}
-	} else {
-		// pseudos present → class + rules
-		const hashInput = JSON.stringify({ base: baseStyle, pseudos: pseudoStyles })
-		const hash = btoa(hashInput).replace(/[^a-z0-9]/gi, "")
-		const className = `auto-style-${hash}`
-		el.classList.add(className)
-
-		// base rule
-		const baseCss = Object.entries(baseStyle)
-			.map(([k, v]) => `${toKebab(k)}:${v};`)
-			.join(" ")
-		addCssRule(`.${className} { ${baseCss} }`)
-
-		// pseudo rules
-		for (const [pseudo, psStyles] of Object.entries(pseudoStyles)) {
-			const cssBody = Object.entries(psStyles)
-				.map(([k, v]) => `${toKebab(k)}:${v} !important;`)
-				.join(" ")
-			addCssRule(`.${className}:${pseudo} { ${cssBody} }`)
-		}
-	}
-
-	// props
-	for (const [k, v] of Object.entries(props)) {
-		if (k === "class" || k === "className") {
-			const cls = Array.isArray(v) ? v : String(v).split(/\s+/).filter(Boolean);
-			if (cls.length) el.classList.add(...cls);
-			continue;
-		}
-		if (k in el) el[k] = v;
-		else el.setAttribute(k, v);
-	}
-
-	// events
-	for (const [evt, fn] of Object.entries(on)) {
-		el.addEventListener(evt, fn)
-	}
-
-	// children
-	for (const child of children) {
-		el.appendChild(
-			typeof child === "string"
-				? document.createTextNode(child)
-				: makeHtml(child)
-		)
-	}
-
-	return el
-}
-
-// remember to call this:
-// prepare()
-// after populating windowOnLoadFuncs, windowEvents, and documentEvents!
+That’s enough to test the app end-to-end locally.
 
 ==============================================
-<<< END FILE: ./public/baseScript.js
+<<< END FILE: ./README.md
 ==============================================
 
 ==============================================
->>> START FILE: ./public/baseStyle.css
+>>> START FILE: ./server.mjs
 ==============================================
+import { Hono } from 'hono'
+import { serve } from '@hono/node-server'
+import { serveStatic } from '@hono/node-server/serve-static'
+import { readFileSync, existsSync } from 'fs'
+import { join } from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url))
+const app = new Hono()
+
+// API routes
+app.get('/api/hello', c => c.json({ ok: true, now: new Date().toISOString() }))
+
+// static assets from SvelteKit build
+app.use('/assets/*', serveStatic({ root: './build' }))
+app.use('/favicon.ico', serveStatic({ root: './build' }))
+app.use('/manifest.json', serveStatic({ root: './build' }))
+
+// SPA fallback to index.html
+const indexPath = join(__dirname, 'build', 'index.html')
+app.get('*', c => {
+	if (!existsSync(indexPath)) return c.text('Missing build/index.html. Run: npm run build', 503)
+	return c.html(readFileSync(indexPath, 'utf8'))
+})
+
+serve({ fetch: app.fetch, port: 3000 })
+
+==============================================
+<<< END FILE: ./server.mjs
+==============================================
+
+==============================================
+>>> START FILE: ./src/app.css
+==============================================
+/* from baseStyle.css */
 * {
 	margin: 0;
 	box-sizing: border-box;
-	font-family: 'Comic Relief', sans-serif;
+	font-family: 'Comic Relief', sans-serif
 }
 
 body {
 	margin: 0;
 	height: 100vh;
 	background:
-		/* grain overlay */
 		url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='50' height='50'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.2'/></svg>") repeat,
-		/* stripes */
-		linear-gradient(to right,
-			#4d3051 0% 16.66%,
-			#264e64 16.66% 33.33%,
-			#677b5d 33.33% 50%,
-			#aaa456 50% 66.66%,
-			#9e4f1b 66.66% 83.33%,
-			#70272c 83.33% 100%);
+		linear-gradient(to right, #4d3051 0% 16.66%, #264e64 16.66% 33.33%, #677b5d 33.33% 50%, #aaa456 50% 66.66%, #9e4f1b 66.66% 83.33%, #70272c 83.33% 100%)
 }
 
 h1 {
-	font-family: 'Gluten', sans-serif;
+	font-family: 'Gluten', sans-serif
 }
 
 button {
 	all: unset;
 	cursor: pointer;
 	background-color: royalblue;
-	padding: 0.6em 1em;
-	border-radius: 1em;
+	padding: .6em 1em;
+	border-radius: 1em
 }
 
 button:hover {
-	filter: brightness(1.2);
+	filter: brightness(1.2)
 }
 
 input {
 	all: unset;
 	background-color: #264e64;
-	padding: 0.6em 1em;
-	border-radius: 1em;
+	padding: .6em 1em;
+	border-radius: 1em
 }
 
 a {
 	flex: 1;
 	text-decoration: none;
 	text-align: center;
-	padding: 0.5rem 0;
-	transition: background 0.2s;
-	color: aqua;
+	padding: .5rem 0;
+	transition: background .2s;
+	color: aqua
 }
 
 a:hover {
-	background: rgba(255, 255, 255, 0.2);
-}
-==============================================
-<<< END FILE: ./public/baseStyle.css
-==============================================
-
-==============================================
->>> START FILE: ./public/components/navLink.js
-==============================================
-const navLink = ({ href, text, external = false }) => ({
-	tag: "a",
-	props: external
-		? { href, target: "_blank" }
-		: { href, "data-link": "" },
-	children: [text || href]
-})
-
-==============================================
-<<< END FILE: ./public/components/navLink.js
-==============================================
-
-==============================================
->>> START FILE: ./public/components/showToast.js
-==============================================
-const showToast = (msg) => {
-	const toast = makeHtml({
-		tag: "div",
-		style: {
-			position: "fixed",
-			bottom: "1rem",
-			left: "50%",
-			transform: "translateX(-50%)",
-			background: "rgba(0,0,0,0.8)",
-			color: "white",
-			padding: "0.5rem 1rem",
-			borderRadius: "0.5rem",
-			fontSize: "0.9rem",
-			zIndex: 9999,
-			opacity: "0",
-			transition: "opacity 0.3s"
-		},
-		children: [msg]
-	});
-	document.body.appendChild(toast);
-	// fade in
-	requestAnimationFrame(() => toast.style.opacity = "1");
-	// fade out and remove
-	setTimeout(() => {
-		toast.style.opacity = "0";
-		setTimeout(() => toast.remove(), 300);
-	}, 1500);
+	background: rgba(255, 255, 255, .2)
 }
 
 ==============================================
-<<< END FILE: ./public/components/showToast.js
+<<< END FILE: ./src/app.css
 ==============================================
 
 ==============================================
->>> START FILE: ./public/firebase.js
+>>> START FILE: ./src/app.d.ts
 ==============================================
-// firebase app
-import {
-	initializeApp
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"
-const app = initializeApp({
-	apiKey: "AIzaSyAzv2yATCAmAOVJgoOMS_56vDUv8Mb8gX8",
-	authDomain: "storytect-e77d1.firebaseapp.com",
-	projectId: "storytect-e77d1",
-	storageBucket: "storytect-e77d1.firebasestorage.app",
-	messagingSenderId: "178947771962",
-	appId: "1:178947771962:web:6b76776633435433b56f03",
-	measurementId: "G-X4HHEM6BEF"
-})
-
-// firebase functions (backend)
-import {
-	getFunctions,
-	httpsCallable,
-	connectFunctionsEmulator
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js"
-const functions = getFunctions(app)
-
-// firebase firestore (database)
-import {
-	getFirestore,
-	getDoc as gteGetDoc,
-	doc as gteDoc, setDoc,
-	serverTimestamp,
-	connectFirestoreEmulator
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"
-const db = getFirestore(app)
-
-// Emulators
-connectFunctionsEmulator(functions, "localhost", 5001)
-connectFirestoreEmulator(db, "localhost", 8080)
-
-// Expose for your non-module scripts/handlers
-window.gteFunctions = functions
-window.gteHttpsCallable = httpsCallable
-window.gteDb = db
-window.gteServerTimestamp = serverTimestamp
-
-// Helper to save the user doc
-window.gteSaveUserProfile = async ({ handle, privateServerUrl }) => {
-	const saveFn = gteHttpsCallable(gteFunctions, "saveUserProfile")
-	const res = await saveFn({ handle, privateServerUrl })
-	if (!res.data?.ok) throw new Error(res.data?.error || "Save failed")
+// See https://svelte.dev/docs/kit/types#app.d.ts
+// for information about these interfaces
+declare global {
+	namespace App {
+		// interface Error {}
+		// interface Locals {}
+		// interface PageData {}
+		// interface PageState {}
+		// interface Platform {}
+	}
 }
 
+export { }
+
 ==============================================
-<<< END FILE: ./public/firebase.js
+<<< END FILE: ./src/app.d.ts
 ==============================================
 
 ==============================================
->>> START FILE: ./public/index.html
+>>> START FILE: ./src/app.html
 ==============================================
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
-	<meta charset="UTF-8">
+	<meta charset="utf-8" />
+	<!-- <link rel="icon" href="%sveltekit.assets%/favicon.png" /> -->
+	<meta name="viewport" content="width=device-width" />
 
-	<!-- Title -->
-	<link rel="icon" type="image/x-icon" href="/media/favicon.ico">
-	<title>Get To Ele! - The Unofficial Dandy's World Lobby Finder</title>
-
-	<!-- Fonts & Default Style -->
+	<!-- Fonts -->
 	<link href="https://fonts.googleapis.com/css2?family=Gluten&family=Comic+Relief&display=swap" rel="stylesheet">
-	<link rel="stylesheet" href="baseStyle.css">
 
-	<!-- Base Script -->
-	<script src="baseScript.js"></script>
-
-	<!-- Component Scripts -->
-	<script src="components/showToast.js"></script>
-	<script src="components/navLink.js"></script>
-
-	<!-- Firebase Script -->
-	<script type="module" src="firebase.js"></script>
-
-	<!-- Page Scripts -->
-	<script src="pageHome.js"></script>
-	<script src="pageMe.js"></script>
-	<script src="pageSearch.js"></script>
+	%sveltekit.head%
 </head>
 
-<body></body>
-
-<script>
-
-
-	// ---------------------------------------------- ROUTES
-
-	let layout = null
-
-	const routes = {
-		"/home": homePage,
-		"/me": mePage,
-		"/search": searchPage,
-		"/contact": () => makeHtml({ tag: "h1", children: ["Contact Page"] }),
-		"/tutorials": () => makeHtml({ tag: "h1", children: ["Tutorials - Coming Soon"] }),
-	}
-
-	// ---------------------------------------------- RENDER
-
-	const render = () => {
-		if (!layout) {
-			layout = {
-				nav: makeHtml({
-					tag: "nav",
-					style: {
-						display: "flex",
-						width: "100%",
-						background: "rgba(0,0,0,0.4)"
-					},
-					children: [
-						navLink({ href: "/home", text: "Home" }),
-						navLink({ href: "/me", text: "Me" }),
-						navLink({ href: "/search", text: "Search" }),
-						navLink({ href: "/contact", text: "Contact" }),
-						navLink({ href: "/tutorials", text: "Tutorials" }),
-						navLink({ href: "https://www.roblox.com/games/16116270224", text: "Play", external: true })
-					]
-				}),
-				main: makeHtml({
-					tag: "main",
-					props: { id: "app" },
-					style: { padding: "1rem", color: "white" }
-				})
-			}
-		}
-
-		const normalizePath = p => (p === "/" ? "/home" : p)
-		const path = normalizePath(location.pathname)
-		const viewFn = routes[path] || (() => makeHtml({ tag: "h1", children: ["Page Not Found!"] }))
-		const viewEl = viewFn()
-
-		document.body.replaceChildren(layout.nav, layout.main)
-		layout.main.replaceChildren(viewEl)
-	}
-
-	// ---------------------------------------------- NAVIGATION
-
-	recordDocumentEvent("click", e => {
-		const a = e.target.closest("a[data-link]")
-		if (!a) return
-		const url = new URL(a.href, location.origin)
-		if (url.origin !== location.origin) return
-		e.preventDefault()
-		if (location.pathname !== url.pathname) history.pushState({}, "", url.pathname)
-		render()
-	})
-
-	recordWindowEvent("popstate", render)
-
-	// ---------------------------------------------- INIT
-
-	windowOnLoadFuncs.push(() => {
-		// data = getData()
-		render()
-	})
-
-	prepare()
-
-	// -- Notes (Do not delete!)
-	// DEPLOY:
-	// firebase deploy --only hosting:gte
-	// TEST:
-	// firebase emulators:start --only hosting,functions
-	// firebase emulators:start --only functions,firestore,hosting
-
-</script>
+<body>
+	<div style="display: contents">%sveltekit.body%</div>
+</body>
 
 </html>
+
 ==============================================
-<<< END FILE: ./public/index.html
+<<< END FILE: ./src/app.html
 ==============================================
 
 ==============================================
->>> START FILE: ./public/pageHome.js
+>>> START FILE: ./src/lib/firebase.ts
 ==============================================
-const homePage = () => {
+import { browser } from '$app/environment'
+import { initializeApp } from 'firebase/app'
+import {
+	getFunctions,
+	httpsCallable,
+	connectFunctionsEmulator,
+} from 'firebase/functions'
+import type { HttpsCallable } from 'firebase/functions'
+import {
+	getFirestore,
+	getDoc as gteGetDoc,
+	doc as gteDoc,
+	connectFirestoreEmulator,
+} from 'firebase/firestore'
 
-	return makeHtml({
-		tag: "div",
-		style: {
-			display: "flex",
-			flexDirection: "column",
-			gap: "1em",
-			width: "100%",
-			textAlign: "center"
-		},
-		children: [
-			{ tag: "h1", children: ["Get To Ele!"] },
-			{ tag: "h3", children: ["Dandy's World Unofficial Lobby Finder"] },
-			{
-				tag: "div",
-				children: [
-					{ tag: "div", children: ["Are you tired of teams being so difficult to find?"] },
-					{ tag: "div", children: ["Waiting in the lobby for half an hour until you're ready, just in time for someone to have to leave?"] },
-					{ tag: "div", children: ["Getting together with people of a different region and lagging? Etc etc"] },
-				]
-			},
-			{ tag: "h1", children: ["Wait no more!"] },
-			{
-				tag: "div",
-				children: [
-					{ tag: "div", children: ["Find your perfect team right here!"] },
-					{ tag: "div", children: ["Just specify which toons and trinkets you want to use, team composition, your region, and just play!"] },
-				],
-			},
-			{
-				tag: "div",
-				style: {
-					marginTop: "4em",
-					marginBottom: "4em",
-					display: "flex",
-					flexDirection: "column",
-					gap: "1em",
-				},
-				children: [
-					{
-						tag: "h1",
-						children: [
-							"Step 1: Verify your Roblox account -> ",
-							navLink({ href: "/me" }),
-						],
-					},
-					{
-						tag: "h1",
-						children: [
-							"Step 2: Search for a team! -> ",
-							navLink({ href: "/search" }),
-						],
-					},
-				],
-			},
-			{
-				tag: "div",
-				children: [
-					"This is a website made by one person, so please have mercy if something doesn't work right and use ",
-					navLink({ href: "/contact" }),
-					" to leave feedback and bug reports! Thank you ✨",
-				],
-			},
-			{
-				tag: "div", children: [
-					"Oh and one last thing: If you're ",
-					{ tag: "span", style: { color: "hotpink" }, children: ["BlushCrunch Studio"] },
-					" and you do not approve of this website or want me to change something, let me know! ",
-					navLink({ href: "/contact" }),
-				],
-			},
-		],
-	})
+const app = initializeApp({
+	apiKey: 'AIzaSyAzv2yATCAmAOVJgoOMS_56vDUv8Mb8gX8',
+	authDomain: 'storytect-e77d1.firebaseapp.com',
+	projectId: 'storytect-e77d1',
+	storageBucket: 'storytect-e77d1.firebasestorage.app',
+	messagingSenderId: '178947771962',
+	appId: '1:178947771962:web:6b76776633435433b56f03',
+	measurementId: 'G-X4HHEM6BEF',
+})
 
+const functions = getFunctions(app)
+const db = getFirestore(app)
+
+// only in browser + localhost
+if (browser && location.hostname === 'localhost') {
+	connectFunctionsEmulator(functions, 'localhost', 5001)
+	connectFirestoreEmulator(db, 'localhost', 8080)
 }
+
+export { app, functions, db, httpsCallable, gteDoc, gteGetDoc }
+
+export async function saveUserProfile(args: { handle: string; privateServerUrl: string }) {
+	const call: HttpsCallable<{ handle: string; privateServerUrl: string }, any> =
+		httpsCallable(functions, 'saveUserProfile')
+	const res = await call(args)
+	if (!res.data?.ok) throw new Error(res.data?.error || 'Save failed')
+}
+
 ==============================================
-<<< END FILE: ./public/pageHome.js
+<<< END FILE: ./src/lib/firebase.ts
 ==============================================
 
 ==============================================
->>> START FILE: ./public/pageMe.js
+>>> START FILE: ./src/lib/index.ts
 ==============================================
-let verificationData
+// place files you want to import through the `$lib` alias in this folder.
 
-const mePage = () => {
+==============================================
+<<< END FILE: ./src/lib/index.ts
+==============================================
 
-	const genCode = () => {
-		const actualCode = Math.random().toString(36).slice(2, 12)
-		const wholeMessage = `I'm verifying my account for the GTE website! This is the code: ${actualCode}`
-		return wholeMessage
+==============================================
+>>> START FILE: ./src/lib/NavLink.svelte
+==============================================
+<script>
+    export let href = "/"
+    export let text = href
+</script>
+
+<a href={href}>{text}</a>
+
+==============================================
+<<< END FILE: ./src/lib/NavLink.svelte
+==============================================
+
+==============================================
+>>> START FILE: ./src/lib/Toast.svelte
+==============================================
+<script>
+    import { onMount } from "svelte"
+    export let msg = ""
+    let visible = false
+    onMount(() => {
+        requestAnimationFrame(() => (visible = true))
+        const t = setTimeout(() => (visible = false), 1500)
+        return () => clearTimeout(t)
+    })
+</script>
+
+<div
+    style="position:fixed;bottom:1rem;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.8);color:white;padding:.5rem 1rem;border-radius:.5rem;font-size:.9rem;z-index:9999;transition:opacity .3s"
+    style:opacity={visible ? 1 : 0}
+>
+    {msg}
+</div>
+
+==============================================
+<<< END FILE: ./src/lib/Toast.svelte
+==============================================
+
+==============================================
+>>> START FILE: ./src/routes/+layout.svelte
+==============================================
+<script>
+	import "../app.css";
+	import NavLink from "$lib/NavLink.svelte";
+</script>
+
+<nav style="display:flex;width:100%;background:rgba(0,0,0,0.4)">
+	<NavLink href="/home" text="Home" />
+	<NavLink href="/me" text="Me" />
+	<NavLink href="/search" text="Search" />
+	<NavLink href="/contact" text="Contact" />
+	<NavLink href="/tutorials" text="Tutorials" />
+	<a href="https://www.roblox.com/games/16116270224" target="_blank">Play</a>
+</nav>
+
+<main id="app" style="padding:1rem;color:white">
+	<slot />
+</main>
+
+==============================================
+<<< END FILE: ./src/routes/+layout.svelte
+==============================================
+
+==============================================
+>>> START FILE: ./src/routes/+layout.ts
+==============================================
+export const ssr = false
+export const prerender = true
+
+==============================================
+<<< END FILE: ./src/routes/+layout.ts
+==============================================
+
+==============================================
+>>> START FILE: ./src/routes/+page.server.js
+==============================================
+import { redirect } from '@sveltejs/kit'
+
+export function load() {
+	throw redirect(307, '/home')
+}
+
+==============================================
+<<< END FILE: ./src/routes/+page.server.js
+==============================================
+
+==============================================
+>>> START FILE: ./src/routes/home/+page.svelte
+==============================================
+<script>
+    import NavLink from "$lib/NavLink.svelte"
+</script>
+
+<div style="display:flex;flex-direction:column;gap:1em;width:100%;text-align:center">
+    <h1>Get To Ele!</h1>
+    <h3>Dandy's World Unofficial Lobby Finder</h3>
+
+    <div>
+        <div>Are you tired of teams being so difficult to find?</div>
+        <div>Waiting in the lobby for half an hour until you're ready, just in time for someone to have to leave?</div>
+        <div>Getting together with people of a different region and lagging? Etc etc</div>
+    </div>
+
+    <h1>Wait no more!</h1>
+
+    <div>
+        <div>Find your perfect team right here!</div>
+        <div>Just specify which toons and trinkets you want to use, team composition, your region, and just play!</div>
+    </div>
+
+    <div style="margin-top:4em;margin-bottom:4em;display:flex;flex-direction:column;gap:1em">
+        <h1>Step 1: Verify your Roblox account -> <NavLink href="/me" text="Me" /></h1>
+        <h1>Step 2: Search for a team! -> <NavLink href="/search" text="Search" /></h1>
+    </div>
+
+    <div>
+        This is a website made by one person, so please have mercy if something doesn't work right and use
+        <NavLink href="/contact" text="Contact" /> to leave feedback and bug reports! Thank you ✨
+    </div>
+
+    <div>
+        Oh and one last thing: If you're
+        <span style="color:hotpink">BlushCrunch Studio</span>
+        and you do not approve of this website or want me to change something, let me know!
+        <NavLink href="/contact" text="Contact" />
+    </div>
+</div>
+
+==============================================
+<<< END FILE: ./src/routes/home/+page.svelte
+==============================================
+
+==============================================
+>>> START FILE: ./src/routes/me/+page.svelte
+==============================================
+<script context="module" lang="ts">
+	export const ssr = false;
+</script>
+
+<script lang="ts">
+	import Toast from "$lib/Toast.svelte";
+	import {
+		functions,
+		db,
+		httpsCallable,
+		gteDoc,
+		gteGetDoc,
+	} from "$lib/firebase";
+
+	let robloxName: string = "";
+	let privateServerUrl: string = "";
+	let showMsg: string = "";
+	let verifying = false;
+
+	let handle: string = "";
+	const genCode = () => Math.random().toString(36).slice(2, 12);
+	let code = genCode();
+
+	function copyText(t: string) {
+		navigator.clipboard?.writeText(t).catch(() => {});
+		showMsg = "Text copied to your clipboard!";
+		setTimeout(() => (showMsg = ""), 1600);
 	}
 
-	function ensureVerificationState() {
-		verificationData = {
-			handle: verificationData?.handle || "",
-			code: genCode(),
+	async function verifyNow() {
+		if (!handle.trim() || !code.trim()) {
+			showMsg = "Enter your Roblox @ and generate a code first.";
+			setTimeout(() => (showMsg = ""), 1600);
+			return;
 		}
-		return verificationData
-	}
-
-	async function copyText(t) {
-		try { await navigator.clipboard.writeText(t) } catch { }
-	}
-
-	if (data?.robloxName) {
-		return makeHtml({
-			tag: "div",
-			style: {
-				display: "flex",
-				flexDirection: "column",
-				gap: "1em",
-				width: "100%",
-				textAlign: "center",
-				maxWidth: "720px",
-				margin: "0 auto"
-			},
-			children: [
-				{ tag: "h1", children: [`Logged in as @${"data.robloxName"}`] },
-
-				// Logout button
-				{
-					tag: "button",
-					children: ["Log out"],
-					on: {
-						click: () => {
-							// delete data.robloxName;
-							// setData(data);
-							render();
-						}
-					}
-				},
-
-				// Private server input
-				{
-					tag: "div",
-					children: [
-						{ tag: "div", children: ["OPTIONAL: Share your Dandy's World private server link"], },
-						{ tag: "div", children: ["It is recommended to do this if you can, as it will probably make the search faster!"], },
-					]
-				},
-				{
-					tag: "input",
-					props: { placeholder: "https://www.roblox.com/share?code=..........." },
-					on: {
-						input: e => {
-							privateServerUrlInputContent = e.target.value.trim();
-						}
-					}
-				},
-				{
-					tag: "button",
-					children: ["Save"],
-					on: {
-						click: e => {
-							gteSaveUserProfile({
-								handle: data.robloxName,
-								privateServerUrl: privateServerUrlInputContent,
-							}).then(() => showToast("Saved."))
-						}
-					}
-				},
-
-				// Private server explanation
-				{
-					tag: "div",
-					children: [
-						{ tag: "h1", children: ["Where can I find my link?"] },
-						{ tag: "div", children: ["You can create your own private Dandy's World server for free here:"] },
-						{
-							tag: "a",
-							props: {
-								href: "https://www.roblox.com/games/16116270224/Dandys-World-ALPHA#!/game-instances",
-								target: "_blank"
-							},
-							style: { color: "lightblue" },
-							children: [">>> Dandy's World on Roblox <<<"]
-						},
-						{ tag: "h1", children: ["Go to Servers, and then create one or configure it to see the linK:"] },
-						{
-							tag: "img",
-							props: { src: "/media/howtomakeprivateserver1.webp", alt: "Image: How to make private server part 1" },
-							style: { maxWidth: "100%", display: "block", margin: "0 auto" }
-						},
-						{ tag: "h1", children: ["Make sure you Allow Joining and copy the generated link at the bottom:"] },
-						{
-							tag: "img",
-							props: { src: "/media/howtomakeprivateserver2.webp", alt: "Image: How to make private server part 2" },
-							style: { maxWidth: "100%", display: "block", margin: "0 auto" }
-						},
-					]
-				},
-			]
-		})
-	}
-
-	const v = ensureVerificationState();
-
-	return makeHtml({
-		tag: "div",
-		style: { display: "flex", flexDirection: "column", gap: "1em", width: "100%", maxWidth: "720px", margin: "0 auto", textAlign: "center" },
-		children: [
-			{ tag: "h1", children: ["You are currently NOT verified!"] },
-			{ tag: "div", children: ["You must have a Roblox account and verify it to use this website. Here's how to do it:"] },
-			{
-				tag: "img",
-				props: { src: "/media/howtoverifyrobloxaccount.webp", alt: "Image: How to verify" },
-				style: { maxWidth: "100%", display: "block", margin: "0 auto" }
-			},
-
-			// handle input
-			{
-				tag: "div",
-				style: { display: "flex", gap: "0.5em", alignItems: "center", justifyContent: "center" },
-				children: [
-					{ tag: "label", props: { for: "rbxHandle" }, children: ["Roblox @"] },
-					{
-						tag: "input",
-						props: { id: "rbxHandle", value: v.handle, placeholder: "coolrobloxperson" },
-						on: {
-							input: e => {
-								if (!verificationData) verificationData = { handle: "", code: genCode() }
-								verificationData.handle = e.target.value.trim()
-							}
-						}
-					}
-				]
-			},
-
-			{ tag: "div", children: ["First, copy the following message and add it to your roblox About section:"] },
-
-			// copyable message
-			{
-				tag: "div",
-				style: { display: "flex", gap: "0.5em", alignItems: "stretch", justifyContent: "center" },
-				children: [
-					{
-						tag: "input",
-						props: { readOnly: true, value: verificationData.code },
-						style: { flex: "1" },
-					},
-					{
-						tag: "button",
-						children: ["Copy"],
-						on: {
-							click: () => {
-								copyText(verificationData.code)
-								showToast("Text copied to your clipboard!")
-							}
-						},
-					},
-				]
-			},
-
-			{ tag: "div", children: ["Once that's done, click on the button to verify:"] },
-
-			// verify button (UI only for now)
-			{
-				tag: "div",
-				style: { display: "flex", justifyContent: "center" },
-				children: [
-					{
-						tag: "button",
-						children: ["Verify now"],
-						on: {
-							click: async () => {
-								const handle = data?.verification?.handle?.trim().replace(/^@/, "");
-								const code = data?.verification?.code
-
-								if (!handle || !code) {
-									showToast("Enter your Roblox @ and generate a code first.");
-									return;
-								}
-
-								try {
-									const verifyFn = gteHttpsCallable(gteFunctions, "verifyRoblox")
-									const res = await verifyFn({ handle, code })
-									if (res.data.success) {
-										// Now fetch server truth
-										const docRef = gteDoc(gteDb, "users", handle.toLowerCase())
-										const snap = await gteGetDoc(docRef)
-										const isVerified = snap.exists() && snap.data().verified === true
-										if (isVerified) {
-											// data.robloxName = handle
-											// setData(data)
-											render()
-										}
-									} else {
-										showToast(res.data.error || "Code not found")
-									}
-								} catch (e) {
-									console.error(e)
-									showToast("Verification error")
-								}
-							}
-						}
-					}
-				]
+		verifying = true;
+		try {
+			const verifyFn = httpsCallable(functions, "verifyRoblox");
+			const res: any = await verifyFn({
+				handle: handle.replace(/^@/, ""),
+				code,
+			});
+			if (res.data?.success) {
+				const docRef = gteDoc(db, "users", handle.toLowerCase());
+				const snap = await gteGetDoc(docRef);
+				const isVerified =
+					snap.exists() && (snap.data() as any).verified === true;
+				robloxName = isVerified ? handle.replace(/^@/, "") : "";
+				showMsg = isVerified ? "Verified." : "Not verified on server.";
+			} else {
+				showMsg = res.data?.error || "Code not found";
 			}
-		],
-	})
-}
-==============================================
-<<< END FILE: ./public/pageMe.js
-==============================================
-
-==============================================
->>> START FILE: ./public/pageSearch.js
-==============================================
-const toonsInfo = [
-	{ id: 0, imgSrc: "/media/toons/Astro_Render.webp" }, // TODO "Any" toon image
-	{ id: 1, imgSrc: "/media/toons/Astro_Render.webp" },
-	{ id: 2, imgSrc: "/media/toons/Bassie_Render.webp" },
-	{ id: 3, imgSrc: "/media/toons/Blot_Render.webp" },
-	{ id: 4, imgSrc: "/media/toons/Bobette_Render.webp" },
-	{ id: 5, imgSrc: "/media/toons/Boxten_Render.webp" },
-	{ id: 6, imgSrc: "/media/toons/Brightney_Render.webp" },
-	{ id: 7, imgSrc: "/media/toons/Brusha_Render.webp" },
-	{ id: 8, imgSrc: "/media/toons/Coal_Render.webp" },
-	{ id: 9, imgSrc: "/media/toons/Cocoa_Render.webp" },
-	{ id: 10, imgSrc: "/media/toons/Connie_Render.webp" },
-	{ id: 11, imgSrc: "/media/toons/Cosmo_Render.webp" },
-	{ id: 12, imgSrc: "/media/toons/Eggson_Render.webp" },
-	{ id: 13, imgSrc: "/media/toons/Finn_Render.webp" },
-	{ id: 14, imgSrc: "/media/toons/Flutter_Render.webp" },
-	{ id: 15, imgSrc: "/media/toons/Flyte_Render.webp" },
-	{ id: 16, imgSrc: "/media/toons/Gigi_Render.webp" },
-	{ id: 17, imgSrc: "/media/toons/Ginger_Render.webp" },
-	{ id: 18, imgSrc: "/media/toons/Glisten_Render.webp" },
-	{ id: 19, imgSrc: "/media/toons/Goob_Render.webp" },
-	{ id: 20, imgSrc: "/media/toons/Looey_Render.webp" },
-	{ id: 21, imgSrc: "/media/toons/Pebble_Render.webp" },
-	{ id: 22, imgSrc: "/media/toons/Poppy_Render.webp" },
-	{ id: 23, imgSrc: "/media/toons/Razzle_&_Dazzle_Render.webp" },
-	{ id: 24, imgSrc: "/media/toons/Rodger_Render.webp" },
-	{ id: 25, imgSrc: "/media/toons/Rudie_Render.webp" },
-	{ id: 26, imgSrc: "/media/toons/Scraps_Render.webp" },
-	{ id: 27, imgSrc: "/media/toons/Shelly_Render.webp" },
-	{ id: 28, imgSrc: "/media/toons/Shrimpo_Render.webp" },
-	{ id: 29, imgSrc: "/media/toons/Sprout_Render.webp" },
-	{ id: 30, imgSrc: "/media/toons/Teagan_Render.webp" },
-	{ id: 31, imgSrc: "/media/toons/Tisha_Render.webp" },
-	{ id: 32, imgSrc: "/media/toons/Toodles_Render.webp" },
-	{ id: 33, imgSrc: "/media/toons/Vee_Render.webp" },
-	{ id: 34, imgSrc: "/media/toons/Yatta_Render.webp" },
-]
-
-preloadImages(toonsInfo.map(toonInfo => toonInfo.imgSrc))
-
-let searchData = { rows: [[{ toonID: 0, trinket1ID: 0, trinket2ID: 0 }]] }
-
-// small picker overlay
-
-// --- singleton picker
-let pickerEl = null
-let pickerOpen = false
-
-function hidePicker() {
-	if (!pickerEl) return
-	pickerEl.style.display = "none"
-	pickerOpen = false
-}
-
-function showPicker({ items, onPick, posX, posY }) {
-	console.log({ pickerEl, pickerOpen })
-
-	// Create picker if it doesnt exist:
-	if (!pickerEl) {
-		pickerEl = makeHtml({
-			tag: "div",
-			style: {
-				position: "fixed",
-				left: "0px", top: "0px",
-				background: "rgba(0,0,0,0.9)",
-				color: "white",
-				padding: "0.5rem",
-				borderRadius: "0.5rem",
-				zIndex: 9999,
-				display: "none",
-				gridTemplateColumns: "repeat(5, 2rem)",
-				gap: "0.5rem",
-			},
-			props: { id: "picker" }
-		})
-		document.body.appendChild(pickerEl)
-
-		// one-time outside/Esc handlers
-		document.addEventListener("mousedown", (e) => {
-			if (!pickerOpen) return
-			if (!pickerEl.contains(e.target)) hidePicker()
-		})
-		document.addEventListener("keydown", (e) => {
-			if (!pickerOpen) return
-			if (e.key === "Escape") hidePicker()
-		})
-	}
-
-	// Setup picker position and options:
-	pickerEl.style.left = posX + "px"
-	pickerEl.style.top = posY + "px"
-	pickerEl.replaceChildren(...items.map(item => (
-		makeHtml({
-			tag: "button",
-			children: [
-				{ tag: "div", props: { class: getImgClass(item.imgSrc) }, style: { width: "2rem", height: "2rem" } }
-			],
-			on: {
-				click: () => {
-					onPick(item)
-					hidePicker()
-				}
-			}
-		})
-	)))
-
-	// Show picker:
-	pickerEl.style.display = "grid"
-	pickerOpen = true
-
-	console.log({ pickerEl, pickerOpen })
-}
-
-// Toon Card: 3 Circles (toon, trinket1, trinket2)
-const toonCard = ({
-	toon,
-	rowIndex,
-	toonIndex,
-}) => {
-	const toonInfo = toonsInfo.find(toonInfo => toonInfo.id == toon.toonID)
-	// const trinket1Info = trinketsInfo.find(trinketInfo => trinketInfo.id == toon.trinket1ID)
-	// const trinket2Info = trinketsInfo.find(trinketInfo => trinketInfo.id == toon.trinket2ID)
-
-	const circle = ({ size, imgSrc, onClick }) => {
-		const imgClass = getImgClass(imgSrc)
-		return {
-			tag: "div",
-			style: {
-				width: size + "px", height: size + "px", borderRadius: "100%",
-				background: "rgba(255,255,255,0.15)", display: "grid", placeItems: "center",
-				cursor: "pointer", ":hover": { outline: "2px solid rgba(255,255,255,0.6)" }
-			},
-			children: [
-				{ tag: "div", style: { width: "100%", height: "100%", borderRadius: "100%" }, props: { class: imgClass } },
-			],
-			on: {
-				click: (e) => onClick(e),
-			}
+		} catch (e) {
+			showMsg = "Verification error";
+			console.error(e);
+		} finally {
+			setTimeout(() => (showMsg = ""), 1600);
+			verifying = false;
 		}
 	}
 
-	return {
-		tag: "div",
-		props: { id: `row_${rowIndex}_toon_${toonIndex}` },
-		style: { display: "flex", flexDirection: "column", alignItems: "center", gap: "0.4rem" },
-		children: [
-			circle({
-				size: 72,
-				imgSrc: toonInfo.imgSrc,
-				onClick: (e) => {
-					const rect = e.target.getBoundingClientRect()
-					showPicker({
-						title: "Toon",
-						items: toonsInfo,
-						posX: rect.left,
-						posY: rect.bottom,
-						onPick: (item) => {
-							console.log('onPick', JSON.stringify({ searchData, rowIndex, toonIndex }, null, 2))
-							searchData.rows[rowIndex][toonIndex].toonID = item.id
-							// setData(data)
-							render()
-						}
-					})
-				}
-			}),
-			{
-				tag: "div",
-				style: { display: "flex", gap: "0.4rem" },
-				children: [
-					circle({
-						size: 36,
-						imgSrc: "", // get
-						onClick: (e) => {
-							const rect = e.target.getBoundingClientRect()
-							showPicker({
-								title: "Trinket 1",
-								items: Array.from({ length: 24 }, (_, i) => i), // stub 0..23
-								posX: rect.left,
-								posY: rect.bottom,
-								onPick: (v) => {
-									searchData.rows[rowIndex][toonIndex].t1 = v
-									// setData(data)
-									render()
-								}
-							})
-						}
+	async function savePrivateServer() {
+		try {
+			const saveFn = httpsCallable(functions, "saveUserProfile");
+			await saveFn({ handle: robloxName, privateServerUrl });
+			showMsg = "Saved.";
+		} catch (e) {
+			showMsg = "Save failed";
+			console.error(e);
+		} finally {
+			setTimeout(() => (showMsg = ""), 1600);
+		}
+	}
+
+	function logout() {
+		robloxName = "";
+	}
+</script>
+
+<!-- markup unchanged -->
+
+{#if showMsg}<Toast msg={showMsg} />{/if}
+
+==============================================
+<<< END FILE: ./src/routes/me/+page.svelte
+==============================================
+
+==============================================
+>>> START FILE: ./src/routes/search/+page.svelte
+==============================================
+<script lang="ts">
+	import { onMount } from "svelte";
+
+	type Toon = { id: number; imgSrc: string };
+	const toonsInfo: Toon[] = [
+		{ id: 0, imgSrc: "/media/toons/Astro_Render.webp" }, // TODO "Any" toon image
+		{ id: 1, imgSrc: "/media/toons/Astro_Render.webp" },
+		{ id: 2, imgSrc: "/media/toons/Bassie_Render.webp" },
+		{ id: 3, imgSrc: "/media/toons/Blot_Render.webp" },
+		{ id: 4, imgSrc: "/media/toons/Bobette_Render.webp" },
+		{ id: 5, imgSrc: "/media/toons/Boxten_Render.webp" },
+		{ id: 6, imgSrc: "/media/toons/Brightney_Render.webp" },
+		{ id: 7, imgSrc: "/media/toons/Brusha_Render.webp" },
+		{ id: 8, imgSrc: "/media/toons/Coal_Render.webp" },
+		{ id: 9, imgSrc: "/media/toons/Cocoa_Render.webp" },
+		{ id: 10, imgSrc: "/media/toons/Connie_Render.webp" },
+		{ id: 11, imgSrc: "/media/toons/Cosmo_Render.webp" },
+		{ id: 12, imgSrc: "/media/toons/Eggson_Render.webp" },
+		{ id: 13, imgSrc: "/media/toons/Finn_Render.webp" },
+		{ id: 14, imgSrc: "/media/toons/Flutter_Render.webp" },
+		{ id: 15, imgSrc: "/media/toons/Flyte_Render.webp" },
+		{ id: 16, imgSrc: "/media/toons/Gigi_Render.webp" },
+		{ id: 17, imgSrc: "/media/toons/Ginger_Render.webp" },
+		{ id: 18, imgSrc: "/media/toons/Glisten_Render.webp" },
+		{ id: 19, imgSrc: "/media/toons/Goob_Render.webp" },
+		{ id: 20, imgSrc: "/media/toons/Looey_Render.webp" },
+		{ id: 21, imgSrc: "/media/toons/Pebble_Render.webp" },
+		{ id: 22, imgSrc: "/media/toons/Poppy_Render.webp" },
+		{ id: 23, imgSrc: "/media/toons/Razzle_&_Dazzle_Render.webp" },
+		{ id: 24, imgSrc: "/media/toons/Rodger_Render.webp" },
+		{ id: 25, imgSrc: "/media/toons/Rudie_Render.webp" },
+		{ id: 26, imgSrc: "/media/toons/Scraps_Render.webp" },
+		{ id: 27, imgSrc: "/media/toons/Shelly_Render.webp" },
+		{ id: 28, imgSrc: "/media/toons/Shrimpo_Render.webp" },
+		{ id: 29, imgSrc: "/media/toons/Sprout_Render.webp" },
+		{ id: 30, imgSrc: "/media/toons/Teagan_Render.webp" },
+		{ id: 31, imgSrc: "/media/toons/Tisha_Render.webp" },
+		{ id: 32, imgSrc: "/media/toons/Toodles_Render.webp" },
+		{ id: 33, imgSrc: "/media/toons/Vee_Render.webp" },
+		{ id: 34, imgSrc: "/media/toons/Yatta_Render.webp" },
+	];
+
+	function preloadImages(srcs: string[]) {
+		return Promise.all(
+			srcs.map(
+				(src) =>
+					new Promise<void>((res) => {
+						const img = new Image();
+						img.onload = img.onerror = () => res();
+						img.src = src;
 					}),
-					circle({
-						size: 36,
-						imgSrc: "", // get
-						onClick: (e) => {
-							const rect = e.target.getBoundingClientRect()
-							showPicker({
-								title: "Trinket 2",
-								items: Array.from({ length: 24 }, (_, i) => i),
-								posX: rect.left,
-								posY: rect.bottom,
-								onPick: (v) => {
-									searchData.rows[rowIndex][toonIndex].t2 = v
-									// setData(data)
-									render()
-								}
-							})
-						}
-					})
-				]
-			}
-		]
+			),
+		);
 	}
+
+	onMount(() => {
+		preloadImages(toonsInfo.map((t) => t.imgSrc));
+	});
+
+	type ToonPick = { toonID: number; trinket1ID: number; trinket2ID: number };
+	let rows: ToonPick[][] = [[{ toonID: 0, trinket1ID: 0, trinket2ID: 0 }]];
+
+	let pickerOpen = false;
+	let pickerX = 0,
+		pickerY = 0;
+	let pickerType: "toon" | "t1" | "t2" | null = null;
+	let targetRow = 0,
+		targetCol = 0;
+
+	function openPicker(
+		e: MouseEvent,
+		type: typeof pickerType,
+		r: number,
+		c: number,
+	) {
+		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+		pickerX = rect.left;
+		pickerY = rect.bottom;
+		pickerType = type;
+		targetRow = r;
+		targetCol = c;
+		pickerOpen = true;
+	}
+	function closePicker() {
+		pickerOpen = false;
+	}
+
+	function pickToon(t: Toon) {
+		rows[targetRow][targetCol].toonID = t.id;
+		closePicker();
+	}
+	function pickTrinket(id: number, slot: "t1" | "t2") {
+		if (slot === "t1") rows[targetRow][targetCol].trinket1ID = id;
+		else rows[targetRow][targetCol].trinket2ID = id;
+		closePicker();
+	}
+</script>
+
+<h1>Which toon will you play as?</h1>
+<div>Placing toons in higher priorities (1=highest) affects the search.</div>
+
+{#each rows as row, r}
+	<div
+		style="display:flex;align-items:center;gap:.75rem;padding:.5rem;background:rgba(0,0,0,.35);border-radius:.5rem"
+	>
+		<h1 style="width:2em;text-align:center;margin-left:.4em">{r + 1}</h1>
+		<div style="display:flex;gap:.75rem;flex-wrap:wrap;flex:1">
+			{#each row as toon, c}
+				<div
+					style="display:flex;flex-direction:column;align-items:center;gap:.4rem"
+				>
+					<!-- Toon -->
+					<button
+						type="button"
+						class="circle"
+						aria-label="Select toon"
+						style="width:72px;height:72px;background-size:cover;background-position:center"
+						on:click={(e) => openPicker(e, "toon", r, c)}
+						style:backgroundImage={`url('${toonsInfo.find((t) => t.id === toon.toonID)?.imgSrc ?? ""}')`}
+					></button>
+
+					<!-- Trinkets -->
+					<div style="display:flex;gap:.4rem">
+						<button
+							type="button"
+							class="circle"
+							aria-label="Select trinket slot 1"
+							style="width:36px;height:36px"
+							on:click={(e) => openPicker(e, "t1", r, c)}
+						></button>
+						<button
+							type="button"
+							class="circle"
+							aria-label="Select trinket slot 2"
+							style="width:36px;height:36px"
+							on:click={(e) => openPicker(e, "t2", r, c)}
+						></button>
+					</div>
+				</div>
+			{/each}
+			<button
+				style="width:5em"
+				on:click={() =>
+					row.push({ toonID: 0, trinket1ID: 0, trinket2ID: 0 })}
+				>+ Toon</button
+			>
+		</div>
+		{#if r > 0}
+			<button on:click={() => rows.splice(r, 1)}>Delete row</button>
+		{/if}
+	</div>
+{/each}
+
+<button
+	on:click={() => rows.push([{ toonID: 0, trinket1ID: 0, trinket2ID: 0 }])}
+	>+ Add row</button
+>
+
+{#if pickerOpen}
+	<div
+		class="picker"
+		role="dialog"
+		aria-modal="true"
+		tabindex="-1"
+		style={`left:${pickerX}px;top:${pickerY}px`}
+		on:keydown={(e) => e.key === "Escape" && closePicker()}
+	>
+		{#if pickerType === "toon"}
+			{#each toonsInfo as t}
+				<button
+					type="button"
+					aria-label={`Pick toon ${t.id}`}
+					on:click={() => pickToon(t)}
+					style={`width:2rem;height:2rem;background-image:url('${t.imgSrc}');background-size:cover;background-position:center;border-radius:.25rem`}
+				></button>
+			{/each}
+		{:else if pickerType}
+			{#each Array(24) as _, i}
+				<button
+					on:click={() =>
+						pickTrinket(i, pickerType === "t1" ? "t1" : "t2")}
+					style="width:2rem;height:2rem;border-radius:.25rem"
+					>{i}</button
+				>
+			{/each}
+		{/if}
+	</div>
+	<div
+		role="button"
+		tabindex="0"
+		aria-label="Close picker"
+		style="position:fixed;inset:0"
+		on:click={closePicker}
+		on:keydown={(e) =>
+			(e.key === "Enter" || e.key === " ") && closePicker()}
+	></div>
+{/if}
+
+<style>
+	.picker {
+		position: fixed;
+		background: rgba(0, 0, 0, 0.9);
+		color: white;
+		padding: 0.5rem;
+		border-radius: 0.5rem;
+		z-index: 9999;
+		display: grid;
+		grid-template-columns: repeat(5, 2rem);
+		gap: 0.5rem;
+	}
+	.circle {
+		border-radius: 9999px;
+		background: rgba(255, 255, 255, 0.15);
+		display: grid;
+		place-items: center;
+		cursor: pointer;
+	}
+	.circle:hover {
+		outline: 2px solid rgba(255, 255, 255, 0.6);
+	}
+</style>
+
+==============================================
+<<< END FILE: ./src/routes/search/+page.svelte
+==============================================
+
+==============================================
+>>> START FILE: ./static/robots.txt
+==============================================
+# allow crawling everything by default
+User-agent: *
+Disallow:
+
+==============================================
+<<< END FILE: ./static/robots.txt
+==============================================
+
+==============================================
+>>> START FILE: ./svelte.config.js
+==============================================
+import adapter from '@sveltejs/adapter-static'
+import { vitePreprocess } from '@sveltejs/vite-plugin-svelte'
+
+/** @type {import('@sveltejs/kit').Config} */
+const config = {
+	preprocess: vitePreprocess(),
+	kit: { adapter: adapter() }
 }
 
-// row ui
-const priorityRow = (row, rowIndex) => {
-	return {
-		tag: "div",
-		props: { id: `priority_row_${rowIndex}` },
-		style: {
-			display: "flex", alignItems: "center", gap: "0.75rem",
-			padding: "0.5rem", background: "rgba(0,0,0,0.35)", borderRadius: "0.5rem"
-		},
-		children: [
+export default config
 
-			// Priority number:
-			{
-				tag: "h1",
-				children: [`${rowIndex + 1}`],
-				style: { width: "2em", textAlign: "center", marginLeft: "0.4em" }
-			},
+==============================================
+<<< END FILE: ./svelte.config.js
+==============================================
 
-			// Toons:
-			{
-				tag: "div",
-				style: { display: "flex", gap: "0.75rem", flexWrap: "wrap", flex: "1" },
-				children: [
-					...row.map((toon, toonIndex) => toonCard({ toon, rowIndex, toonIndex })),
-					{
-						tag: "button",
-						children: ["+ Toon"],
-						style: { width: "5em", height: "100%" },
-						on: {
-							click: () => {
-								searchData.rows[rowIndex].push({ toonID: 0, trinket1ID: 0, trinket2ID: 0 })
-								// setData(data)
-								render()
-							}
-						}
-					},
-				]
-			},
-
-			// Delete row button:
-			(rowIndex > 0 && {
-				tag: "button",
-				children: ["Delete row"],
-				on: {
-					click: () => {
-						searchData.rows.splice(rowIndex, 1)
-						// setData(data)
-						render()
-					}
-				}
-			})
-		]
+==============================================
+>>> START FILE: ./tsconfig.json
+==============================================
+{
+	"extends": "./.svelte-kit/tsconfig.json",
+	"compilerOptions": {
+		"allowJs": true,
+		"checkJs": true,
+		"esModuleInterop": true,
+		"forceConsistentCasingInFileNames": true,
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"sourceMap": true,
+		"strict": true,
+		"moduleResolution": "bundler",
+		"noUnusedLocals": false,
+		"noUnusedParameters": false
 	}
-}
-
-const searchPage = () => {
-	return makeHtml({
-		tag: "div",
-		style: { display: "flex", flexDirection: "column", gap: "0.75rem", width: "100%", maxWidth: "960px", margin: "0 auto" },
-		children: [
-			{ tag: "h1", children: ["Which toon will you play as?"] },
-			{ tag: "div", children: ["Placing toons in higher priorities (1=highest) means you'd rather play as those, and the search will keep that in mind!"] },
-			...searchData.rows.map(priorityRow),
-			{
-				tag: "button",
-				children: ["+ Add row"],
-				on: {
-					click: () => {
-						searchData.rows.push([{ toonID: 0, trinket1ID: 0, trinket2ID: 0 }])
-						// setData(data)
-						render()
-					}
-				}
-			}
-		]
-	})
 }
 
 ==============================================
-<<< END FILE: ./public/pageSearch.js
+<<< END FILE: ./tsconfig.json
+==============================================
+
+==============================================
+>>> START FILE: ./vite.config.ts
+==============================================
+import { sveltekit } from '@sveltejs/kit/vite'
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+	plugins: [sveltekit()],
+	server: {
+		proxy: { '/api': 'http://localhost:3000' },
+	},
+})
+
+==============================================
+<<< END FILE: ./vite.config.ts
 ==============================================
 

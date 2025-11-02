@@ -1,0 +1,29 @@
+{
+	// Hide built-in JS/TS diagnostics so ts(6133) disappears
+	"javascript.validate.enable": false,
+	"typescript.validate.enable": false,
+	// Hide Svelte’s TS diagnostics so the same message doesn’t reappear in .svelte
+	"svelte.plugin.typescript.enable": false,
+	// Keep formatting with supported formatters
+	"[javascript]": {
+		"editor.defaultFormatter": "vscode.typescript-language-features"
+	},
+	"[typescript]": {
+		"editor.defaultFormatter": "vscode.typescript-language-features"
+	},
+	"[svelte]": {
+		"editor.defaultFormatter": "svelte.svelte-vscode"
+	},
+	// Let ESLint provide warnings and fixes on save
+	"editor.codeActionsOnSave": {
+		"source.fixAll": "always",
+		"source.fixAll.eslint": "always"
+	},
+	"editor.tabSize": 4,
+	"editor.insertSpaces": false,
+	"editor.formatOnSave": true,
+	"editor.indentSize": "tabSize",
+	"editor.detectIndentation": false,
+	"files.insertFinalNewline": true,
+	"files.trimFinalNewlines": true
+}

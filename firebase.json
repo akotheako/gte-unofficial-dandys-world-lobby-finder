@@ -1,13 +1,11 @@
 {
 	"firestore": {
-		"database": "(default)",
-		"location": "nam7",
 		"rules": "firestore.rules",
 		"indexes": "firestore.indexes.json"
 	},
 	"hosting": {
 		"site": "gte",
-		"public": "public",
+		"public": "build",
 		"ignore": [
 			"firebase.json",
 			"**/.*",
@@ -23,14 +21,7 @@
 	"functions": [
 		{
 			"source": "functions",
-			"codebase": "default",
-			"ignore": [
-				"node_modules",
-				".git",
-				"firebase-debug.log",
-				"firebase-debug.*.log",
-				"*.local"
-			]
+			"codebase": "default"
 		}
 	]
 }

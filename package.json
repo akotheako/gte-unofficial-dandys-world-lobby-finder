@@ -1,5 +1,43 @@
 {
-  "dependencies": {
-    "firebase": "12.1.0"
-  }
+	"name": "myapp",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"api": "node server.mjs",
+		"api:watch": "nodemon --watch server.mjs --ext mjs --exec node server.mjs",
+		"build:watch": "vite build --watch",
+		"dev:all": "concurrently -n api,web -c auto \"npm:api:watch\" \"npm:dev\"",
+		"serve:watch": "concurrently -n build,serve -c auto \"npm:build:watch\" \"npm:api\"",
+		"emu": "firebase emulators:start --only functions,firestore"
+	},
+	"devDependencies": {
+		"concurrently": "^9.0.1",
+		"nodemon": "^3.1.7",
+		"@eslint/compat": "^1.2.5",
+		"@eslint/js": "^9.36.0",
+		"@sveltejs/adapter-auto": "^6.0.0",
+		"@sveltejs/adapter-static": "^3.0.9",
+		"@sveltejs/kit": "^2.22.0",
+		"@sveltejs/vite-plugin-svelte": "^6.0.0",
+		"eslint": "^9.36.0",
+		"eslint-plugin-svelte": "^3.12.4",
+		"globals": "^16.0.0",
+		"svelte": "^5.0.0",
+		"svelte-check": "^4.0.0",
+		"typescript": "^5.9.2",
+		"typescript-eslint": "^8.44.0",
+		"vite": "^7.0.4"
+	},
+	"dependencies": {
+		"@hono/node-server": "^1.19.2",
+		"firebase": "^12.3.0",
+		"hono": "^4.9.6"
+	},
+	"overrides": {
+		"cookie": "0.7.0"
+	}
 }

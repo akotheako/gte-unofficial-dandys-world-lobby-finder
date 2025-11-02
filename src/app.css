@@ -1,0 +1,72 @@
+/* from baseStyle.css */
+* {
+	margin: 0;
+	box-sizing: border-box;
+	font-family: 'Comic Relief', sans-serif
+}
+
+body {
+	margin: 0;
+	height: 100vh;
+	transition: filter 0.3s ease;
+	background:
+		url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='50' height='50'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.2'/></svg>") repeat,
+		linear-gradient(to right,
+			#4d3051 0% 16.66%,
+			#264e64 16.66% 33.33%,
+			#677b5d 33.33% 50%,
+			#aaa456 50% 66.66%,
+			#9e4f1b 66.66% 83.33%,
+			#70272c 83.33% 100%);
+}
+
+body.muted-bg {
+	background:
+		url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='50' height='50'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.06'/></svg>") repeat,
+		linear-gradient(to right,
+			#3f3044 0% 16.66%,
+			#2c434e 16.66% 33.33%,
+			#5f665a 33.33% 50%,
+			#888455 50% 66.66%,
+			#8f6b51 66.66% 83.33%,
+			#4d3335 83.33% 100%);
+}
+
+h1 {
+	font-family: 'Gluten', sans-serif
+}
+
+button {
+	all: unset;
+	cursor: pointer;
+	background-color: royalblue;
+	padding: .6em 1em;
+	border-radius: 1em
+}
+
+button:hover {
+	filter: brightness(1.2)
+}
+
+input,
+textarea {
+	all: unset;
+	background-color: #264e64;
+	padding: .6em 1em;
+	border-radius: 1em;
+	color: white;
+	font: inherit;
+}
+
+a {
+	flex: 1;
+	text-decoration: none;
+	text-align: center;
+	padding: .5rem 0;
+	transition: background .2s;
+	color: aqua
+}
+
+a:hover {
+	background: rgba(255, 255, 255, .2)
+}

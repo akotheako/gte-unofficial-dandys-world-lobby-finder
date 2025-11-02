@@ -1,0 +1,19 @@
+{
+	"/": [
+		"src/routes/+page.server.js",
+		"src/routes/+layout.ts",
+		"src/routes/+layout.ts"
+	],
+	"/contact": [
+		"src/routes/+layout.ts"
+	],
+	"/home": [
+		"src/routes/+layout.ts"
+	],
+	"/me": [
+		"src/routes/+layout.ts"
+	],
+	"/search": [
+		"src/routes/+layout.ts"
+	]
+}
