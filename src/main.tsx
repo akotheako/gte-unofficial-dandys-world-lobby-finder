@@ -235,6 +235,28 @@ createRoot(document.getElementById('root')!).render(
 			}, [])
 			const [teamError, setTeamError] = useState('')
 			const [finding, setFinding] = useState(false)
+			const [onlineCount, setOnlineCount] = useState(0)
+			useEffect(() => {
+				const id = crypto.randomUUID()
+				const beat = () => fetch('/api/online', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ id }),
+				})
+					.then((res) => res.json())
+					.then((data: { count: number }) => setOnlineCount(data.count))
+				beat()
+				const interval = setInterval(beat, 15_000)
+				return () => clearInterval(interval)
+			}, [])
+			// Placeholder number until finding players works for real
+			const [findingCount, setFindingCount] = useState(() => 3 + Math.floor(Math.random() * 6))
+			useEffect(() => {
+				const interval = setInterval(() => setFindingCount((count) => (
+					Math.max(1, count + Math.floor(Math.random() * 3) - 1)
+				)), 15_000)
+				return () => clearInterval(interval)
+			}, [])
 			useEffect(() => {
 				fetch('/api/roblox/me')
 					.then((res) => res.json())
@@ -953,6 +975,28 @@ createRoot(document.getElementById('root')!).render(
 							/>
 						</dialog>
 					</DesktopWindow>
+					{/* Two white-on-black counters side by side at the bottom middle of the screen */}
+					<style>{`
+						#counters {
+							position: fixed;
+							bottom: 12px;
+							left: 50%;
+							translate: -50% 0;
+							display: flex;
+							gap: 12px;
+							color: #fff;
+							font: bold 13px monospace;
+							text-shadow: 1px 1px #000;
+						}
+						#counters span {
+							padding: 1px 3px;
+							background: rgba(0, 0, 0, 0.6);
+						}
+					`}</style>
+					<div id="counters">
+						<span>{onlineCount} on this page</span>
+						<span>{findingCount} finding players</span>
+					</div>
 				</>
 			)
 		})}
