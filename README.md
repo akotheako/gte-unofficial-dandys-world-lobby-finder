@@ -1,4 +1,4 @@
-# gte_acid
+# dwlobby
 
 A website with a React frontend and a Hono backend, all in TypeScript.
 
@@ -35,7 +35,7 @@ Lint everything with `npm run lint`.
 
 ## Recreating the project from zero
 
-These commands were run from an empty `gte_acid` folder in Git Bash, with Node 24.
+These commands were run from an empty `dwlobby` folder in Git Bash, with Node 24.
 
 1. Scaffold the Vite React TypeScript template into the current folder:
 

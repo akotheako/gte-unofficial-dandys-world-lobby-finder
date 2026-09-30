@@ -1,4 +1,4 @@
-# gte_acid
+# dwlobby
 
 The whole frontend is `src/main.tsx`, and the whole page is one component inside its `render` call.
 `server/main.ts` is the wiring file for the backend. Each backend feature lives in its own module
