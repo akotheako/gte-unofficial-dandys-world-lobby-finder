@@ -1,8 +1,14 @@
 {
 	"framework": "vite",
 	"functions": {
-		"api/[[...route]].ts": {
+		"api/index.ts": {
 			"includeFiles": "public/**"
 		}
-	}
+	},
+	"rewrites": [
+		{
+			"source": "/api/(.*)",
+			"destination": "/api"
+		}
+	]
 }

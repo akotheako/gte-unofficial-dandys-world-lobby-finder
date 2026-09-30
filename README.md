@@ -29,7 +29,7 @@ npm run build   # type-check everything and build the frontend into dist/
 npm start
 ```
 
-On Vercel, which deploys every push to the connected GitHub repo, there is no long-running server. Vercel serves `dist/` itself, and `api/[[...route]].ts` hands every `/api` request to the same Hono app as a serverless function. `vercel.json` bundles `public/` into that function, because the images route reads those folders. The `COOKIE_SECRET` goes into the Vercel project's settings, under Environment Variables.
+On Vercel, which deploys every push to the connected GitHub repo, there is no long-running server. Vercel serves `dist/` itself, and `api/index.ts` hands every `/api` request to the same Hono app as a serverless function. A rewrite in `vercel.json` sends every `/api/...` path to that one function, and `vercel.json` also bundles `public/` into that function, because the images route reads those folders. The `COOKIE_SECRET` goes into the Vercel project's settings, under Environment Variables.
 
 Lint everything with `npm run lint`.
 
@@ -95,7 +95,7 @@ These commands were run from an empty `gte_acid` folder in Git Bash, with Node 2
 
    Then make these three edits by hand:
 
-   - Write the server into `server/main.ts`: an exported Hono `app`, a `serveStatic` handler for `dist/`, and the call to `serve` on port 3000, which is skipped when the `VERCEL` environment variable is set. Write `api/[[...route]].ts`, which only re-exports that `app` as its default export, and `vercel.json`, which sets the framework to `vite` and adds `public/**` to that function's `includeFiles`. Write the Roblox `code`, `check`, `me`, `badges` and `logout` routes into `server/roblox.ts`, and mount them under `/api/roblox` in `server/main.ts`. Write a route into `server/images.ts` that lists the `.png` files in `public/toons` or `public/trinkets`, and mount it under `/api/images`.
+   - Write the server into `server/main.ts`: an exported Hono `app`, a `serveStatic` handler for `dist/`, and the call to `serve` on port 3000, which is skipped when the `VERCEL` environment variable is set. Write `api/index.ts`, which only re-exports that `app` as its default export, and `api/tsconfig.json`, which sets `rewriteRelativeImportExtensions`, because Vercel compiles each `.ts` file into a `.js` file and the `.ts` imports would otherwise point at files that do not exist there. Also write `vercel.json`, which sets the framework to `vite`, adds `public/**` to that function's `includeFiles`, and rewrites `/api/(.*)` to `/api`. Write the Roblox `code`, `check`, `me`, `badges` and `logout` routes into `server/roblox.ts`, and mount them under `/api/roblox` in `server/main.ts`. Write a route into `server/images.ts` that lists the `.png` files in `public/toons` or `public/trinkets`, and mount it under `/api/images`.
    - Add `"server"` to the `include` list in `tsconfig.node.json`, so that `npm run build` type-checks the server with the Node settings.
    - Add a `server.proxy` entry to `vite.config.ts` that forwards `/api` to `http://localhost:3000`.
 
