@@ -237,7 +237,9 @@ createRoot(document.getElementById('root')!).render(
 			const [finding, setFinding] = useState(false)
 			const [onlineCount, setOnlineCount] = useState(0)
 			useEffect(() => {
-				const id = crypto.randomUUID()
+				// The id survives reloads, so a reloaded tab still counts as one person
+				const id = sessionStorage.getItem('onlineId') ?? crypto.randomUUID()
+				sessionStorage.setItem('onlineId', id)
 				const beat = () => fetch('/api/online', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
