@@ -1,69 +1,91 @@
-// eslint.config.js
-import { includeIgnoreFile } from '@eslint/compat'
 import js from '@eslint/js'
-import svelte from 'eslint-plugin-svelte'
+import stylistic from '@stylistic/eslint-plugin'
 import globals from 'globals'
-import { fileURLToPath } from 'node:url'
-import ts from 'typescript-eslint'
-import svelteParser from 'svelte-eslint-parser'
-import svelteConfig from './svelte.config.js'
+import reactHooks from 'eslint-plugin-react-hooks'
+import tseslint from 'typescript-eslint'
+import { defineConfig, globalIgnores } from 'eslint/config'
 
-const gitignorePath = fileURLToPath(new URL('./.gitignore', import.meta.url))
-
-export default [
-	includeIgnoreFile(gitignorePath),
-
-	js.configs.recommended,
-	...ts.configs.recommended,
-	...svelte.configs.recommended,
-
-	// JS/TS
+export default defineConfig([
+	globalIgnores(['dist']),
 	{
-		files: ['**/*.{js,cjs,mjs,ts,tsx}'],
-		languageOptions: {
-			globals: { ...globals.browser, ...globals.node },
-			parser: ts.parser,
-			parserOptions: { projectService: true },
+		files: ['**/*.{js,ts,tsx}'],
+		extends: [
+			js.configs.recommended,
+			tseslint.configs.recommended,
+			reactHooks.configs.flat.recommended,
+		],
+		plugins: {
+			'@stylistic': stylistic,
 		},
-		rules: {
-			'no-undef': 'off',
-			'@typescript-eslint/no-unused-vars': ['warn', {
-				argsIgnorePattern: '^_',
-				varsIgnorePattern: '^_',
-				ignoreRestSiblings: true,
-			}],
-			'indent': ['error', 4, { SwitchCase: 1 }],
-			'eol-last': ['error', 'always'],
-			'no-multiple-empty-lines': ['error', { max: 2, maxEOF: 1 }],
-			'comma-dangle': ['error', 'always-multiline'],
-			'semi': ['error', 'never'],
-		},
-	},
-
-	// Svelte
-	{
-		files: ['**/*.svelte'],
 		languageOptions: {
-			globals: { ...globals.browser, ...globals.node },
-			parser: svelteParser,
-			parserOptions: {
-				parser: ts.parser,
-				projectService: true,
-				svelteConfig,
-				extraFileExtensions: ['.svelte'],
+			globals: {
+				...globals.browser,
+				...globals.node,
 			},
 		},
 		rules: {
-			'@typescript-eslint/no-unused-vars': ['warn', {
-				argsIgnorePattern: '^_',
-				varsIgnorePattern: '^_',
-				ignoreRestSiblings: true,
-			}],
-			'svelte/indent': ['error', { indent: 4 }],
-			'eol-last': ['error', 'always'],
-			'no-multiple-empty-lines': ['error', { max: 2, maxEOF: 1 }],
-			'comma-dangle': ['error', 'always-multiline'],
-			'semi': ['error', 'never'],
+			// Multiline text is written as one template literal with its real line breaks,
+			// so its lines are allowed to run past the limit.
+			'@stylistic/max-len': [
+				'error',
+				{
+					code: 100,
+					tabWidth: 0,
+					ignoreTemplateLiterals: true,
+					ignoreUrls: true,
+				},
+			],
+			'@stylistic/object-curly-newline': [
+				'error',
+				{
+					ObjectExpression: {
+						minProperties: 2,
+						consistent: true,
+					},
+					ObjectPattern: {
+						minProperties: 2,
+						consistent: true,
+					},
+					TSTypeLiteral: {
+						minProperties: 2,
+						consistent: true,
+					},
+					ImportDeclaration: {
+						consistent: true,
+					},
+					ExportDeclaration: {
+						consistent: true,
+					},
+				},
+			],
+			'@stylistic/object-property-newline': 'error',
+			'@stylistic/no-trailing-spaces': 'error',
+			'@stylistic/semi': [
+				'error',
+				'never',
+			],
+			'@stylistic/comma-dangle': [
+				'error',
+				'always-multiline',
+			],
+			'@stylistic/indent': [
+				'error',
+				'tab',
+			],
+			'@stylistic/jsx-indent-props': [
+				'error',
+				'tab',
+			],
+			'@stylistic/jsx-max-props-per-line': [
+				'error',
+				{
+					maximum: 1,
+				},
+			],
+			'@stylistic/jsx-first-prop-new-line': [
+				'error',
+				'multiprop',
+			],
 		},
 	},
-]
+])

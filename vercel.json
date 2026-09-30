@@ -1,0 +1,8 @@
+{
+	"framework": "vite",
+	"functions": {
+		"api/[[...route]].ts": {
+			"includeFiles": "public/**"
+		}
+	}
+}
