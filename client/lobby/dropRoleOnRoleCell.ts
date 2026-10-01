@@ -13,7 +13,7 @@ export function dropRoleOnRoleCell({
 	event: DragEvent
 	index: number
 }) {
-	const name = event.dataTransfer.getData('role') || event.dataTransfer.getData('solar-support')
+	const name = event.dataTransfer.getData('role')
 	const from = event.dataTransfer.getData('from')
 	if (!name || from === `${index} roles`) return
 	setRoleNames([

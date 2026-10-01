@@ -9,6 +9,6 @@ export function dragRoleFromTable({
 	index: number
 	name: string
 }) {
-	event.dataTransfer.setData(name === 'Solar Support' ? 'solar-support' : 'role', name)
+	event.dataTransfer.setData('role', name)
 	event.dataTransfer.setData('from', `${index} roles`)
 }

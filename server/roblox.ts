@@ -23,7 +23,7 @@ roblox.get('/code', async (c) => {
 		(n) => emojis[n % emojis.length],
 	).join('')
 	// The sentence tells anyone who pastes the code that it verifies their account for GTE.
-	const code = `This is my verification code for GTE! ${emojiCode}`
+	const code = `This is my verification code for DW Team Finder! ${emojiCode}`
 	await setSignedCookie(c, 'roblox_code', code, cookieSecret, {
 		httpOnly: true,
 		sameSite: 'Lax',

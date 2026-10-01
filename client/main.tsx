@@ -361,11 +361,11 @@ createRoot(document.getElementById('root')!).render(
 							}
 							#team-trinkets {
 								left: calc(100% + 24px);
-								top: -60px;
+								top: 20px;
 							}
 							#team-badges-and-roles {
 								left: calc(100% + 24px);
-								top: 380px;
+								top: 460px;
 								display: flex;
 								align-items: flex-start;
 								gap: 24px;
@@ -496,14 +496,26 @@ createRoot(document.getElementById('root')!).render(
 							}
 							#team-badges li,
 							#team-roles li,
-							.team-badge-or-role {
+							#team-badges li,
+							#team-roles li,
+							.team-badge-or-role[draggable="true"] {
 								cursor: grab;
+							}
+							#team-badges li,
+							#team-roles li,
+							.team-badge-or-role {
 								white-space: nowrap;
 							}
 							#team-badges li:hover,
 							#team-roles li:hover,
-							.team-badge-or-role:hover {
+							.team-badge-or-role[draggable="true"]:hover {
 								background: #e0e0e0;
+							}
+							/* Grey role name with a line through it and a "?" cursor, because the row's toon cannot do it */
+							.team-badge-or-role[data-crossed-out="true"] {
+								color: gray;
+								text-decoration: line-through;
+								cursor: help;
 							}
 						`}</style>
 						<div id="team-badges-and-roles">
@@ -652,10 +664,10 @@ createRoot(document.getElementById('root')!).render(
 												onDragOver={cell.allowPictureDropOnCell}
 												onDrop={cell.dropPictureOnCell}
 											>
-												{/* Grey "(Any)" text in an empty Toon cell, which cannot be dragged */}
-												{cell.anyToonText && (
+												{/* Grey "(Any)" text in an empty Toon or Trinket cell, which cannot be dragged */}
+												{cell.anyText && (
 													<div className="team-text team-placeholder">
-														{cell.anyToonText}
+														{cell.anyText}
 													</div>
 												)}
 												{/* Toon or trinket picture */}
@@ -704,6 +716,8 @@ createRoot(document.getElementById('root')!).render(
 													<div
 														key={role.name}
 														className="team-badge-or-role"
+														data-crossed-out={role.isCrossedOut}
+														title={role.crossedOutTooltip}
 														draggable={role.draggable}
 														onDragStart={role.dragRoleFromTable}
 														onDragEnd={role.endRoleDragFromTable}
@@ -1012,8 +1026,8 @@ createRoot(document.getElementById('root')!).render(
 						}
 					`}</style>
 					<div id="counters">
-						<span>{logic.onThisPageCount} on this page</span>
-						<span>{logic.findingPlayersCount} finding players</span>
+						<span>{logic.onThisPageCount} online</span>
+						<span>{logic.findingPlayersCount} looking for a team</span>
 					</div>
 				</>
 			)

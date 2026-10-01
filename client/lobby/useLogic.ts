@@ -124,12 +124,12 @@ export function useLogic() {
 		setTrinketsWindowPictures: (trinketsWindowPictures) => setState({ trinketsWindowPictures }),
 	}), [setState])
 
-	// Keeps the "on this page" counter at the bottom of the screen up to date
+	// Keeps the "online" counter at the bottom of the screen up to date
 	useEffect(() => keepOnThisPageCountUpdated({
 		setOnThisPageCount: (onThisPageCount) => setState({ onThisPageCount }),
 	}), [setState])
 
-	// Keeps the "finding players" counter at the bottom of the screen up to date
+	// Keeps the "looking for a team" counter at the bottom of the screen up to date
 	useEffect(() => fakeFindingPlayersCount({
 		getFindingPlayersCount: () => getSyncState().findingPlayersCount,
 		setFindingPlayersCount: (findingPlayersCount) => setState({ findingPlayersCount }),
@@ -298,7 +298,7 @@ export function useLogic() {
 			name,
 			dragFromSideWindow: (event: DragEvent) => dragFromSideWindow({
 				event,
-				kind: name === 'Solar Support' ? 'solar-support' : 'role',
+				kind: 'role',
 				name,
 			}),
 		})),
@@ -354,8 +354,8 @@ export function useLogic() {
 						column,
 					}),
 
-					// Grey "(Any)" text in an empty Toon cell
-					anyToonText: column === 'toonPicture' && !row[column] ? '(Any)' : '',
+					// Grey "(Any)" text in an empty Toon or Trinket cell
+					anyText: row[column] ? '' : '(Any)',
 
 					// Picture inside the cell, which drags to another cell or out of the table to
 					// clear it
@@ -424,10 +424,9 @@ export function useLogic() {
 				}),
 			})),
 
-			// Role cell after Badges, which accepts Solar Support only when the toon is Bobette
+			// Role cell after Badges
 			allowRoleDropOnRoleCell: (event: DragEvent) => allowRoleDropOnRoleCell({
 				getIsFindingPlayers: () => getSyncState().isFindingPlayers,
-				getToonPicture: () => getSyncState().teamTableRows[index].toonPicture,
 				event,
 			}),
 			dropRoleOnRoleCell: (event: DragEvent) => dropRoleOnRoleCell({
@@ -443,32 +442,40 @@ export function useLogic() {
 			}),
 
 			// Role names stacked in that cell, which drag to another row or out of the table.
-			// Solar Support stays hidden while the toon is anyone but Bobette.
+			// While finding players, Solar Support is crossed out when the toon is not Bobette.
 			roles: row.roleNames
-				.filter((name) => name !== 'Solar Support' || row.toonPicture === 'bobette.png')
-				.map((name) => ({
-					name,
-					draggable: !state.isFindingPlayers,
-					dragRoleFromTable: (event: DragEvent) => dragRoleFromTable({
-						event,
-						index,
+				.map((name) => {
+					const isCrossedOut = state.isFindingPlayers
+						&& name === 'Solar Support'
+						&& row.toonPicture !== 'bobette.png'
+					return {
 						name,
-					}),
-					endRoleDragFromTable: (event: DragEvent) => endRoleDragFromTable({
-						getTableDragLandedInAnotherCell: () => (
-							getSyncState().tableDragLandedInAnotherCell
-						),
-						setTableDragLandedInAnotherCell: (tableDragLandedInAnotherCell) => setState({
-							tableDragLandedInAnotherCell,
+						isCrossedOut,
+						crossedOutTooltip: isCrossedOut
+							? 'Only Bobette can help with Solar Distracting'
+							: undefined,
+						draggable: !state.isFindingPlayers,
+						dragRoleFromTable: (event: DragEvent) => dragRoleFromTable({
+							event,
+							index,
+							name,
 						}),
-						getRoleNames: () => getSyncState().teamTableRows[index].roleNames,
-						setRoleNames: (roleNames) => mutateState((state) => {
-							state.teamTableRows[index].roleNames = roleNames
+						endRoleDragFromTable: (event: DragEvent) => endRoleDragFromTable({
+							getTableDragLandedInAnotherCell: () => (
+								getSyncState().tableDragLandedInAnotherCell
+							),
+							setTableDragLandedInAnotherCell: (tableDragLandedInAnotherCell) => setState({
+								tableDragLandedInAnotherCell,
+							}),
+							getRoleNames: () => getSyncState().teamTableRows[index].roleNames,
+							setRoleNames: (roleNames) => mutateState((state) => {
+								state.teamTableRows[index].roleNames = roleNames
+							}),
+							event,
+							name,
 						}),
-						event,
-						name,
-					}),
-				})),
+					}
+				}),
 
 			// Last column: the Reserved checkbox, or while searching either "Finding player..."
 

@@ -6,7 +6,7 @@ export function dragFromSideWindow({
 	name,
 }: {
 	event: DragEvent
-	kind: 'toon' | 'trinket' | 'badge' | 'role' | 'solar-support' | 'leave-empty'
+	kind: 'toon' | 'trinket' | 'badge' | 'role' |'leave-empty'
 	name: string
 }) {
 	event.dataTransfer.setData(kind, name)
