@@ -10,6 +10,7 @@ import { useSyncState } from '../useSyncState.ts'
 import { allowBadgeDropOnBadgesCell } from './allowBadgeDropOnBadgesCell.ts'
 import { allowLeaveEmptyDropOnRow } from './allowLeaveEmptyDropOnRow.ts'
 import { allowPictureDropOnCell } from './allowPictureDropOnCell.ts'
+import { allowRoleDropOnRoleCell } from './allowRoleDropOnRoleCell.ts'
 import {
 	chooseRegionOrFloorGoalDropdownOption,
 } from './chooseRegionOrFloorGoalDropdownOption.ts'
@@ -19,10 +20,13 @@ import { copyVerificationEmojiCode } from './copyVerificationEmojiCode.ts'
 import { dragBadgeFromTable } from './dragBadgeFromTable.ts'
 import { dragFromSideWindow } from './dragFromSideWindow.ts'
 import { dragPictureFromTable } from './dragPictureFromTable.ts'
+import { dragRoleFromTable } from './dragRoleFromTable.ts'
 import { dropBadgeOnBadgesCell } from './dropBadgeOnBadgesCell.ts'
 import { dropPictureOnCell } from './dropPictureOnCell.ts'
+import { dropRoleOnRoleCell } from './dropRoleOnRoleCell.ts'
 import { endBadgeDragFromTable } from './endBadgeDragFromTable.ts'
 import { endPictureDragFromTable } from './endPictureDragFromTable.ts'
+import { endRoleDragFromTable } from './endRoleDragFromTable.ts'
 import { fakeFindingPlayersCount } from './fakeFindingPlayersCount.ts'
 import { growWindowFromIcon } from './growWindowFromIcon.ts'
 import { keepOnThisPageCountUpdated } from './keepOnThisPageCountUpdated.ts'
@@ -61,6 +65,7 @@ export type TeamTableRow = {
 	trinketAPicture: string
 	trinketBPicture: string
 	badgeNames: string[]
+	roleNames: string[]
 	isReserved: boolean
 	isLeftEmpty: boolean
 }
@@ -74,6 +79,7 @@ export function useLogic() {
 	} = useSyncState((): {
 		verifiedRobloxAccount: RobloxAccount | null
 		verificationEmojiCode: string
+		isVerificationEmojiCodeCopied: boolean
 		robloxVerificationError: string
 		robloxBadgeChecklist: RobloxBadge[] | null
 		usernameFieldStartValue: string
@@ -93,6 +99,7 @@ export function useLogic() {
 	} => ({
 		verifiedRobloxAccount: null,
 		verificationEmojiCode: '',
+		isVerificationEmojiCodeCopied: false,
 		robloxVerificationError: '',
 		robloxBadgeChecklist: null,
 		usernameFieldStartValue: localStorage.getItem('robloxUsername') ?? '',
@@ -204,7 +211,11 @@ export function useLogic() {
 		verificationEmojiCode: state.verificationEmojiCode,
 		copyVerificationEmojiCode: () => copyVerificationEmojiCode({
 			getVerificationEmojiCode: () => getSyncState().verificationEmojiCode,
+			setIsVerificationEmojiCodeCopied: (isVerificationEmojiCodeCopied) => setState({
+				isVerificationEmojiCodeCopied,
+			}),
 		}),
+		copyButtonText: state.isVerificationEmojiCodeCopied ? 'Copied!' : 'Copy',
 		usernameFieldStartValue: state.usernameFieldStartValue,
 		verifyRobloxUsername: (event: FormEvent<HTMLFormElement>) => verifyRobloxUsername({
 			setRobloxVerificationError: (robloxVerificationError) => setState({
@@ -275,6 +286,23 @@ export function useLogic() {
 				}),
 			})),
 
+		// Role names in the Roles side window, beside Badges
+		rolesWindowTiles: [
+			'Distracts Pebble',
+			'Distracts grabbers',
+			'Distracts the rest',
+			'Babysits Glisten',
+			'Solar Support',
+			'Extractor',
+		].map((name) => ({
+			name,
+			dragFromSideWindow: (event: DragEvent) => dragFromSideWindow({
+				event,
+				kind: name === 'Solar Support' ? 'solar-support' : 'role',
+				name,
+			}),
+		})),
+
 		// Rows of the white table in the middle of Find a Team
 		teamTableRows: state.teamTableRows.map((row, index) => ({
 			key: index,
@@ -293,7 +321,7 @@ export function useLogic() {
 
 			// Grey "(Leave Empty)" cell that spans the whole row and clears when clicked
 			isLeftEmpty: row.isLeftEmpty,
-			leaveEmptyCellColSpan: isRobloxVerified ? 5 : 4,
+			leaveEmptyCellColSpan: isRobloxVerified ? 6 : 5,
 			leaveEmptyCellClass: state.isFindingPlayers
 				? 'team-disabled'
 				: 'team-disabled team-clickable',
@@ -395,6 +423,52 @@ export function useLogic() {
 					name,
 				}),
 			})),
+
+			// Role cell after Badges, which accepts Solar Support only when the toon is Bobette
+			allowRoleDropOnRoleCell: (event: DragEvent) => allowRoleDropOnRoleCell({
+				getIsFindingPlayers: () => getSyncState().isFindingPlayers,
+				getToonPicture: () => getSyncState().teamTableRows[index].toonPicture,
+				event,
+			}),
+			dropRoleOnRoleCell: (event: DragEvent) => dropRoleOnRoleCell({
+				getRoleNames: () => getSyncState().teamTableRows[index].roleNames,
+				setRoleNames: (roleNames) => mutateState((state) => {
+					state.teamTableRows[index].roleNames = roleNames
+				}),
+				setTableDragLandedInAnotherCell: (tableDragLandedInAnotherCell) => setState({
+					tableDragLandedInAnotherCell,
+				}),
+				event,
+				index,
+			}),
+
+			// Role names stacked in that cell, which drag to another row or out of the table.
+			// Solar Support stays hidden while the toon is anyone but Bobette.
+			roles: row.roleNames
+				.filter((name) => name !== 'Solar Support' || row.toonPicture === 'bobette.png')
+				.map((name) => ({
+					name,
+					draggable: !state.isFindingPlayers,
+					dragRoleFromTable: (event: DragEvent) => dragRoleFromTable({
+						event,
+						index,
+						name,
+					}),
+					endRoleDragFromTable: (event: DragEvent) => endRoleDragFromTable({
+						getTableDragLandedInAnotherCell: () => (
+							getSyncState().tableDragLandedInAnotherCell
+						),
+						setTableDragLandedInAnotherCell: (tableDragLandedInAnotherCell) => setState({
+							tableDragLandedInAnotherCell,
+						}),
+						getRoleNames: () => getSyncState().teamTableRows[index].roleNames,
+						setRoleNames: (roleNames) => mutateState((state) => {
+							state.teamTableRows[index].roleNames = roleNames
+						}),
+						event,
+						name,
+					}),
+				})),
 
 			// Last column: the Reserved checkbox, or while searching either "Finding player..."
 

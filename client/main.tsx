@@ -302,7 +302,9 @@ createRoot(document.getElementById('root')!).render(
 										readOnly
 										tabIndex={-1}
 									/>
-									<button onClick={logic.copyVerificationEmojiCode}>Copy</button>
+									<button onClick={logic.copyVerificationEmojiCode}>
+										{logic.copyButtonText}
+									</button>
 								</div>
 								<p>Then enter your username below and click [Check]:</p>
 								{/* Roblox username field with Check, and any error below */}
@@ -350,7 +352,7 @@ createRoot(document.getElementById('root')!).render(
 							}
 							#team-toons,
 							#team-trinkets,
-							#team-badges {
+							#team-badges-and-roles {
 								position: absolute;
 							}
 							#team-toons {
@@ -361,9 +363,12 @@ createRoot(document.getElementById('root')!).render(
 								left: calc(100% + 24px);
 								top: -60px;
 							}
-							#team-badges {
+							#team-badges-and-roles {
 								left: calc(100% + 24px);
 								top: 380px;
+								display: flex;
+								align-items: flex-start;
+								gap: 24px;
 							}
 							.team-palette {
 								max-height: 360px;
@@ -475,9 +480,11 @@ createRoot(document.getElementById('root')!).render(
 								))}
 							</div>
 						</div>
-						{/* Badges window below Trinkets, listing the owned badges that drag into the Badges column */}
+						{/* Badges window below Trinkets, listing the owned badges that drag into the Badges column,
+						with the Roles window to its right, listing the roles that drag into the Role column */}
 						<style>{`
-							#team-badges ul {
+							#team-badges ul,
+							#team-roles ul {
 								max-height: 200px;
 								overflow-y: auto;
 								margin: 0;
@@ -488,35 +495,57 @@ createRoot(document.getElementById('root')!).render(
 								border-color: #808080 #fff #fff #808080;
 							}
 							#team-badges li,
-							.team-badge {
+							#team-roles li,
+							.team-badge-or-role {
 								cursor: grab;
 								white-space: nowrap;
 							}
 							#team-badges li:hover,
-							.team-badge:hover {
+							#team-roles li:hover,
+							.team-badge-or-role:hover {
 								background: #e0e0e0;
 							}
 						`}</style>
-						{logic.isRobloxVerified && (
+						<div id="team-badges-and-roles">
+							{logic.isRobloxVerified && (
+								<div
+									id="team-badges"
+									className={logic.sideWindowClass}
+								>
+									<div className="window-title">Badges</div>
+									<ul>
+										{logic.badgesWindowTiles.map((badge) => (
+											<li
+												key={badge.name}
+												draggable
+												onDragStart={badge.dragFromSideWindow}
+											>
+												{badge.name}
+											</li>
+										))}
+									</ul>
+								</div>
+							)}
 							<div
-								id="team-badges"
+								id="team-roles"
 								className={logic.sideWindowClass}
 							>
-								<div className="window-title">Badges</div>
+								<div className="window-title">Roles</div>
 								<ul>
-									{logic.badgesWindowTiles.map((badge) => (
+									{logic.rolesWindowTiles.map((role) => (
 										<li
-											key={badge.name}
+											key={role.name}
 											draggable
-											onDragStart={badge.dragFromSideWindow}
+											onDragStart={role.dragFromSideWindow}
 										>
-											{badge.name}
+											{role.name}
 										</li>
 									))}
 								</ul>
 							</div>
-						)}
-						{/* White table with Toon, Trinket A, Trinket B and, once verified, Badges columns */}
+						</div>
+						{/* White table with Toon, Trinket A, Trinket B, once verified Badges, then Role and Reserved
+						columns */}
 						<style>{`
 							#team-table {
 								width: 100%;
@@ -595,6 +624,7 @@ createRoot(document.getElementById('root')!).render(
 									<th>Trinket A</th>
 									<th>Trinket B</th>
 									{logic.isRobloxVerified && <th>Badges</th>}
+									<th>Role</th>
 									<th>{logic.lastColumnHeading}</th>
 								</tr>
 							</thead>
@@ -654,12 +684,31 @@ createRoot(document.getElementById('root')!).render(
 												{row.badges.map((badge) => (
 													<div
 														key={badge.name}
-														className="team-badge"
+														className="team-badge-or-role"
 														draggable={badge.draggable}
 														onDragStart={badge.dragBadgeFromTable}
 														onDragEnd={badge.endBadgeDragFromTable}
 													>
 														{badge.name}
+													</div>
+												))}
+											</td>
+										)}
+										{/* Role names stacked in the cell, each one draggable to another row or out of the table */}
+										{!row.isLeftEmpty && (
+											<td
+												onDragOver={row.allowRoleDropOnRoleCell}
+												onDrop={row.dropRoleOnRoleCell}
+											>
+												{row.roles.map((role) => (
+													<div
+														key={role.name}
+														className="team-badge-or-role"
+														draggable={role.draggable}
+														onDragStart={role.dragRoleFromTable}
+														onDragEnd={role.endRoleDragFromTable}
+													>
+														{role.name}
 													</div>
 												))}
 											</td>

@@ -18,6 +18,7 @@ export function readSavedTeamTable(): TeamTableRow[] {
 			trinketAPicture: row.trinketAPicture ?? row.trinketA ?? '',
 			trinketBPicture: row.trinketBPicture ?? row.trinketB ?? '',
 			badgeNames: row.badgeNames ?? row.badges ?? [],
+			roleNames: row.roleNames ?? ['Extractor'],
 			isReserved: row.isReserved ?? row.reserved ?? false,
 			isLeftEmpty: row.isLeftEmpty ?? row.disabled ?? toonPicture === '(Leave Empty)',
 		}
