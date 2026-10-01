@@ -2,7 +2,7 @@
 import { useRef, useState } from 'react'
 import type { DeepPartial } from '../shared/genericTypes.ts'
 
-export const useSyncState = <T>(initialState: T) => {
+export const useSyncState = <T>(initialState: T | (() => T)) => {
 	const [state, setState] = useState(initialState)
 	const stateRef = useRef(state)
 	// Created once, so effects can list these functions as dependencies without re-running

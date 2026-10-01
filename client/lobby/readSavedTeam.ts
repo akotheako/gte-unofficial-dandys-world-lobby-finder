@@ -8,7 +8,8 @@ export function readSavedTeam(): Row[] {
 		trinketB: '',
 		badges: [],
 		reserved: false,
+		disabled: row.toon === '(Leave Empty)',
 		...row,
-		toon: row.toon === '(Any)' ? '' : row.toon ?? '',
+		toon: row.toon === '(Any)' || row.toon === '(Leave Empty)' ? '' : row.toon ?? '',
 	}))
 }

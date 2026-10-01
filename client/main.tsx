@@ -416,6 +416,16 @@ createRoot(document.getElementById('root')!).render(
 								justify-content: center;
 								font-size: 11px;
 							}
+							.team-locked .window-title {
+								background: #808080;
+								color: #c0c0c0;
+							}
+							.team-locked .team-palette,
+							.team-locked ul {
+								opacity: 0.5;
+								filter: grayscale(1);
+								pointer-events: none;
+							}
 							.team-placeholder {
 								color: #a8a8a8;
 								cursor: default;
@@ -424,7 +434,7 @@ createRoot(document.getElementById('root')!).render(
 						{/* Toons window to the lower left, whose toons drag into the Toon column */}
 						<div
 							id="team-toons"
-							className="window"
+							className={lobby.paletteWindowClass}
 						>
 							<div className="window-title">Toons</div>
 							<div className="team-palette">
@@ -432,7 +442,7 @@ createRoot(document.getElementById('root')!).render(
 								<div
 									className="team-text"
 									draggable
-									onDragStart={lobby.dragLeaveEmptyToon}
+									onDragStart={lobby.dragLeaveEmpty}
 								>
 									(Leave Empty)
 								</div>
@@ -450,7 +460,7 @@ createRoot(document.getElementById('root')!).render(
 						{/* Trinkets window to the upper right, whose trinkets drag into the Trinket columns */}
 						<div
 							id="team-trinkets"
-							className="window"
+							className={lobby.paletteWindowClass}
 						>
 							<div className="window-title">Trinkets</div>
 							<div className="team-palette">
@@ -490,7 +500,7 @@ createRoot(document.getElementById('root')!).render(
 						{lobby.verified && (
 							<div
 								id="team-badges"
-								className="window"
+								className={lobby.paletteWindowClass}
 							>
 								<div className="window-title">Badges</div>
 								<ul>
@@ -525,6 +535,13 @@ createRoot(document.getElementById('root')!).render(
 							#team-table td:nth-child(-n + 3) {
 								min-width: 0;
 								width: 60px;
+							}
+							#team-table td.team-disabled {
+								width: auto;
+								color: #a8a8a8;
+							}
+							#team-table td.team-clickable {
+								cursor: pointer;
 							}
 							#team-table th {
 								height: 20px;
@@ -578,13 +595,28 @@ createRoot(document.getElementById('root')!).render(
 									<th>Trinket A</th>
 									<th>Trinket B</th>
 									{lobby.verified && <th>Badges</th>}
-									<th>Reserved</th>
+									<th>{lobby.reservedHeading}</th>
 								</tr>
 							</thead>
 							<tbody>
 								{lobby.teamRows.map((row) => (
-									<tr key={row.key}>
-										{row.itemCells.map((cell) => (
+									<tr
+										key={row.key}
+										onDragOver={row.allowDisableDrop}
+										onDrop={row.disableRow}
+									>
+										{/* Whole row merged into one cell with "(Leave Empty)" in the middle,
+										which clears when clicked */}
+										{row.disabled && (
+											<td
+												className={row.disabledCellClass}
+												colSpan={row.disabledColSpan}
+												onClick={row.enableRow}
+											>
+												(Leave Empty)
+											</td>
+										)}
+										{!row.disabled && row.itemCells.map((cell) => (
 											<td
 												key={cell.column}
 												onDragOver={cell.allowDrop}
@@ -596,7 +628,7 @@ createRoot(document.getElementById('root')!).render(
 														{cell.placeholder}
 													</div>
 												)}
-												{/* Toon or trinket picture, or "(Leave Empty)" as text */}
+												{/* Toon or trinket picture */}
 												{cell.item && (
 													<div
 														className="team-text"
@@ -604,19 +636,17 @@ createRoot(document.getElementById('root')!).render(
 														onDragStart={cell.item.drag}
 														onDragEnd={cell.item.dropOutside}
 													>
-														{cell.item.text || (
-															<img
-																src={cell.item.src}
-																title={cell.item.title}
-																draggable={false}
-															/>
-														)}
+														<img
+															src={cell.item.src}
+															title={cell.item.title}
+															draggable={false}
+														/>
 													</div>
 												)}
 											</td>
 										))}
 										{/* Badge names stacked in the cell, each one draggable to another row or out of the table */}
-										{lobby.verified && (
+										{!row.disabled && lobby.verified && (
 											<td
 												onDragOver={row.allowBadgeDrop}
 												onDrop={row.dropBadge}
@@ -635,24 +665,28 @@ createRoot(document.getElementById('root')!).render(
 											</td>
 										)}
 										{/* Reserved checkbox, or while searching either "Finding player..." with blinking
-										dots or "(Reserved)" */}
-										<td>
-											{row.findingPlayer && (
-												<span className="team-finding">
-													Finding player<span>...</span>
-												</span>
-											)}
-											{row.showReservedLabel && (
-												<span className="team-finding">{row.reservedLabel}</span>
-											)}
-											{row.showReservedCheckbox && (
-												<input
-													type="checkbox"
-													checked={row.reserved}
-													onChange={row.toggleReserved}
-												/>
-											)}
-										</td>
+										dots or grey "(Reserved)" */}
+										{!row.disabled && (
+											<td>
+												{row.findingPlayer && (
+													<span className="team-finding">
+														Finding player<span>...</span>
+													</span>
+												)}
+												{row.showReservedLabel && (
+													<span className="team-finding team-placeholder">
+														{row.reservedLabel}
+													</span>
+												)}
+												{row.showReservedCheckbox && (
+													<input
+														type="checkbox"
+														checked={row.reserved}
+														onChange={row.toggleReserved}
+													/>
+												)}
+											</td>
+										)}
 									</tr>
 								))}
 							</tbody>
@@ -706,7 +740,69 @@ createRoot(document.getElementById('root')!).render(
 							</label>
 							<div id="team-form-actions">
 								<a onClick={lobby.openHowto}>How do I get a server link?</a>
-								<button>{lobby.findButtonLabel}</button>
+								{/* Find Players button, followed while searching by a spinner */}
+								<style>{`
+									#team-find {
+										display: flex;
+										align-items: center;
+										gap: 6px;
+									}
+								`}</style>
+								<span id="team-find">
+									<button>{lobby.findButtonLabel}</button>
+									{/* Ring of eight black spokes that darken one after another around the circle */}
+									<style>{`
+										#team-spinner {
+											position: relative;
+											width: 18px;
+											height: 18px;
+										}
+										#team-spinner span {
+											position: absolute;
+											left: 8px;
+											top: 0;
+											width: 2px;
+											height: 5px;
+											background: #000;
+											transform-origin: 1px 9px;
+											animation: team-spoke 0.8s steps(1) infinite;
+										}
+										@keyframes team-spoke {
+											0% {
+												opacity: 1;
+											}
+											12.5% {
+												opacity: 0.6;
+											}
+											25% {
+												opacity: 0.3;
+											}
+											37.5% {
+												opacity: 0.1;
+											}
+										}
+										#team-spinner span:nth-child(1) { transform: rotate(0deg); animation-delay: -0.7s; }
+										#team-spinner span:nth-child(2) { transform: rotate(45deg); animation-delay: -0.6s; }
+										#team-spinner span:nth-child(3) { transform: rotate(90deg); animation-delay: -0.5s; }
+										#team-spinner span:nth-child(4) { transform: rotate(135deg); animation-delay: -0.4s; }
+										#team-spinner span:nth-child(5) { transform: rotate(180deg); animation-delay: -0.3s; }
+										#team-spinner span:nth-child(6) { transform: rotate(225deg); animation-delay: -0.2s; }
+										#team-spinner span:nth-child(7) { transform: rotate(270deg); animation-delay: -0.1s; }
+										#team-spinner span:nth-child(8) { transform: rotate(315deg); animation-delay: 0s; }
+									`}</style>
+									{lobby.showFindingSpinner && (
+										<span id="team-spinner">
+											<span />
+											<span />
+											<span />
+											<span />
+											<span />
+											<span />
+											<span />
+											<span />
+										</span>
+									)}
+								</span>
 							</div>
 							<p id="team-form-error">{lobby.teamError}</p>
 						</form>

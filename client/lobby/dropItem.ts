@@ -17,7 +17,7 @@ export function dropItem({
 	const kind = column === 'toon' ? 'toon' : 'trinket'
 	const name = event.dataTransfer.getData(kind)
 	const from = event.dataTransfer.getData('from')
-	if (from === `${index} ${column}`) return
+	if (!name || from === `${index} ${column}`) return
 	mutateState((state) => {
 		const row = state.team[index]
 		// A row cannot hold the same trinket twice, unless it is moving between the two columns

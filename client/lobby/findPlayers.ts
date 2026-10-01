@@ -20,11 +20,11 @@ export function findPlayers({
 		team,
 		serverLink,
 	})
-	if (!team.some((row) => row.toon !== '(Leave Empty)' && !row.reserved)) {
+	if (!team.some((row) => !row.disabled && !row.reserved)) {
 		setState({
 			teamError: 'At least 1 non-empty & non-reserved row is needed to start finding players!',
 		})
-	} else if (!team.some((row) => row.toon !== '(Leave Empty)' && row.reserved)) {
+	} else if (!team.some((row) => !row.disabled && row.reserved)) {
 		setState({
 			teamError: 'At least 1 non-empty reserved row (You!) is needed to start finding players!',
 		})

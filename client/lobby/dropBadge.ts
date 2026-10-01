@@ -11,7 +11,7 @@ export function dropBadge({
 }) {
 	const name = event.dataTransfer.getData('badge')
 	const from = event.dataTransfer.getData('from')
-	if (from === `${index} badges`) return
+	if (!name || from === `${index} badges`) return
 	// A row holds one badge per category, so a new badge replaces its category's old one
 	const category = [
 		['Speed Walker', 'Long Distance Runner', 'Marathon Runner'],

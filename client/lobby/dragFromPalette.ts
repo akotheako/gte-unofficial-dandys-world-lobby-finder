@@ -6,7 +6,7 @@ export function dragFromPalette({
 	name,
 }: {
 	event: DragEvent
-	kind: 'toon' | 'trinket' | 'badge'
+	kind: 'toon' | 'trinket' | 'badge' | 'disable'
 	name: string
 }) {
 	event.dataTransfer.setData(kind, name)

@@ -1,6 +1,5 @@
 import {
 	useEffect,
-	useState,
 	type ChangeEvent,
 	type DragEvent,
 	type FormEvent,
@@ -9,11 +8,13 @@ import {
 } from 'react'
 import { useSyncState } from '../useSyncState.ts'
 import { allowBadgeDrop } from './allowBadgeDrop.ts'
+import { allowDisableDrop } from './allowDisableDrop.ts'
 import { allowItemDrop } from './allowItemDrop.ts'
 import { checkUsername } from './checkUsername.ts'
 import { closeHowto } from './closeHowto.ts'
 import { closeWindow } from './closeWindow.ts'
 import { copyCode } from './copyCode.ts'
+import { disableRow } from './disableRow.ts'
 import { dragBadge } from './dragBadge.ts'
 import { dragFromPalette } from './dragFromPalette.ts'
 import { dragItem } from './dragItem.ts'
@@ -21,6 +22,7 @@ import { dropBadge } from './dropBadge.ts'
 import { dropBadgeOutside } from './dropBadgeOutside.ts'
 import { dropItem } from './dropItem.ts'
 import { dropItemOutside } from './dropItemOutside.ts'
+import { enableRow } from './enableRow.ts'
 import { findPlayers } from './findPlayers.ts'
 import { loadBadges } from './loadBadges.ts'
 import { loadCode } from './loadCode.ts'
@@ -56,6 +58,7 @@ export type Row = {
 	trinketB: string
 	badges: string[]
 	reserved: boolean
+	disabled: boolean
 }
 
 type LobbyState = {
@@ -77,7 +80,12 @@ type LobbyState = {
 export type Lobby = ReturnType<typeof useSyncState<LobbyState>>
 
 export function useLobby() {
-	const [initialState] = useState((): LobbyState => ({
+	const {
+		asyncState: state,
+		getSyncState,
+		setState,
+		mutateState,
+	} = useSyncState((): LobbyState => ({
 		roblox: null,
 		code: '',
 		error: '',
@@ -92,29 +100,37 @@ export function useLobby() {
 		onlineCount: 0,
 		findingCount: 0,
 	}))
-	const {
-		asyncState: state,
-		getSyncState,
-		setState,
-		mutateState,
-	} = useSyncState(initialState)
 
+	// Fills the Toons and Trinkets side windows with pictures
 	useEffect(() => loadImages({ setState }), [setState])
+
+	// Keeps the "on this page" counter at the bottom of the screen up to date
 	useEffect(() => startHeartbeat({ setState }), [setState])
+
+	// Keeps the "finding players" counter at the bottom of the screen up to date
 	useEffect(() => startFindingCountDrift({
 		setState,
 		mutateState,
 	}), [setState, mutateState])
+
+	// Decides whether Roblox Verification opens on "Verified as <name>" or on the instructions
 	useEffect(() => loadRobloxSession({ setState }), [setState])
 	const verified = Boolean(state.roblox)
+
+	// Fills the badge checklist once verified, or the emoji code next to Copy otherwise
 	useEffect(() => {
 		if (verified) loadBadges({ setState })
 		else loadCode({ setState })
 	}, [verified, setState])
+
+	// Remembers the Find a Team table across reloads
+
 	// mutateState keeps the team array's identity while editing its rows, so this runs on every render
 	useEffect(() => saveTeam({ team: state.team }))
 
 	return {
+
+		// Roblox Verification icon, first in the row at the top of the screen, and its window
 		accountWindow: {
 			onIconClick: (event: MouseEvent<HTMLButtonElement>) => openWindow({
 				id: 'account',
@@ -127,6 +143,11 @@ export function useLobby() {
 			onCloseClick: () => requestCloseWindow({ id: 'account' }),
 		},
 		verified,
+
+
+		// Verified view of Roblox Verification: "Verified as <name>" and the badge checklist,
+
+		// with Update Badges at the bottom left and Log out at the bottom right
 		username: state.roblox?.username ?? '',
 		showBadgeChecklist: Boolean(state.badges),
 		badgeChecklist: (state.badges ?? []).map((badge) => ({
@@ -136,6 +157,11 @@ export function useLobby() {
 		badgesMessage: state.error || 'Loading badges...',
 		refreshBadges: () => refreshBadges({ setState }),
 		logOut: () => logOut({ setState }),
+
+
+		// Unverified view of Roblox Verification: the emoji code with Copy, then the username
+
+		// field with Check and any error below it
 		code: state.code,
 		copyCode: () => copyCode({ getSyncState }),
 		savedUsername: state.savedUsername,
@@ -145,6 +171,8 @@ export function useLobby() {
 		}),
 		error: state.error,
 
+
+		// Find a Team icon, second in the row at the top of the screen, and its window
 		teamWindow: {
 			onIconClick: (event: MouseEvent<HTMLButtonElement>) => openWindow({
 				id: 'team',
@@ -156,11 +184,18 @@ export function useLobby() {
 			}),
 			onCloseClick: () => requestCloseWindow({ id: 'team' }),
 		},
-		dragLeaveEmptyToon: (event: DragEvent) => dragFromPalette({
+
+		// Greys out the Toons, Trinkets and Badges side windows while searching
+		paletteWindowClass: state.finding ? 'window team-locked' : 'window',
+
+		// "(Leave Empty)" tile, first in the Toons side window to the lower left
+		dragLeaveEmpty: (event: DragEvent) => dragFromPalette({
 			event,
-			kind: 'toon',
+			kind: 'disable',
 			name: '(Leave Empty)',
 		}),
+
+		// Toon pictures in the Toons side window to the lower left
 		toonPalette: state.toons.map((name) => ({
 			name,
 			src: `/toons/${name}`,
@@ -171,6 +206,8 @@ export function useLobby() {
 				name,
 			}),
 		})),
+
+		// Trinket pictures in the Trinkets side window to the upper right
 		trinketPalette: state.trinkets.map((name) => ({
 			name,
 			src: `/trinkets/${name}`,
@@ -181,6 +218,8 @@ export function useLobby() {
 				name,
 			}),
 		})),
+
+		// Badge names in the Badges side window below Trinkets, shown only once verified
 		ownedBadges: (state.badges ?? []).filter((badge) => badge.owned).map((badge) => ({
 			name: badge.name,
 			drag: (event: DragEvent) => dragFromPalette({
@@ -189,8 +228,33 @@ export function useLobby() {
 				name: badge.name,
 			}),
 		})),
+
+		// Rows of the white table in the middle of Find a Team
 		teamRows: state.team.map((row, index) => ({
 			key: index,
+
+			// Dropping "(Leave Empty)" anywhere on the row
+			allowDisableDrop: (event: DragEvent) => allowDisableDrop({
+				getSyncState,
+				event,
+			}),
+			disableRow: (event: DragEvent) => disableRow({
+				mutateState,
+				event,
+				index,
+			}),
+
+			// Grey "(Leave Empty)" cell that spans the whole row and clears when clicked
+			disabled: row.disabled,
+			disabledColSpan: verified ? 5 : 4,
+			disabledCellClass: state.finding ? 'team-disabled' : 'team-disabled team-clickable',
+			enableRow: () => enableRow({
+				getSyncState,
+				mutateState,
+				index,
+			}),
+
+			// Toon, Trinket A and Trinket B cells, the first three columns of the row
 			itemCells: (['toon', 'trinketA', 'trinketB'] as const).map((column) => ({
 				column,
 				allowDrop: (event: DragEvent) => allowItemDrop({
@@ -204,9 +268,12 @@ export function useLobby() {
 					index,
 					column,
 				}),
+
+				// Grey "(Any)" text in an empty Toon cell
 				placeholder: column === 'toon' && !row[column] ? '(Any)' : '',
+
+				// Picture inside the cell, which drags to another cell or out of the table to clear it
 				item: row[column] ? {
-					text: row[column] === '(Leave Empty)' ? '(Leave Empty)' : '',
 					src: `/${column === 'toon' ? 'toons' : 'trinkets'}/${row[column]}`,
 					title: row[column].replace('.png', ''),
 					draggable: !state.finding,
@@ -224,6 +291,8 @@ export function useLobby() {
 					}),
 				} : null,
 			})),
+
+			// Badges cell, the fourth column, shown only once verified
 			allowBadgeDrop: (event: DragEvent) => allowBadgeDrop({
 				getSyncState,
 				event,
@@ -233,6 +302,8 @@ export function useLobby() {
 				event,
 				index,
 			}),
+
+			// Badge names stacked in that cell, which drag to another row or out of the table
 			badges: row.badges.map((name) => ({
 				name,
 				draggable: !state.finding,
@@ -248,7 +319,11 @@ export function useLobby() {
 					name,
 				}),
 			})),
-			findingPlayer: state.finding && !row.reserved && row.toon !== '(Leave Empty)',
+
+			// Last column: the Reserved checkbox, or while searching either "Finding player..."
+
+			// or the grey reserved label
+			findingPlayer: state.finding && !row.reserved && !row.disabled,
 			showReservedLabel: state.finding && row.reserved,
 			reservedLabel: state.roblox
 				? `(@${state.roblox.username} or their friends)`
@@ -261,19 +336,36 @@ export function useLobby() {
 				index,
 			}),
 		})),
+
+		// Header of the last table column
+		reservedHeading: state.finding ? 'Player' : 'Reserved',
+
+
+		// "Server link:" field below the table
 		savedServerLink: state.savedServerLink,
 		serverLinkReadOnly: state.finding,
 		saveServerLink: (event: ChangeEvent<HTMLInputElement>) => saveServerLink({ event }),
+
+		// "How do I get a server link?" link below the field, and the × of the screenshot window
+
+		// that it opens
 		openHowto,
 		closeHowto,
+
+		// Find Players button at the bottom right of Find a Team, with its spinner and the red
+
+		// error line below it
 		findPlayers: (event: FormEvent<HTMLFormElement>) => findPlayers({
 			getSyncState,
 			setState,
 			event,
 		}),
 		findButtonLabel: state.finding ? 'Finding Players (Click to Cancel)' : 'Find Players',
+		showFindingSpinner: state.finding,
 		teamError: state.teamError,
 
+
+		// Two counters at the bottom middle of the screen
 		onlineCount: state.onlineCount,
 		findingCount: state.findingCount,
 	}
