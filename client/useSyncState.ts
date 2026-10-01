@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useRef, useState } from 'react'
-import type { DeepPartial } from '../genericTypes.ts'
+import type { DeepPartial } from '../shared/genericTypes.ts'
 
 export const useSyncState = <T>(initialState: T) => {
 	const [state, setState] = useState(initialState)

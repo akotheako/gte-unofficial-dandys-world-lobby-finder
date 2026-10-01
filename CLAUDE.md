@@ -1,8 +1,9 @@
 # dwlobby
 
-The whole frontend is `src/main.tsx`, and the whole page is one component inside its `render` call.
-`server/main.ts` is the wiring file for the backend. Each backend feature lives in its own module
-next to it, such as `server/roblox.ts`, and `server/main.ts` mounts it.
+The whole frontend is `client/main.tsx`, and the whole page is one component inside its `render`
+call. `server/main.ts` is the wiring file for the backend. Each backend feature lives in its own
+module next to it, such as `server/roblox.ts`, and `server/main.ts` mounts it. Code that both the
+frontend and the backend can use goes in `shared/`.
 `README.md` explains how to run the project and how to recreate it from zero.
 
 ## Claude rules
