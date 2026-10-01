@@ -14,6 +14,7 @@ import { allowRoleDropOnRoleCell } from './allowRoleDropOnRoleCell.ts'
 import {
 	chooseRegionOrFloorGoalDropdownOption,
 } from './chooseRegionOrFloorGoalDropdownOption.ts'
+import { checkForFoundPlayers } from './checkForFoundPlayers.ts'
 import { closeServerLinkHelpWindow } from './closeServerLinkHelpWindow.ts'
 import { closeWindowFromXButton } from './closeWindowFromXButton.ts'
 import { copyVerificationEmojiCode } from './copyVerificationEmojiCode.ts'
@@ -27,8 +28,8 @@ import { dropRoleOnRoleCell } from './dropRoleOnRoleCell.ts'
 import { endBadgeDragFromTable } from './endBadgeDragFromTable.ts'
 import { endPictureDragFromTable } from './endPictureDragFromTable.ts'
 import { endRoleDragFromTable } from './endRoleDragFromTable.ts'
-import { fakeFindingPlayersCount } from './fakeFindingPlayersCount.ts'
 import { growWindowFromIcon } from './growWindowFromIcon.ts'
+import { keepFindingPlayersCountUpdated } from './keepFindingPlayersCountUpdated.ts'
 import { keepOnThisPageCountUpdated } from './keepOnThisPageCountUpdated.ts'
 import { leaveRowEmpty } from './leaveRowEmpty.ts'
 import { loadRobloxBadgeChecklist } from './loadRobloxBadgeChecklist.ts'
@@ -70,6 +71,16 @@ export type TeamTableRow = {
 	isLeftEmpty: boolean
 }
 
+// What the server says about the search while Find Players runs
+export type FoundTeam = {
+	// Per table row, the Roblox username of the player who took it, which is empty for an
+	// unverified player, or null while the row is still open
+	joinedPlayerUsernames: (string | null)[]
+	hasJoinedATeam: boolean
+	hostRobloxUsername: string
+	teamServerLink: string
+}
+
 export function useLogic() {
 	const {
 		asyncState: state,
@@ -93,6 +104,8 @@ export function useLogic() {
 		chosenFloorGoalDropdownOption: string
 		findPlayersError: string
 		isFindingPlayers: boolean
+		searcherId: string
+		foundTeam: FoundTeam | null
 		onThisPageCount: number
 		findingPlayersCount: number
 		tableDragLandedInAnotherCell: boolean
@@ -113,6 +126,8 @@ export function useLogic() {
 		chosenFloorGoalDropdownOption: localStorage.getItem('floorGoal') ?? '50',
 		findPlayersError: '',
 		isFindingPlayers: false,
+		searcherId: crypto.randomUUID(),
+		foundTeam: null,
 		onThisPageCount: 0,
 		findingPlayersCount: 0,
 		tableDragLandedInAnotherCell: false,
@@ -130,10 +145,9 @@ export function useLogic() {
 	}), [setState])
 
 	// Keeps the "looking for a team" counter at the bottom of the screen up to date
-	useEffect(() => fakeFindingPlayersCount({
-		getFindingPlayersCount: () => getSyncState().findingPlayersCount,
+	useEffect(() => keepFindingPlayersCountUpdated({
 		setFindingPlayersCount: (findingPlayersCount) => setState({ findingPlayersCount }),
-	}), [getSyncState, setState])
+	}), [setState])
 
 	// Decides whether Roblox Verification opens on "Verified as <name>" or on the instructions
 	useEffect(() => loadVerifiedRobloxAccount({
@@ -160,6 +174,19 @@ export function useLogic() {
 			})
 		}
 	}, [isRobloxVerified, setState])
+
+	// Keeps the search alive on the server while Find Players runs, and learns who joined
+	useEffect(() => {
+		if (!state.isFindingPlayers) return
+		return checkForFoundPlayers({
+			searcherId: getSyncState().searcherId,
+			setFoundTeam: (foundTeam) => setState({ foundTeam }),
+			setIsFindingPlayers: (isFindingPlayers) => setState({ isFindingPlayers }),
+			setFindPlayersError: (findPlayersError) => setState({ findPlayersError }),
+		})
+	}, [state.isFindingPlayers, getSyncState, setState])
+	const { foundTeam } = state
+	const hasJoinedATeam = Boolean(foundTeam?.hasJoinedATeam)
 
 	// Remembers the Find a Team table across reloads
 
@@ -479,12 +506,26 @@ export function useLogic() {
 
 			// Last column: the Reserved checkbox, or while searching either "Finding player..."
 
-			// or the grey reserved label
-			showFindingPlayerText: state.isFindingPlayers && !row.isReserved && !row.isLeftEmpty,
-			showReservedPlayerName: state.isFindingPlayers && row.isReserved,
-			reservedPlayerName: state.verifiedRobloxAccount
-				? `(@${state.verifiedRobloxAccount.username} or their friends)`
-				: '(Reserved)',
+			// or the grey name of the player in the row, who is the user or a player who joined
+			...(() => {
+				const joinedPlayerUsername = foundTeam?.joinedPlayerUsernames[index] ?? null
+				return {
+					showFindingPlayerText: state.isFindingPlayers
+						&& !hasJoinedATeam
+						&& !row.isReserved
+						&& !row.isLeftEmpty
+						&& joinedPlayerUsername === null,
+					showPlayerName: state.isFindingPlayers
+						&& (row.isReserved || joinedPlayerUsername !== null),
+					playerName: (() => {
+						if (joinedPlayerUsername) return `(@${joinedPlayerUsername} or their friends)`
+						if (joinedPlayerUsername === '') return '(Unverified player)'
+						return state.verifiedRobloxAccount
+							? `(@${state.verifiedRobloxAccount.username} or their friends)`
+							: '(Reserved)'
+					})(),
+				}
+			})(),
 			showReservedCheckbox: !state.isFindingPlayers,
 			isReserved: row.isReserved,
 			toggleRowReserved: (event: ChangeEvent<HTMLInputElement>) => toggleRowReserved({
@@ -581,17 +622,46 @@ export function useLogic() {
 
 		// error line below it
 		toggleFindingPlayers: (event: FormEvent<HTMLFormElement>) => toggleFindingPlayers({
+			getSearcherId: () => getSyncState().searcherId,
 			getTeamTableRows: () => getSyncState().teamTableRows,
+			getTeamSettings: () => ({
+				isDandyRun: getSyncState().isDandyRunCheckboxChecked,
+				isEarlyDyle: getSyncState().isEarlyDyleCheckboxChecked,
+				region: getSyncState().chosenRegionDropdownOption,
+				floorGoal: getSyncState().chosenFloorGoalDropdownOption,
+			}),
 			getIsFindingPlayers: () => getSyncState().isFindingPlayers,
 			setIsFindingPlayers: (isFindingPlayers) => setState({ isFindingPlayers }),
 			setFindPlayersError: (findPlayersError) => setState({ findPlayersError }),
+			setFoundTeam: (foundTeam) => setState({ foundTeam }),
 			event,
 		}),
-		findPlayersButtonText: state.isFindingPlayers
-			? 'Finding Players (Click to Cancel)'
-			: 'Find Players',
-		showFindingPlayersSpinner: state.isFindingPlayers,
+		findPlayersButtonText: (() => {
+			if (hasJoinedATeam) return 'Leave Team'
+			return state.isFindingPlayers ? 'Finding Players (Click to Cancel)' : 'Find Players'
+		})(),
+		// The spinner stops once this user joined a team, or once every row of their team is taken
+		showFindingPlayersSpinner: state.isFindingPlayers
+			&& !hasJoinedATeam
+			&& state.teamTableRows.some((row, index) => (
+				!row.isLeftEmpty
+				&& !row.isReserved
+				&& (foundTeam?.joinedPlayerUsernames[index] ?? null) === null
+			)),
 		findPlayersError: state.findPlayersError,
+
+		// Line below the error with the server link of the team, once players got together
+		showTeamServerLink: Boolean(
+			foundTeam?.teamServerLink
+			&& (hasJoinedATeam || foundTeam.joinedPlayerUsernames.some((name) => name !== null)),
+		),
+		teamFoundText: (() => {
+			if (!hasJoinedATeam) return 'Players joined your team! Everyone meets in this server:'
+			return foundTeam?.hostRobloxUsername
+				? `You joined @${foundTeam.hostRobloxUsername}'s team! Join their server:`
+				: 'You joined a team! Join its server:'
+		})(),
+		teamServerLink: foundTeam?.teamServerLink ?? '',
 
 
 		// Two counters at the bottom middle of the screen

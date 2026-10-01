@@ -728,7 +728,7 @@ createRoot(document.getElementById('root')!).render(
 											</td>
 										)}
 										{/* Reserved checkbox, or while searching either "Finding player..." with blinking
-										dots or grey "(Reserved)" */}
+										dots or the grey name of the player in the row */}
 										{!row.isLeftEmpty && (
 											<td>
 												{row.showFindingPlayerText && (
@@ -736,9 +736,9 @@ createRoot(document.getElementById('root')!).render(
 														Finding player<span>...</span>
 													</span>
 												)}
-												{row.showReservedPlayerName && (
+												{row.showPlayerName && (
 													<span className="team-finding team-placeholder">
-														{row.reservedPlayerName}
+														{row.playerName}
 													</span>
 												)}
 												{row.showReservedCheckbox && (
@@ -782,7 +782,7 @@ createRoot(document.getElementById('root')!).render(
 							onSubmit={logic.toggleFindingPlayers}
 						>
 							<label>
-								Server link:
+								Server link (recommended):
 								<input
 									name="serverLink"
 									type="password"
@@ -965,6 +965,28 @@ createRoot(document.getElementById('root')!).render(
 								</span>
 							</div>
 							<p id="team-form-error">{logic.findPlayersError}</p>
+							{/* Line that says the team is found, followed by the blue link to its Roblox server */}
+							<style>{`
+								#team-found {
+									margin: 0;
+									overflow-wrap: anywhere;
+								}
+								#team-found a {
+									color: #00e;
+								}
+							`}</style>
+							{logic.showTeamServerLink && (
+								<p id="team-found">
+									{logic.teamFoundText}{' '}
+									<a
+										href={logic.teamServerLink}
+										target="_blank"
+										rel="noreferrer"
+									>
+										{logic.teamServerLink}
+									</a>
+								</p>
+							)}
 						</form>
 						{/* Window on top of Find a Team with two screenshots that explain how to get a server link */}
 						<style>{`

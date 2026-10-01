@@ -1,4 +1,5 @@
 import type { DragEvent } from 'react'
+import { badgeCategories } from '../../shared/badgeCategories.ts'
 
 export function dropBadgeOnBadgesCell({
 	getBadgeNames,
@@ -17,14 +18,7 @@ export function dropBadgeOnBadgesCell({
 	const from = event.dataTransfer.getData('from')
 	if (!name || from === `${index} badges`) return
 	// A row holds one badge per category, so a new badge replaces its category's old one
-	const category = [
-		['Speed Walker', 'Long Distance Runner', 'Marathon Runner'],
-		['Machine Enthusiast', 'Machine Master', 'THE Machine'],
-		['Clocked In', 'Overtime'],
-		['Hissy Fit'],
-		['Just Keep Swimming'],
-		['Double Digits!', 'Skilled Toon!', 'Super Skilled Pro!', 'Twisteds Fear Me.'],
-	].find((names) => names.includes(name)) ?? [name]
+	const category = badgeCategories.find((names) => names.includes(name)) ?? [name]
 	setBadgeNames([
 		...getBadgeNames().filter((badge) => !category.includes(badge)),
 		name,

@@ -4,12 +4,14 @@ import { Hono } from 'hono'
 import { images } from './images.ts'
 import { online } from './online.ts'
 import { roblox } from './roblox.ts'
+import { teams } from './teams.ts'
 
 // Instantiate app:
 export const app = new Hono()
 
 // Set API routes:
 app.route('/api/roblox', roblox)
+app.route('/api/teams', teams)
 app.route('/api/images', images)
 app.route('/api/online', online)
 
