@@ -1,12 +1,12 @@
 import type { DragEvent } from 'react'
 
 export function allowRoleDropOnRoleCell({
-	getIsFindingPlayers,
+	getIsTableLocked,
 	event,
 }: {
-	getIsFindingPlayers: () => boolean
+	getIsTableLocked: () => boolean
 	event: DragEvent
 }) {
-	if (getIsFindingPlayers()) return
+	if (getIsTableLocked()) return
 	if (event.dataTransfer.types.includes('role')) event.preventDefault()
 }

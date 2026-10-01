@@ -1,19 +1,17 @@
 import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
+import { checkIn } from './checkIn.ts'
 import { images } from './images.ts'
-import { online } from './online.ts'
 import { roblox } from './roblox.ts'
-import { teams } from './teams.ts'
 
 // Instantiate app:
 export const app = new Hono()
 
 // Set API routes:
 app.route('/api/roblox', roblox)
-app.route('/api/teams', teams)
+app.route('/api/check-in', checkIn)
 app.route('/api/images', images)
-app.route('/api/online', online)
 
 // Set frontend route:
 app.use('/*', serveStatic({ root: './dist' }))

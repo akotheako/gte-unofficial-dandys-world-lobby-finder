@@ -1,13 +1,13 @@
 import type { DragEvent } from 'react'
 
 export function allowLeaveEmptyDropOnRow({
-	getIsFindingPlayers,
+	getIsTableLocked,
 	event,
 }: {
-	getIsFindingPlayers: () => boolean
+	getIsTableLocked: () => boolean
 	event: DragEvent
 }) {
-	if (!getIsFindingPlayers() && event.dataTransfer.types.includes('leave-empty')) {
+	if (!getIsTableLocked() && event.dataTransfer.types.includes('leave-empty')) {
 		event.preventDefault()
 	}
 }

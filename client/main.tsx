@@ -588,22 +588,20 @@ createRoot(document.getElementById('root')!).render(
 								height: 20px;
 								background: #c0c0c0;
 							}
-							#team-table input {
-								width: 13px;
-								height: 13px;
-								margin: 0;
-								appearance: none;
-								background: #fff center no-repeat;
-								border: 2px solid;
-								border-color: #808080 #fff #fff #808080;
-								box-shadow: inset 1px 1px #000;
-								vertical-align: middle;
+							#team-table select {
+								font-size: 11px;
 							}
-							#team-table input:active {
-								background-color: #c0c0c0;
+							.team-invite {
+								display: flex;
+								flex-direction: column;
+								align-items: center;
+								gap: 2px;
+								margin-top: 2px;
+								font-size: 11px;
+								color: #808080;
 							}
-							#team-table input:checked {
-								background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='7' height='7'><path d='M0 2h1v1h1v1h1v-1h1v-1h1v-1h1v-1h1v3h-1v1h-1v1h-1v1h-1v1h-1v-1h-1v-1h-1z' fill='black'/></svg>");
+							.team-invite button {
+								font-size: 11px;
 							}
 							#team-table img {
 								width: 40px;
@@ -637,7 +635,7 @@ createRoot(document.getElementById('root')!).render(
 									<th>Trinket B</th>
 									{logic.isRobloxVerified && <th>Badges</th>}
 									<th>Role</th>
-									<th>{logic.lastColumnHeading}</th>
+									<th>Player</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -727,8 +725,8 @@ createRoot(document.getElementById('root')!).render(
 												))}
 											</td>
 										)}
-										{/* Reserved checkbox, or while searching either "Finding player..." with blinking
-										dots or the grey name of the player in the row */}
+										{/* Player dropdown, or while the table is locked either "Finding player..." with
+										blinking dots or the grey name of the player in the row */}
 										{!row.isLeftEmpty && (
 											<td>
 												{row.showFindingPlayerText && (
@@ -741,12 +739,33 @@ createRoot(document.getElementById('root')!).render(
 														{row.playerName}
 													</span>
 												)}
-												{row.showReservedCheckbox && (
-													<input
-														type="checkbox"
-														checked={row.isReserved}
-														onChange={row.toggleRowReserved}
-													/>
+												{row.showPlayerDropdown && (
+													<select
+														value={row.chosenPlayerDropdownOption}
+														onChange={row.choosePlayerInRow}
+													>
+														{logic.playerDropdownOptions.map((option) => (
+															<option
+																key={option.value}
+																value={option.value}
+															>
+																{option.text}
+															</option>
+														))}
+													</select>
+												)}
+												{/* "Copy invite link" button with a grey line below it that says whether the
+												friend joined */}
+												{row.showInviteLink && (
+													<div className="team-invite">
+														<button
+															type="button"
+															onClick={row.copyInviteLink}
+														>
+															{row.copyInviteLinkButtonText}
+														</button>
+														{row.invitedFriendText}
+													</div>
 												)}
 											</td>
 										)}
@@ -776,21 +795,28 @@ createRoot(document.getElementById('root')!).render(
 								margin: 0;
 								color: #a00;
 							}
+							#team-invited-friend {
+								margin: 0;
+							}
 						`}</style>
 						<form
 							id="team-form"
 							onSubmit={logic.toggleFindingPlayers}
 						>
-							<label>
-								Server link (recommended):
-								<input
-									name="serverLink"
-									type="password"
-									defaultValue={logic.serverLinkFieldStartValue}
-									readOnly={logic.isServerLinkFieldLocked}
-									onChange={logic.saveServerLinkField}
-								/>
-							</label>
+							{/* Line for a friend who opened an invite link, saying whose team they are in */}
+							{logic.invitedFriendText && <p id="team-invited-friend">{logic.invitedFriendText}</p>}
+							{logic.showServerLinkField && (
+								<label>
+									Server link (recommended):
+									<input
+										name="serverLink"
+										type="password"
+										defaultValue={logic.serverLinkFieldStartValue}
+										readOnly={logic.isServerLinkFieldLocked}
+										onChange={logic.saveServerLinkField}
+									/>
+								</label>
+							)}
 							{/* Blue underlined link that opens the server link help window */}
 							<style>{`
 								#team-server-link-help {
@@ -800,12 +826,14 @@ createRoot(document.getElementById('root')!).render(
 									cursor: pointer;
 								}
 							`}</style>
-							<a
-								id="team-server-link-help"
-								onClick={logic.openServerLinkHelpWindow}
-							>
-								How do I get a server link?
-							</a>
+							{logic.showServerLinkField && (
+								<a
+									id="team-server-link-help"
+									onClick={logic.openServerLinkHelpWindow}
+								>
+									How do I get a server link?
+								</a>
+							)}
 							{/* Old-style etched group box titled "TEAM SETTINGS", with checkboxes on the left and
 							dropdowns on the right */}
 							<style>{`
@@ -909,7 +937,7 @@ createRoot(document.getElementById('root')!).render(
 									}
 								`}</style>
 								<span id="team-find">
-									<button>{logic.findPlayersButtonText}</button>
+									{logic.showFindPlayersButton && <button>{logic.findPlayersButtonText}</button>}
 									{/* Ring of eight black spokes that darken one after another around the circle */}
 									<style>{`
 										#team-spinner {

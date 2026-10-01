@@ -1,13 +1,13 @@
 import type { DragEvent } from 'react'
 
 export function allowBadgeDropOnBadgesCell({
-	getIsFindingPlayers,
+	getIsTableLocked,
 	event,
 }: {
-	getIsFindingPlayers: () => boolean
+	getIsTableLocked: () => boolean
 	event: DragEvent
 }) {
-	if (!getIsFindingPlayers() && event.dataTransfer.types.includes('badge')) {
+	if (!getIsTableLocked() && event.dataTransfer.types.includes('badge')) {
 		event.preventDefault()
 	}
 }

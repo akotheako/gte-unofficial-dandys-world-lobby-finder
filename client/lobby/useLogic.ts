@@ -6,17 +6,20 @@ import {
 	type MouseEvent,
 	type SyntheticEvent,
 } from 'react'
+import type { CheckInAnswer, PlayerChoice, TeamTableRow } from '../../shared/teamTypes.ts'
 import { useSyncState } from '../useSyncState.ts'
 import { allowBadgeDropOnBadgesCell } from './allowBadgeDropOnBadgesCell.ts'
 import { allowLeaveEmptyDropOnRow } from './allowLeaveEmptyDropOnRow.ts'
 import { allowPictureDropOnCell } from './allowPictureDropOnCell.ts'
 import { allowRoleDropOnRoleCell } from './allowRoleDropOnRoleCell.ts'
+import { checkInWithServer } from './checkInWithServer.ts'
+import { choosePlayerInRow } from './choosePlayerInRow.ts'
 import {
 	chooseRegionOrFloorGoalDropdownOption,
 } from './chooseRegionOrFloorGoalDropdownOption.ts'
-import { checkForFoundPlayers } from './checkForFoundPlayers.ts'
 import { closeServerLinkHelpWindow } from './closeServerLinkHelpWindow.ts'
 import { closeWindowFromXButton } from './closeWindowFromXButton.ts'
+import { copyInviteLink } from './copyInviteLink.ts'
 import { copyVerificationEmojiCode } from './copyVerificationEmojiCode.ts'
 import { dragBadgeFromTable } from './dragBadgeFromTable.ts'
 import { dragFromSideWindow } from './dragFromSideWindow.ts'
@@ -29,14 +32,14 @@ import { endBadgeDragFromTable } from './endBadgeDragFromTable.ts'
 import { endPictureDragFromTable } from './endPictureDragFromTable.ts'
 import { endRoleDragFromTable } from './endRoleDragFromTable.ts'
 import { growWindowFromIcon } from './growWindowFromIcon.ts'
-import { keepFindingPlayersCountUpdated } from './keepFindingPlayersCountUpdated.ts'
-import { keepOnThisPageCountUpdated } from './keepOnThisPageCountUpdated.ts'
+import { leaveInvitingTeam } from './leaveInvitingTeam.ts'
 import { leaveRowEmpty } from './leaveRowEmpty.ts'
 import { loadRobloxBadgeChecklist } from './loadRobloxBadgeChecklist.ts'
 import { loadSideWindowPictures } from './loadSideWindowPictures.ts'
 import { loadVerificationEmojiCode } from './loadVerificationEmojiCode.ts'
 import { loadVerifiedRobloxAccount } from './loadVerifiedRobloxAccount.ts'
 import { logOutOfRoblox } from './logOutOfRoblox.ts'
+import { openFindATeamFromInviteLink } from './openFindATeamFromInviteLink.ts'
 import { openServerLinkHelpWindow } from './openServerLinkHelpWindow.ts'
 import { readSavedTeamTable } from './readSavedTeamTable.ts'
 import { saveServerLinkField } from './saveServerLinkField.ts'
@@ -44,7 +47,6 @@ import { toggleDandyRunOrEarlyDyleCheckbox } from './toggleDandyRunOrEarlyDyleCh
 import { saveTeamTable } from './saveTeamTable.ts'
 import { shrinkWindowIntoIcon } from './shrinkWindowIntoIcon.ts'
 import { toggleFindingPlayers } from './toggleFindingPlayers.ts'
-import { toggleRowReserved } from './toggleRowReserved.ts'
 import { undoLeaveRowEmpty } from './undoLeaveRowEmpty.ts'
 import { updateRobloxBadgeChecklist } from './updateRobloxBadgeChecklist.ts'
 import { verifyRobloxUsername } from './verifyRobloxUsername.ts'
@@ -60,26 +62,6 @@ export type RobloxBadge = {
 }
 
 export type PictureColumn = 'toonPicture' | 'trinketAPicture' | 'trinketBPicture'
-
-export type TeamTableRow = {
-	toonPicture: string
-	trinketAPicture: string
-	trinketBPicture: string
-	badgeNames: string[]
-	roleNames: string[]
-	isReserved: boolean
-	isLeftEmpty: boolean
-}
-
-// What the server says about the search while Find Players runs
-export type FoundTeam = {
-	// Per table row, the Roblox username of the player who took it, which is empty for an
-	// unverified player, or null while the row is still open
-	joinedPlayerUsernames: (string | null)[]
-	hasJoinedATeam: boolean
-	hostRobloxUsername: string
-	teamServerLink: string
-}
 
 export function useLogic() {
 	const {
@@ -98,14 +80,22 @@ export function useLogic() {
 		toonsWindowPictures: string[]
 		trinketsWindowPictures: string[]
 		serverLinkFieldStartValue: string
+		serverLink: string
 		isDandyRunCheckboxChecked: boolean
 		isEarlyDyleCheckboxChecked: boolean
 		chosenRegionDropdownOption: string
 		chosenFloorGoalDropdownOption: string
 		findPlayersError: string
 		isFindingPlayers: boolean
-		searcherId: string
-		foundTeam: FoundTeam | null
+		pageId: string
+		inviteCode: string
+		inviteFromLink: {
+			inviteCode: string
+			rowIndex: number
+		} | null
+		invitingTeam: CheckInAnswer['invitingTeam']
+		shownTeamStatus: CheckInAnswer['shownTeamStatus']
+		copiedInviteLinkRowIndex: number | null
 		onThisPageCount: number
 		findingPlayersCount: number
 		tableDragLandedInAnotherCell: boolean
@@ -120,14 +110,29 @@ export function useLogic() {
 		toonsWindowPictures: [],
 		trinketsWindowPictures: [],
 		serverLinkFieldStartValue: localStorage.getItem('serverLink') ?? '',
+		serverLink: localStorage.getItem('serverLink') ?? '',
 		isDandyRunCheckboxChecked: localStorage.getItem('dandyRun') === 'true',
 		isEarlyDyleCheckboxChecked: localStorage.getItem('earlyDyle') === 'true',
 		chosenRegionDropdownOption: localStorage.getItem('region') ?? 'Any',
 		chosenFloorGoalDropdownOption: localStorage.getItem('floorGoal') ?? '50',
 		findPlayersError: '',
 		isFindingPlayers: false,
-		searcherId: crypto.randomUUID(),
-		foundTeam: null,
+		pageId: sessionStorage.getItem('pageId') ?? crypto.randomUUID(),
+		inviteCode: sessionStorage.getItem('inviteCode') ?? crypto.randomUUID(),
+		// Invite links look like /?invite=<invite code>&row=<row index>
+		inviteFromLink: (() => {
+			const searchParams = new URLSearchParams(location.search)
+			const inviteCode = searchParams.get('invite')
+			return inviteCode
+				? {
+					inviteCode,
+					rowIndex: Number(searchParams.get('row')),
+				}
+				: null
+		})(),
+		invitingTeam: null,
+		shownTeamStatus: null,
+		copiedInviteLinkRowIndex: null,
 		onThisPageCount: 0,
 		findingPlayersCount: 0,
 		tableDragLandedInAnotherCell: false,
@@ -139,15 +144,8 @@ export function useLogic() {
 		setTrinketsWindowPictures: (trinketsWindowPictures) => setState({ trinketsWindowPictures }),
 	}), [setState])
 
-	// Keeps the "online" counter at the bottom of the screen up to date
-	useEffect(() => keepOnThisPageCountUpdated({
-		setOnThisPageCount: (onThisPageCount) => setState({ onThisPageCount }),
-	}), [setState])
-
-	// Keeps the "looking for a team" counter at the bottom of the screen up to date
-	useEffect(() => keepFindingPlayersCountUpdated({
-		setFindingPlayersCount: (findingPlayersCount) => setState({ findingPlayersCount }),
-	}), [setState])
+	// Opens Find a Team right away for a friend who opened an invite link
+	useEffect(() => openFindATeamFromInviteLink(), [])
 
 	// Decides whether Roblox Verification opens on "Verified as <name>" or on the instructions
 	useEffect(() => loadVerifiedRobloxAccount({
@@ -175,18 +173,64 @@ export function useLogic() {
 		}
 	}, [isRobloxVerified, setState])
 
-	// Keeps the search alive on the server while Find Players runs, and learns who joined
-	useEffect(() => {
-		if (!state.isFindingPlayers) return
-		return checkForFoundPlayers({
-			searcherId: getSyncState().searcherId,
-			setFoundTeam: (foundTeam) => setState({ foundTeam }),
-			setIsFindingPlayers: (isFindingPlayers) => setState({ isFindingPlayers }),
-			setFindPlayersError: (findPlayersError) => setState({ findPlayersError }),
-		})
-	}, [state.isFindingPlayers, getSyncState, setState])
-	const { foundTeam } = state
-	const hasJoinedATeam = Boolean(foundTeam?.hasJoinedATeam)
+	// Keeps both counters at the bottom of the screen up to date, and keeps the team on the server
+	// in sync while it searches, while it has an "Invite friend" row, or while this page is an
+	// invited friend's. A change of any of those checks in again right away.
+	const hasInviteFriendRow = state.teamTableRows.some((row) => (
+		!row.isLeftEmpty && row.playerChoice === 'invitedFriend'
+	))
+	useEffect(() => checkInWithServer({
+		pageId: getSyncState().pageId,
+		inviteCode: getSyncState().inviteCode,
+		getTeamTableRows: () => getSyncState().teamTableRows,
+		getTeamSettings: () => ({
+			isDandyRun: getSyncState().isDandyRunCheckboxChecked,
+			isEarlyDyle: getSyncState().isEarlyDyleCheckboxChecked,
+			region: getSyncState().chosenRegionDropdownOption,
+			floorGoal: getSyncState().chosenFloorGoalDropdownOption,
+		}),
+		getServerLink: () => getSyncState().serverLink,
+		getIsFindingPlayers: () => getSyncState().isFindingPlayers,
+		getInviteFromLink: () => getSyncState().inviteFromLink,
+		setOnThisPageCount: (onThisPageCount) => setState({ onThisPageCount }),
+		setFindingPlayersCount: (findingPlayersCount) => setState({ findingPlayersCount }),
+		setInvitingTeam: (invitingTeam) => setState({ invitingTeam }),
+		setShownTeamStatus: (shownTeamStatus) => setState({ shownTeamStatus }),
+		setIsFindingPlayers: (isFindingPlayers) => setState({ isFindingPlayers }),
+		setInviteFromLink: (inviteFromLink) => setState({ inviteFromLink }),
+		setFindPlayersError: (findPlayersError) => setState({ findPlayersError }),
+	}), [
+		state.isFindingPlayers,
+		state.inviteFromLink,
+		hasInviteFriendRow,
+		getSyncState,
+		setState,
+	])
+	const {
+		invitingTeam,
+		shownTeamStatus,
+	} = state
+	const isInvitedFriend = Boolean(state.inviteFromLink)
+	// An invited friend only watches the team, and a searching team cannot change
+	const isTableLocked = state.isFindingPlayers || isInvitedFriend
+	const isSearching = isInvitedFriend
+		? Boolean(shownTeamStatus?.isSearching)
+		: state.isFindingPlayers
+	const hasJoinedATeam = Boolean(shownTeamStatus?.hasJoinedATeam)
+	const shownTeamTableRows = invitingTeam?.teamTableRows ?? state.teamTableRows
+
+	// Clears the red error below Find Players once the user changes what it complained about.
+	// mutateState keeps the rows array's identity, so the rows are compared as text.
+	const teamTableRowsText = JSON.stringify(state.teamTableRows)
+	useEffect(() => setState({ findPlayersError: '' }), [
+		teamTableRowsText,
+		state.serverLink,
+		state.isDandyRunCheckboxChecked,
+		state.isEarlyDyleCheckboxChecked,
+		state.chosenRegionDropdownOption,
+		state.chosenFloorGoalDropdownOption,
+		setState,
+	])
 
 	// Remembers the Find a Team table across reloads
 
@@ -260,15 +304,30 @@ export function useLogic() {
 				id: 'team',
 				event,
 			}),
-			onCancel: (event: SyntheticEvent<HTMLDialogElement>) => shrinkWindowIntoIcon({
-				id: 'team',
-				event,
-			}),
+			onCancel: (event: SyntheticEvent<HTMLDialogElement>) => {
+				shrinkWindowIntoIcon({
+					id: 'team',
+					event,
+				})
+				leaveInvitingTeam({
+					setInviteFromLink: (inviteFromLink) => setState({ inviteFromLink }),
+					setInvitingTeam: (invitingTeam) => setState({ invitingTeam }),
+					setShownTeamStatus: (shownTeamStatus) => setState({ shownTeamStatus }),
+				})
+			},
 			onCloseClick: () => closeWindowFromXButton({ id: 'team' }),
 		},
 
-		// Greys out the Toons, Trinkets and Badges side windows while searching
-		sideWindowClass: state.isFindingPlayers ? 'window team-locked' : 'window',
+		// Line at the top of Find a Team for a friend who opened an invite link
+		invitedFriendText: (() => {
+			if (!isInvitedFriend) return ''
+			if (!invitingTeam) return 'Joining the team that invited you...'
+			const host = invitingTeam.hostRobloxUsername
+			return `You are in ${host ? `@${host}'s` : 'your friend\'s'} team. Closing this window takes you out of it.`
+		})(),
+
+		// Greys out the Toons, Trinkets and Badges side windows while the table is locked
+		sideWindowClass: isTableLocked ? 'window team-locked' : 'window',
 
 		// "(Leave Empty)" tile, first in the Toons side window to the lower left
 		dragLeaveEmptyTile: (event: DragEvent) => dragFromSideWindow({
@@ -331,12 +390,14 @@ export function useLogic() {
 		})),
 
 		// Rows of the white table in the middle of Find a Team
-		teamTableRows: state.teamTableRows.map((row, index) => ({
+		teamTableRows: shownTeamTableRows.map((row, index) => ({
 			key: index,
 
 			// Dropping "(Leave Empty)" anywhere on the row
 			allowLeaveEmptyDropOnRow: (event: DragEvent) => allowLeaveEmptyDropOnRow({
-				getIsFindingPlayers: () => getSyncState().isFindingPlayers,
+				getIsTableLocked: () => (
+					getSyncState().isFindingPlayers || Boolean(getSyncState().inviteFromLink)
+				),
 				event,
 			}),
 			leaveRowEmpty: (event: DragEvent) => leaveRowEmpty({
@@ -349,11 +410,13 @@ export function useLogic() {
 			// Grey "(Leave Empty)" cell that spans the whole row and clears when clicked
 			isLeftEmpty: row.isLeftEmpty,
 			leaveEmptyCellColSpan: isRobloxVerified ? 6 : 5,
-			leaveEmptyCellClass: state.isFindingPlayers
+			leaveEmptyCellClass: isTableLocked
 				? 'team-disabled'
 				: 'team-disabled team-clickable',
 			undoLeaveRowEmpty: () => undoLeaveRowEmpty({
-				getIsFindingPlayers: () => getSyncState().isFindingPlayers,
+				getIsTableLocked: () => (
+					getSyncState().isFindingPlayers || Boolean(getSyncState().inviteFromLink)
+				),
 				setIsLeftEmpty: (isLeftEmpty) => mutateState((state) => {
 					state.teamTableRows[index].isLeftEmpty = isLeftEmpty
 				}),
@@ -364,7 +427,9 @@ export function useLogic() {
 				.map((column) => ({
 					column,
 					allowPictureDropOnCell: (event: DragEvent) => allowPictureDropOnCell({
-						getIsFindingPlayers: () => getSyncState().isFindingPlayers,
+						getIsTableLocked: () => (
+							getSyncState().isFindingPlayers || Boolean(getSyncState().inviteFromLink)
+						),
 						event,
 						column,
 					}),
@@ -389,7 +454,7 @@ export function useLogic() {
 					picture: row[column] ? {
 						src: `/${column === 'toonPicture' ? 'toons' : 'trinkets'}/${row[column]}`,
 						title: row[column].replace('.png', ''),
-						draggable: !state.isFindingPlayers,
+						draggable: !isTableLocked,
 						dragPictureFromTable: (event: DragEvent) => dragPictureFromTable({
 							getPicture: () => getSyncState().teamTableRows[index][column],
 							event,
@@ -413,7 +478,9 @@ export function useLogic() {
 
 			// Badges cell, the fourth column, shown only once verified
 			allowBadgeDropOnBadgesCell: (event: DragEvent) => allowBadgeDropOnBadgesCell({
-				getIsFindingPlayers: () => getSyncState().isFindingPlayers,
+				getIsTableLocked: () => (
+					getSyncState().isFindingPlayers || Boolean(getSyncState().inviteFromLink)
+				),
 				event,
 			}),
 			dropBadgeOnBadgesCell: (event: DragEvent) => dropBadgeOnBadgesCell({
@@ -431,7 +498,7 @@ export function useLogic() {
 			// Badge names stacked in that cell, which drag to another row or out of the table
 			badges: row.badgeNames.map((name) => ({
 				name,
-				draggable: !state.isFindingPlayers,
+				draggable: !isTableLocked,
 				dragBadgeFromTable: (event: DragEvent) => dragBadgeFromTable({
 					event,
 					index,
@@ -453,7 +520,9 @@ export function useLogic() {
 
 			// Role cell after Badges
 			allowRoleDropOnRoleCell: (event: DragEvent) => allowRoleDropOnRoleCell({
-				getIsFindingPlayers: () => getSyncState().isFindingPlayers,
+				getIsTableLocked: () => (
+					getSyncState().isFindingPlayers || Boolean(getSyncState().inviteFromLink)
+				),
 				event,
 			}),
 			dropRoleOnRoleCell: (event: DragEvent) => dropRoleOnRoleCell({
@@ -469,10 +538,10 @@ export function useLogic() {
 			}),
 
 			// Role names stacked in that cell, which drag to another row or out of the table.
-			// While finding players, Solar Support is crossed out when the toon is not Bobette.
+			// While the table is locked, Solar Support is crossed out when the toon is not Bobette.
 			roles: row.roleNames
 				.map((name) => {
-					const isCrossedOut = state.isFindingPlayers
+					const isCrossedOut = isTableLocked
 						&& name === 'Solar Support'
 						&& row.toonPicture !== 'bobette.png'
 					return {
@@ -481,7 +550,7 @@ export function useLogic() {
 						crossedOutTooltip: isCrossedOut
 							? 'Only Bobette can help with Solar Distracting'
 							: undefined,
-						draggable: !state.isFindingPlayers,
+						draggable: !isTableLocked,
 						dragRoleFromTable: (event: DragEvent) => dragRoleFromTable({
 							event,
 							index,
@@ -504,46 +573,98 @@ export function useLogic() {
 					}
 				}),
 
-			// Last column: the Reserved checkbox, or while searching either "Finding player..."
-
-			// or the grey name of the player in the row, who is the user or a player who joined
+			// Player column, the last one: the player dropdown, or while the table is locked either
+			// "Finding player..." or the grey name of the player in the row
 			...(() => {
-				const joinedPlayerUsername = foundTeam?.joinedPlayerUsernames[index] ?? null
+				const playerInRow = shownTeamStatus?.playersInRows[index] ?? null
+				const playerInRowName = (() => {
+					if (!playerInRow) return ''
+					if ('robloxUsername' in playerInRow) {
+						return playerInRow.robloxUsername
+							? `@${playerInRow.robloxUsername}`
+							: 'Unverified player'
+					}
+					return playerInRow.unverifiedFriendOf
+						? `Friend of @${playerInRow.unverifiedFriendOf}`
+						: 'Unverified friend'
+				})()
+				const showFindingPlayerText = isSearching
+					&& !hasJoinedATeam
+					&& !playerInRow
+					&& row.playerChoice === 'findPlayer'
 				return {
-					showFindingPlayerText: state.isFindingPlayers
-						&& !hasJoinedATeam
-						&& !row.isReserved
-						&& !row.isLeftEmpty
-						&& joinedPlayerUsername === null,
-					showPlayerName: state.isFindingPlayers
-						&& (row.isReserved || joinedPlayerUsername !== null),
-					playerName: (() => {
-						if (joinedPlayerUsername) return `(@${joinedPlayerUsername} or their friends)`
-						if (joinedPlayerUsername === '') return '(Unverified player)'
-						return state.verifiedRobloxAccount
-							? `(@${state.verifiedRobloxAccount.username} or their friends)`
-							: '(Reserved)'
-					})(),
+					showFindingPlayerText,
+					showPlayerName: isTableLocked && !showFindingPlayerText,
+					playerName: playerInRowName ? `(${playerInRowName})` : {
+						findPlayer: '(Find player)',
+						me: '(You)',
+						unverifiedFriend: '(Unverified friend)',
+						invitedFriend: '(Invite not accepted)',
+					}[row.playerChoice],
+					showPlayerDropdown: !isTableLocked,
+					chosenPlayerDropdownOption: row.playerChoice,
+					choosePlayerInRow: (event: ChangeEvent<HTMLSelectElement>) => choosePlayerInRow({
+						getPlayerChoices: () => getSyncState().teamTableRows.map((row) => row.playerChoice),
+						setPlayerChoices: (playerChoices) => mutateState((state) => {
+							state.teamTableRows.forEach((row, rowIndex) => {
+								row.playerChoice = playerChoices[rowIndex]
+							})
+						}),
+						event,
+						index,
+					}),
+
+					// "Copy invite link" button below the dropdown of an "Invite friend" row, and the
+					// grey line below it that says whether the friend joined
+					showInviteLink: !isTableLocked && row.playerChoice === 'invitedFriend',
+					copyInviteLinkButtonText: state.copiedInviteLinkRowIndex === index
+						? 'Copied!'
+						: 'Copy invite link',
+					copyInviteLink: () => copyInviteLink({
+						inviteCode: getSyncState().inviteCode,
+						setCopiedInviteLinkRowIndex: (copiedInviteLinkRowIndex) => setState({
+							copiedInviteLinkRowIndex,
+						}),
+						index,
+					}),
+					invitedFriendText: playerInRowName
+						? `${playerInRowName} joined`
+						: 'Waiting for your friend...',
 				}
 			})(),
-			showReservedCheckbox: !state.isFindingPlayers,
-			isReserved: row.isReserved,
-			toggleRowReserved: (event: ChangeEvent<HTMLInputElement>) => toggleRowReserved({
-				setIsReserved: (isReserved) => mutateState((state) => {
-					state.teamTableRows[index].isReserved = isReserved
-				}),
-				event,
-			}),
 		})),
 
-		// Header of the last table column
-		lastColumnHeading: state.isFindingPlayers ? 'Player' : 'Reserved',
+		// Options of the dropdown in every row of the Player column
+		playerDropdownOptions: [
+			{
+				value: 'findPlayer',
+				text: 'Find player',
+			},
+			{
+				value: 'me',
+				text: 'Me',
+			},
+			{
+				value: 'unverifiedFriend',
+				text: 'Unverified friend',
+			},
+			{
+				value: 'invitedFriend',
+				text: 'Invite friend',
+			},
+		] satisfies {
+			value: PlayerChoice
+			text: string
+		}[],
 
 
-		// "Server link:" field below the table
+		// "Server link (recommended):" field below the table and the help link below it, which an
+		// invited friend does not see, since the host's server link is the one that counts
+		showServerLinkField: !isInvitedFriend,
 		serverLinkFieldStartValue: state.serverLinkFieldStartValue,
-		isServerLinkFieldLocked: state.isFindingPlayers,
+		isServerLinkFieldLocked: isTableLocked,
 		saveServerLinkField: (event: ChangeEvent<HTMLInputElement>) => saveServerLinkField({
+			setServerLink: (serverLink) => setState({ serverLink }),
 			event,
 		}),
 
@@ -554,8 +675,9 @@ export function useLogic() {
 		closeServerLinkHelpWindow,
 
 		// Dandy Run and Early Dyle checkboxes in the left column of TEAM SETTINGS
-		areDandyRunAndEarlyDyleCheckboxesLocked: state.isFindingPlayers,
-		isDandyRunCheckboxChecked: state.isDandyRunCheckboxChecked,
+		// An invited friend sees the settings of the team that invited them
+		areDandyRunAndEarlyDyleCheckboxesLocked: isTableLocked,
+		isDandyRunCheckboxChecked: invitingTeam?.isDandyRun ?? state.isDandyRunCheckboxChecked,
 		toggleDandyRunCheckbox: (event: ChangeEvent<HTMLInputElement>) => (
 			toggleDandyRunOrEarlyDyleCheckbox({
 				localStorageKey: 'dandyRun',
@@ -563,7 +685,7 @@ export function useLogic() {
 				event,
 			})
 		),
-		isEarlyDyleCheckboxChecked: state.isEarlyDyleCheckboxChecked,
+		isEarlyDyleCheckboxChecked: invitingTeam?.isEarlyDyle ?? state.isEarlyDyleCheckboxChecked,
 		toggleEarlyDyleCheckbox: (event: ChangeEvent<HTMLInputElement>) => (
 			toggleDandyRunOrEarlyDyleCheckbox({
 				localStorageKey: 'earlyDyle',
@@ -573,7 +695,7 @@ export function useLogic() {
 		),
 
 		// Region and Floor goal dropdowns in the right column of TEAM SETTINGS
-		areRegionAndFloorGoalDropdownsLocked: state.isFindingPlayers,
+		areRegionAndFloorGoalDropdownsLocked: isTableLocked,
 		regionDropdownOptions: [
 			'Any',
 			'Africa',
@@ -583,7 +705,7 @@ export function useLogic() {
 			'South America',
 			'Oceania',
 		],
-		chosenRegionDropdownOption: state.chosenRegionDropdownOption,
+		chosenRegionDropdownOption: invitingTeam?.region ?? state.chosenRegionDropdownOption,
 		chooseRegionDropdownOption: (event: ChangeEvent<HTMLSelectElement>) => (
 			chooseRegionOrFloorGoalDropdownOption({
 				localStorageKey: 'region',
@@ -607,7 +729,7 @@ export function useLogic() {
 			'100',
 			'100+',
 		],
-		chosenFloorGoalDropdownOption: state.chosenFloorGoalDropdownOption,
+		chosenFloorGoalDropdownOption: invitingTeam?.floorGoal ?? state.chosenFloorGoalDropdownOption,
 		chooseFloorGoalDropdownOption: (event: ChangeEvent<HTMLSelectElement>) => (
 			chooseRegionOrFloorGoalDropdownOption({
 				localStorageKey: 'floorGoal',
@@ -621,47 +743,46 @@ export function useLogic() {
 		// Find Players button at the bottom right of Find a Team, with its spinner and the red
 
 		// error line below it
+		// error line below it. An invited friend only watches, so they get no button.
+		showFindPlayersButton: !isInvitedFriend,
 		toggleFindingPlayers: (event: FormEvent<HTMLFormElement>) => toggleFindingPlayers({
-			getSearcherId: () => getSyncState().searcherId,
 			getTeamTableRows: () => getSyncState().teamTableRows,
-			getTeamSettings: () => ({
-				isDandyRun: getSyncState().isDandyRunCheckboxChecked,
-				isEarlyDyle: getSyncState().isEarlyDyleCheckboxChecked,
-				region: getSyncState().chosenRegionDropdownOption,
-				floorGoal: getSyncState().chosenFloorGoalDropdownOption,
-			}),
+			getServerLink: () => getSyncState().serverLink,
 			getIsFindingPlayers: () => getSyncState().isFindingPlayers,
 			setIsFindingPlayers: (isFindingPlayers) => setState({ isFindingPlayers }),
 			setFindPlayersError: (findPlayersError) => setState({ findPlayersError }),
-			setFoundTeam: (foundTeam) => setState({ foundTeam }),
 			event,
 		}),
 		findPlayersButtonText: (() => {
 			if (hasJoinedATeam) return 'Leave Team'
 			return state.isFindingPlayers ? 'Finding Players (Click to Cancel)' : 'Find Players'
 		})(),
-		// The spinner stops once this user joined a team, or once every row of their team is taken
-		showFindingPlayersSpinner: state.isFindingPlayers
+		// The spinner stops once the team joined another team, or once every row of it is taken
+		showFindingPlayersSpinner: isSearching
 			&& !hasJoinedATeam
-			&& state.teamTableRows.some((row, index) => (
+			&& shownTeamTableRows.some((row, index) => (
 				!row.isLeftEmpty
-				&& !row.isReserved
-				&& (foundTeam?.joinedPlayerUsernames[index] ?? null) === null
+				&& row.playerChoice === 'findPlayer'
+				&& !shownTeamStatus?.playersInRows[index]
 			)),
 		findPlayersError: state.findPlayersError,
 
 		// Line below the error with the server link of the team, once players got together
-		showTeamServerLink: Boolean(
-			foundTeam?.teamServerLink
-			&& (hasJoinedATeam || foundTeam.joinedPlayerUsernames.some((name) => name !== null)),
-		),
+		showTeamServerLink: Boolean(shownTeamStatus?.teamServerLink),
 		teamFoundText: (() => {
-			if (!hasJoinedATeam) return 'Players joined your team! Everyone meets in this server:'
-			return foundTeam?.hostRobloxUsername
-				? `You joined @${foundTeam.hostRobloxUsername}'s team! Join their server:`
-				: 'You joined a team! Join its server:'
+			const host = shownTeamStatus?.hostRobloxUsername
+			if (hasJoinedATeam) {
+				const joiner = isInvitedFriend ? 'Your team' : 'You'
+				return host
+					? `${joiner} joined @${host}'s team! Join their server:`
+					: `${joiner} joined a team! Join its server:`
+			}
+			if (!isInvitedFriend) return 'Players joined your team! Everyone meets in this server:'
+			return host
+				? `Players joined @${host}'s team! Everyone meets in this server:`
+				: 'Players joined the team! Everyone meets in this server:'
 		})(),
-		teamServerLink: foundTeam?.teamServerLink ?? '',
+		teamServerLink: shownTeamStatus?.teamServerLink ?? '',
 
 
 		// Two counters at the bottom middle of the screen

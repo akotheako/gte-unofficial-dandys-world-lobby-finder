@@ -1,10 +1,10 @@
 export function undoLeaveRowEmpty({
-	getIsFindingPlayers,
+	getIsTableLocked,
 	setIsLeftEmpty,
 }: {
-	getIsFindingPlayers: () => boolean
+	getIsTableLocked: () => boolean
 	setIsLeftEmpty: (isLeftEmpty: boolean) => void
 }) {
-	if (getIsFindingPlayers()) return
+	if (getIsTableLocked()) return
 	setIsLeftEmpty(false)
 }
