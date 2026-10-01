@@ -1,4 +1,4 @@
-import type { TeamTableRow } from './useLobby.ts'
+import type { TeamTableRow } from './useLogic.ts'
 
 export function readSavedTeamTable(): TeamTableRow[] {
 	return (

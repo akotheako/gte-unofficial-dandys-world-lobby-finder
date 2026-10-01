@@ -1,7 +1,7 @@
 import type {
 	RobloxAccount,
 	RobloxBadge,
-} from './useLobby.ts'
+} from './useLogic.ts'
 
 export async function logOutOfRoblox({
 	setVerifiedRobloxAccount,

@@ -1,4 +1,4 @@
-import type { RobloxBadge } from './useLobby.ts'
+import type { RobloxBadge } from './useLogic.ts'
 
 export async function updateRobloxBadgeChecklist({
 	setRobloxBadgeChecklist,

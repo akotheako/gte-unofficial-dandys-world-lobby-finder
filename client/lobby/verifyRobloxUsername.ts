@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react'
-import type { RobloxAccount } from './useLobby.ts'
+import type { RobloxAccount } from './useLogic.ts'
 
 export async function verifyRobloxUsername({
 	setRobloxVerificationError,

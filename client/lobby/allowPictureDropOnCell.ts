@@ -1,5 +1,5 @@
 import type { DragEvent } from 'react'
-import type { PictureColumn } from './useLobby.ts'
+import type { PictureColumn } from './useLogic.ts'
 
 export function allowPictureDropOnCell({
 	getIsFindingPlayers,

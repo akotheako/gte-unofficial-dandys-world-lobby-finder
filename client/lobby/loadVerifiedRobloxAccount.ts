@@ -1,4 +1,4 @@
-import type { RobloxAccount } from './useLobby.ts'
+import type { RobloxAccount } from './useLogic.ts'
 
 export function loadVerifiedRobloxAccount({
 	setVerifiedRobloxAccount,

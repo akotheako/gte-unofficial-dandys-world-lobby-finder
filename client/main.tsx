@@ -6,7 +6,7 @@ import {
 	type ReactNode,
 } from 'react'
 import { createRoot } from 'react-dom/client'
-import { useLobby } from './lobby/useLobby.ts'
+import { useLogic } from './lobby/useLogic.ts'
 
 // Desktop icon that opens an old-style grey window with a navy title bar and an × button
 function DesktopWindow({
@@ -159,7 +159,7 @@ createRoot(document.getElementById('root')!).render(
 	<StrictMode>
 		{/* Desktop with the Roblox Verification and Find a Team icons and their windows */}
 		{createElement(() => {
-			const lobby = useLobby()
+			const logic = useLogic()
 			return (
 				<>
 					{/* Hidden filter that makes the icon pictures blocky and reduces them to a few colors */}
@@ -226,12 +226,12 @@ createRoot(document.getElementById('root')!).render(
 						iconId="account-icon"
 						title="Roblox Verification"
 						image="/Gossip_Bud.webp"
-						{...lobby.robloxVerificationWindow}
+						{...logic.robloxVerificationWindow}
 					>
-						{lobby.isRobloxVerified ? (
+						{logic.isRobloxVerified ? (
 							// "Verified as <name>", the badge checklist, and Update Badges and Log out buttons
 							<>
-								<p>Verified as {lobby.verifiedRobloxUsername}</p>
+								<p>Verified as {logic.verifiedRobloxUsername}</p>
 								{/* Dandy's World badge checklist, "Loading badges...", or an error */}
 								<style>{`
 									#account-badges {
@@ -241,16 +241,16 @@ createRoot(document.getElementById('root')!).render(
 										list-style: none;
 									}
 								`}</style>
-								{lobby.showBadgeChecklist ? (
+								{logic.showBadgeChecklist ? (
 									<ul id="account-badges">
-										{lobby.badgeChecklist.map((badge) => (
+										{logic.badgeChecklist.map((badge) => (
 											<li key={badge.name}>
 												{badge.mark} {badge.name}
 											</li>
 										))}
 									</ul>
 								) : (
-									<p>{lobby.badgeChecklistLoadingText}</p>
+									<p>{logic.badgeChecklistLoadingText}</p>
 								)}
 								{/* Update Badges button on the left and Log out on the right, away from the × button */}
 								<style>{`
@@ -260,8 +260,8 @@ createRoot(document.getElementById('root')!).render(
 									}
 								`}</style>
 								<div id="account-actions">
-									<button onClick={lobby.updateRobloxBadgeChecklist}>Update Badges</button>
-									<button onClick={lobby.logOutOfRoblox}>Log out</button>
+									<button onClick={logic.updateRobloxBadgeChecklist}>Update Badges</button>
+									<button onClick={logic.logOutOfRoblox}>Log out</button>
 								</div>
 							</>
 						) : (
@@ -298,11 +298,11 @@ createRoot(document.getElementById('root')!).render(
 								`}</style>
 								<div id="account-code">
 									<input
-										value={lobby.verificationEmojiCode}
+										value={logic.verificationEmojiCode}
 										readOnly
 										tabIndex={-1}
 									/>
-									<button onClick={lobby.copyVerificationEmojiCode}>Copy</button>
+									<button onClick={logic.copyVerificationEmojiCode}>Copy</button>
 								</div>
 								<p>Then enter your username below and click [Check]:</p>
 								{/* Roblox username field with Check, and any error below */}
@@ -316,16 +316,16 @@ createRoot(document.getElementById('root')!).render(
 								`}</style>
 								<form
 									id="account-username"
-									onSubmit={lobby.verifyRobloxUsername}
+									onSubmit={logic.verifyRobloxUsername}
 								>
 									<input
 										name="username"
-										defaultValue={lobby.usernameFieldStartValue}
+										defaultValue={logic.usernameFieldStartValue}
 										placeholder="Roblox username"
 										required
 									/>
 									<button>Check</button>
-									<p>{lobby.robloxVerificationError}</p>
+									<p>{logic.robloxVerificationError}</p>
 								</form>
 							</>
 						)}
@@ -341,7 +341,7 @@ createRoot(document.getElementById('root')!).render(
 						iconId="team-icon"
 						title="Find a Team"
 						image="/All_Together.webp"
-						{...lobby.findATeamWindow}
+						{...logic.findATeamWindow}
 					>
 						{/* Side windows that hang outside this window's edges */}
 						<style>{`
@@ -434,7 +434,7 @@ createRoot(document.getElementById('root')!).render(
 						{/* Toons window to the lower left, whose toons drag into the Toon column */}
 						<div
 							id="team-toons"
-							className={lobby.sideWindowClass}
+							className={logic.sideWindowClass}
 						>
 							<div className="window-title">Toons</div>
 							<div className="team-palette">
@@ -442,11 +442,11 @@ createRoot(document.getElementById('root')!).render(
 								<div
 									className="team-text"
 									draggable
-									onDragStart={lobby.dragLeaveEmptyTile}
+									onDragStart={logic.dragLeaveEmptyTile}
 								>
 									(Leave Empty)
 								</div>
-								{lobby.toonsWindowTiles.map((toon) => (
+								{logic.toonsWindowTiles.map((toon) => (
 									<img
 										key={toon.name}
 										src={toon.src}
@@ -460,11 +460,11 @@ createRoot(document.getElementById('root')!).render(
 						{/* Trinkets window to the upper right, whose trinkets drag into the Trinket columns */}
 						<div
 							id="team-trinkets"
-							className={lobby.sideWindowClass}
+							className={logic.sideWindowClass}
 						>
 							<div className="window-title">Trinkets</div>
 							<div className="team-palette">
-								{lobby.trinketsWindowTiles.map((trinket) => (
+								{logic.trinketsWindowTiles.map((trinket) => (
 									<img
 										key={trinket.name}
 										src={trinket.src}
@@ -497,14 +497,14 @@ createRoot(document.getElementById('root')!).render(
 								background: #e0e0e0;
 							}
 						`}</style>
-						{lobby.isRobloxVerified && (
+						{logic.isRobloxVerified && (
 							<div
 								id="team-badges"
-								className={lobby.sideWindowClass}
+								className={logic.sideWindowClass}
 							>
 								<div className="window-title">Badges</div>
 								<ul>
-									{lobby.badgesWindowTiles.map((badge) => (
+									{logic.badgesWindowTiles.map((badge) => (
 										<li
 											key={badge.name}
 											draggable
@@ -594,12 +594,12 @@ createRoot(document.getElementById('root')!).render(
 									<th>Toon</th>
 									<th>Trinket A</th>
 									<th>Trinket B</th>
-									{lobby.isRobloxVerified && <th>Badges</th>}
-									<th>{lobby.lastColumnHeading}</th>
+									{logic.isRobloxVerified && <th>Badges</th>}
+									<th>{logic.lastColumnHeading}</th>
 								</tr>
 							</thead>
 							<tbody>
-								{lobby.teamTableRows.map((row) => (
+								{logic.teamTableRows.map((row) => (
 									<tr
 										key={row.key}
 										onDragOver={row.allowLeaveEmptyDropOnRow}
@@ -646,7 +646,7 @@ createRoot(document.getElementById('root')!).render(
 											</td>
 										))}
 										{/* Badge names stacked in the cell, each one draggable to another row or out of the table */}
-										{!row.isLeftEmpty && lobby.isRobloxVerified && (
+										{!row.isLeftEmpty && logic.isRobloxVerified && (
 											<td
 												onDragOver={row.allowBadgeDropOnBadgesCell}
 												onDrop={row.dropBadgeOnBadgesCell}
@@ -691,7 +691,7 @@ createRoot(document.getElementById('root')!).render(
 								))}
 							</tbody>
 						</table>
-						{/* "Server link:" field, with a help link on the left and Find Players on the right */}
+						{/* "Server link:" field, then a help link, two run tags and Find Players, each on its own row */}
 						<style>{`
 							#team-form {
 								display: flex;
@@ -709,47 +709,144 @@ createRoot(document.getElementById('root')!).render(
 								flex: 1;
 								min-width: 0;
 							}
-							#team-form-actions {
-								display: flex;
-								justify-content: space-between;
-								align-items: center;
-							}
 							#team-form-error {
 								margin: 0;
 								color: #a00;
 							}
-							#team-form-actions a {
-								color: #00e;
-								text-decoration: underline;
-								cursor: pointer;
-							}
 						`}</style>
 						<form
 							id="team-form"
-							onSubmit={lobby.toggleFindingPlayers}
+							onSubmit={logic.toggleFindingPlayers}
 						>
 							<label>
 								Server link:
 								<input
 									name="serverLink"
 									type="password"
-									defaultValue={lobby.serverLinkFieldStartValue}
-									readOnly={lobby.isServerLinkFieldLocked}
-									onChange={lobby.saveServerLinkField}
+									defaultValue={logic.serverLinkFieldStartValue}
+									readOnly={logic.isServerLinkFieldLocked}
+									onChange={logic.saveServerLinkField}
 								/>
 							</label>
-							<div id="team-form-actions">
-								<a onClick={lobby.openServerLinkHelpWindow}>How do I get a server link?</a>
+							{/* Blue underlined link that opens the server link help window */}
+							<style>{`
+								#team-server-link-help {
+									align-self: flex-start;
+									color: #00e;
+									text-decoration: underline;
+									cursor: pointer;
+								}
+							`}</style>
+							<a
+								id="team-server-link-help"
+								onClick={logic.openServerLinkHelpWindow}
+							>
+								How do I get a server link?
+							</a>
+							{/* Old-style etched group box titled "TEAM SETTINGS", with checkboxes on the left and
+							dropdowns on the right */}
+							<style>{`
+								#team-settings {
+									display: grid;
+									grid-template-rows: auto auto;
+									grid-auto-flow: column;
+									justify-content: start;
+									gap: 6px 24px;
+									margin: 0;
+									padding: 6px 10px 10px;
+									border: 2px groove #fff;
+								}
+								#team-settings legend {
+									padding: 0 4px;
+									font-weight: bold;
+								}
+							`}</style>
+							<fieldset id="team-settings">
+								<legend>TEAM SETTINGS</legend>
+								{/* Column of two checkboxes, Dandy Run and Early Dyle, that explain themselves on
+								hover */}
+								<style>{`
+									#team-dandy-run-and-early-dyle {
+										display: contents;
+									}
+									#team-dandy-run-and-early-dyle label {
+										cursor: help;
+									}
+									#team-dandy-run-and-early-dyle input {
+										flex: none;
+										margin: 0;
+									}
+								`}</style>
+								<div id="team-dandy-run-and-early-dyle">
+									<label title="Don't buy anything in Dandy's shop!!">
+										<input
+											type="checkbox"
+											checked={logic.isDandyRunCheckboxChecked}
+											disabled={logic.areDandyRunAndEarlyDyleCheckboxesLocked}
+											onChange={logic.toggleDandyRunCheckbox}
+										/>
+										Dandy Run
+									</label>
+									<label title={`Vote the special "TIME'S UP" card as soon as it appears`}>
+										<input
+											type="checkbox"
+											checked={logic.isEarlyDyleCheckboxChecked}
+											disabled={logic.areDandyRunAndEarlyDyleCheckboxesLocked}
+											onChange={logic.toggleEarlyDyleCheckbox}
+										/>
+										Early Dyle
+									</label>
+								</div>
+								{/* Column of two labeled dropdowns, Region and Floor goal, with the dropdowns lined
+								up on the right */}
+								<style>{`
+									#team-region-and-floor-goal {
+										display: contents;
+									}
+									#team-region-and-floor-goal label {
+										justify-content: space-between;
+										gap: 8px;
+									}
+								`}</style>
+								<div id="team-region-and-floor-goal">
+									<label>
+										Region:
+										<select
+											value={logic.chosenRegionDropdownOption}
+											disabled={logic.areRegionAndFloorGoalDropdownsLocked}
+											onChange={logic.chooseRegionDropdownOption}
+										>
+											{logic.regionDropdownOptions.map((option) => (
+												<option key={option}>{option}</option>
+											))}
+										</select>
+									</label>
+									<label>
+										Floor goal:
+										<select
+											value={logic.chosenFloorGoalDropdownOption}
+											disabled={logic.areRegionAndFloorGoalDropdownsLocked}
+											onChange={logic.chooseFloorGoalDropdownOption}
+										>
+											{logic.floorGoalDropdownOptions.map((option) => (
+												<option key={option}>{option}</option>
+											))}
+										</select>
+									</label>
+								</div>
+							</fieldset>
+							<div>
 								{/* Find Players button, followed while searching by a spinner */}
 								<style>{`
 									#team-find {
 										display: flex;
+										justify-content: flex-end;
 										align-items: center;
 										gap: 6px;
 									}
 								`}</style>
 								<span id="team-find">
-									<button>{lobby.findPlayersButtonText}</button>
+									<button>{logic.findPlayersButtonText}</button>
 									{/* Ring of eight black spokes that darken one after another around the circle */}
 									<style>{`
 										#team-spinner {
@@ -790,7 +887,7 @@ createRoot(document.getElementById('root')!).render(
 										#team-spinner span:nth-child(7) { transform: rotate(270deg); animation-delay: -0.1s; }
 										#team-spinner span:nth-child(8) { transform: rotate(315deg); animation-delay: 0s; }
 									`}</style>
-									{lobby.showFindingPlayersSpinner && (
+									{logic.showFindingPlayersSpinner && (
 										<span id="team-spinner">
 											<span />
 											<span />
@@ -804,7 +901,7 @@ createRoot(document.getElementById('root')!).render(
 									)}
 								</span>
 							</div>
-							<p id="team-form-error">{lobby.findPlayersError}</p>
+							<p id="team-form-error">{logic.findPlayersError}</p>
 						</form>
 						{/* Window on top of Find a Team with two screenshots that explain how to get a server link */}
 						<style>{`
@@ -832,7 +929,7 @@ createRoot(document.getElementById('root')!).render(
 								<button
 									className="window-close"
 									aria-label="Close"
-									onClick={lobby.closeServerLinkHelpWindow}
+									onClick={logic.closeServerLinkHelpWindow}
 								>
 									×
 								</button>
@@ -866,8 +963,8 @@ createRoot(document.getElementById('root')!).render(
 						}
 					`}</style>
 					<div id="counters">
-						<span>{lobby.onThisPageCount} on this page</span>
-						<span>{lobby.findingPlayersCount} finding players</span>
+						<span>{logic.onThisPageCount} on this page</span>
+						<span>{logic.findingPlayersCount} finding players</span>
 					</div>
 				</>
 			)

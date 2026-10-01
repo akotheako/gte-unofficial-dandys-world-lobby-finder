@@ -10,6 +10,9 @@ import { useSyncState } from '../useSyncState.ts'
 import { allowBadgeDropOnBadgesCell } from './allowBadgeDropOnBadgesCell.ts'
 import { allowLeaveEmptyDropOnRow } from './allowLeaveEmptyDropOnRow.ts'
 import { allowPictureDropOnCell } from './allowPictureDropOnCell.ts'
+import {
+	chooseRegionOrFloorGoalDropdownOption,
+} from './chooseRegionOrFloorGoalDropdownOption.ts'
 import { closeServerLinkHelpWindow } from './closeServerLinkHelpWindow.ts'
 import { closeWindowFromXButton } from './closeWindowFromXButton.ts'
 import { copyVerificationEmojiCode } from './copyVerificationEmojiCode.ts'
@@ -32,6 +35,7 @@ import { logOutOfRoblox } from './logOutOfRoblox.ts'
 import { openServerLinkHelpWindow } from './openServerLinkHelpWindow.ts'
 import { readSavedTeamTable } from './readSavedTeamTable.ts'
 import { saveServerLinkField } from './saveServerLinkField.ts'
+import { toggleDandyRunOrEarlyDyleCheckbox } from './toggleDandyRunOrEarlyDyleCheckbox.ts'
 import { saveTeamTable } from './saveTeamTable.ts'
 import { shrinkWindowIntoIcon } from './shrinkWindowIntoIcon.ts'
 import { toggleFindingPlayers } from './toggleFindingPlayers.ts'
@@ -61,7 +65,7 @@ export type TeamTableRow = {
 	isLeftEmpty: boolean
 }
 
-export function useLobby() {
+export function useLogic() {
 	const {
 		asyncState: state,
 		getSyncState,
@@ -77,6 +81,10 @@ export function useLobby() {
 		toonsWindowPictures: string[]
 		trinketsWindowPictures: string[]
 		serverLinkFieldStartValue: string
+		isDandyRunCheckboxChecked: boolean
+		isEarlyDyleCheckboxChecked: boolean
+		chosenRegionDropdownOption: string
+		chosenFloorGoalDropdownOption: string
 		findPlayersError: string
 		isFindingPlayers: boolean
 		onThisPageCount: number
@@ -92,6 +100,10 @@ export function useLobby() {
 		toonsWindowPictures: [],
 		trinketsWindowPictures: [],
 		serverLinkFieldStartValue: localStorage.getItem('serverLink') ?? '',
+		isDandyRunCheckboxChecked: localStorage.getItem('dandyRun') === 'true',
+		isEarlyDyleCheckboxChecked: localStorage.getItem('earlyDyle') === 'true',
+		chosenRegionDropdownOption: localStorage.getItem('region') ?? 'Any',
+		chosenFloorGoalDropdownOption: localStorage.getItem('floorGoal') ?? '50',
 		findPlayersError: '',
 		isFindingPlayers: false,
 		onThisPageCount: 0,
@@ -418,6 +430,71 @@ export function useLobby() {
 		// that it opens
 		openServerLinkHelpWindow,
 		closeServerLinkHelpWindow,
+
+		// Dandy Run and Early Dyle checkboxes in the left column of TEAM SETTINGS
+		areDandyRunAndEarlyDyleCheckboxesLocked: state.isFindingPlayers,
+		isDandyRunCheckboxChecked: state.isDandyRunCheckboxChecked,
+		toggleDandyRunCheckbox: (event: ChangeEvent<HTMLInputElement>) => (
+			toggleDandyRunOrEarlyDyleCheckbox({
+				localStorageKey: 'dandyRun',
+				setIsChecked: (isDandyRunCheckboxChecked) => setState({ isDandyRunCheckboxChecked }),
+				event,
+			})
+		),
+		isEarlyDyleCheckboxChecked: state.isEarlyDyleCheckboxChecked,
+		toggleEarlyDyleCheckbox: (event: ChangeEvent<HTMLInputElement>) => (
+			toggleDandyRunOrEarlyDyleCheckbox({
+				localStorageKey: 'earlyDyle',
+				setIsChecked: (isEarlyDyleCheckboxChecked) => setState({ isEarlyDyleCheckboxChecked }),
+				event,
+			})
+		),
+
+		// Region and Floor goal dropdowns in the right column of TEAM SETTINGS
+		areRegionAndFloorGoalDropdownsLocked: state.isFindingPlayers,
+		regionDropdownOptions: [
+			'Any',
+			'Africa',
+			'Asia',
+			'Europe',
+			'North America',
+			'South America',
+			'Oceania',
+		],
+		chosenRegionDropdownOption: state.chosenRegionDropdownOption,
+		chooseRegionDropdownOption: (event: ChangeEvent<HTMLSelectElement>) => (
+			chooseRegionOrFloorGoalDropdownOption({
+				localStorageKey: 'region',
+				setChosenOption: (chosenRegionDropdownOption) => setState({
+					chosenRegionDropdownOption,
+				}),
+				event,
+			})
+		),
+		floorGoalDropdownOptions: [
+			'10',
+			'20',
+			'25',
+			'30',
+			'40',
+			'50',
+			'60',
+			'70',
+			'80',
+			'90',
+			'100',
+			'100+',
+		],
+		chosenFloorGoalDropdownOption: state.chosenFloorGoalDropdownOption,
+		chooseFloorGoalDropdownOption: (event: ChangeEvent<HTMLSelectElement>) => (
+			chooseRegionOrFloorGoalDropdownOption({
+				localStorageKey: 'floorGoal',
+				setChosenOption: (chosenFloorGoalDropdownOption) => setState({
+					chosenFloorGoalDropdownOption,
+				}),
+				event,
+			})
+		),
 
 		// Find Players button at the bottom right of Find a Team, with its spinner and the red
 

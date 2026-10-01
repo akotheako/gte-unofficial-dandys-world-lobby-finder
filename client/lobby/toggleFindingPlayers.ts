@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react'
-import type { TeamTableRow } from './useLobby.ts'
+import type { TeamTableRow } from './useLogic.ts'
 
 export function toggleFindingPlayers({
 	getTeamTableRows,
@@ -21,10 +21,6 @@ export function toggleFindingPlayers({
 	}
 	const teamTableRows = getTeamTableRows()
 	const serverLink = new FormData(event.currentTarget).get('serverLink') as string
-	console.log({
-		teamTableRows,
-		serverLink,
-	})
 	if (!teamTableRows.some((row) => !row.isLeftEmpty && !row.isReserved)) {
 		setFindPlayersError(
 			'At least 1 non-empty & non-reserved row is needed to start finding players!',
