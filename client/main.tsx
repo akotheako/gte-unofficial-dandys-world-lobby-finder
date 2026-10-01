@@ -226,12 +226,12 @@ createRoot(document.getElementById('root')!).render(
 						iconId="account-icon"
 						title="Roblox Verification"
 						image="/Gossip_Bud.webp"
-						{...lobby.accountWindow}
+						{...lobby.robloxVerificationWindow}
 					>
-						{lobby.verified ? (
+						{lobby.isRobloxVerified ? (
 							// "Verified as <name>", the badge checklist, and Update Badges and Log out buttons
 							<>
-								<p>Verified as {lobby.username}</p>
+								<p>Verified as {lobby.verifiedRobloxUsername}</p>
 								{/* Dandy's World badge checklist, "Loading badges...", or an error */}
 								<style>{`
 									#account-badges {
@@ -250,7 +250,7 @@ createRoot(document.getElementById('root')!).render(
 										))}
 									</ul>
 								) : (
-									<p>{lobby.badgesMessage}</p>
+									<p>{lobby.badgeChecklistLoadingText}</p>
 								)}
 								{/* Update Badges button on the left and Log out on the right, away from the × button */}
 								<style>{`
@@ -260,8 +260,8 @@ createRoot(document.getElementById('root')!).render(
 									}
 								`}</style>
 								<div id="account-actions">
-									<button onClick={lobby.refreshBadges}>Update Badges</button>
-									<button onClick={lobby.logOut}>Log out</button>
+									<button onClick={lobby.updateRobloxBadgeChecklist}>Update Badges</button>
+									<button onClick={lobby.logOutOfRoblox}>Log out</button>
 								</div>
 							</>
 						) : (
@@ -298,11 +298,11 @@ createRoot(document.getElementById('root')!).render(
 								`}</style>
 								<div id="account-code">
 									<input
-										value={lobby.code}
+										value={lobby.verificationEmojiCode}
 										readOnly
 										tabIndex={-1}
 									/>
-									<button onClick={lobby.copyCode}>Copy</button>
+									<button onClick={lobby.copyVerificationEmojiCode}>Copy</button>
 								</div>
 								<p>Then enter your username below and click [Check]:</p>
 								{/* Roblox username field with Check, and any error below */}
@@ -316,16 +316,16 @@ createRoot(document.getElementById('root')!).render(
 								`}</style>
 								<form
 									id="account-username"
-									onSubmit={lobby.checkUsername}
+									onSubmit={lobby.verifyRobloxUsername}
 								>
 									<input
 										name="username"
-										defaultValue={lobby.savedUsername}
+										defaultValue={lobby.usernameFieldStartValue}
 										placeholder="Roblox username"
 										required
 									/>
 									<button>Check</button>
-									<p>{lobby.error}</p>
+									<p>{lobby.robloxVerificationError}</p>
 								</form>
 							</>
 						)}
@@ -341,7 +341,7 @@ createRoot(document.getElementById('root')!).render(
 						iconId="team-icon"
 						title="Find a Team"
 						image="/All_Together.webp"
-						{...lobby.teamWindow}
+						{...lobby.findATeamWindow}
 					>
 						{/* Side windows that hang outside this window's edges */}
 						<style>{`
@@ -434,7 +434,7 @@ createRoot(document.getElementById('root')!).render(
 						{/* Toons window to the lower left, whose toons drag into the Toon column */}
 						<div
 							id="team-toons"
-							className={lobby.paletteWindowClass}
+							className={lobby.sideWindowClass}
 						>
 							<div className="window-title">Toons</div>
 							<div className="team-palette">
@@ -442,17 +442,17 @@ createRoot(document.getElementById('root')!).render(
 								<div
 									className="team-text"
 									draggable
-									onDragStart={lobby.dragLeaveEmpty}
+									onDragStart={lobby.dragLeaveEmptyTile}
 								>
 									(Leave Empty)
 								</div>
-								{lobby.toonPalette.map((toon) => (
+								{lobby.toonsWindowTiles.map((toon) => (
 									<img
 										key={toon.name}
 										src={toon.src}
 										title={toon.title}
 										draggable
-										onDragStart={toon.drag}
+										onDragStart={toon.dragFromSideWindow}
 									/>
 								))}
 							</div>
@@ -460,17 +460,17 @@ createRoot(document.getElementById('root')!).render(
 						{/* Trinkets window to the upper right, whose trinkets drag into the Trinket columns */}
 						<div
 							id="team-trinkets"
-							className={lobby.paletteWindowClass}
+							className={lobby.sideWindowClass}
 						>
 							<div className="window-title">Trinkets</div>
 							<div className="team-palette">
-								{lobby.trinketPalette.map((trinket) => (
+								{lobby.trinketsWindowTiles.map((trinket) => (
 									<img
 										key={trinket.name}
 										src={trinket.src}
 										title={trinket.title}
 										draggable
-										onDragStart={trinket.drag}
+										onDragStart={trinket.dragFromSideWindow}
 									/>
 								))}
 							</div>
@@ -497,18 +497,18 @@ createRoot(document.getElementById('root')!).render(
 								background: #e0e0e0;
 							}
 						`}</style>
-						{lobby.verified && (
+						{lobby.isRobloxVerified && (
 							<div
 								id="team-badges"
-								className={lobby.paletteWindowClass}
+								className={lobby.sideWindowClass}
 							>
 								<div className="window-title">Badges</div>
 								<ul>
-									{lobby.ownedBadges.map((badge) => (
+									{lobby.badgesWindowTiles.map((badge) => (
 										<li
 											key={badge.name}
 											draggable
-											onDragStart={badge.drag}
+											onDragStart={badge.dragFromSideWindow}
 										>
 											{badge.name}
 										</li>
@@ -594,51 +594,51 @@ createRoot(document.getElementById('root')!).render(
 									<th>Toon</th>
 									<th>Trinket A</th>
 									<th>Trinket B</th>
-									{lobby.verified && <th>Badges</th>}
-									<th>{lobby.reservedHeading}</th>
+									{lobby.isRobloxVerified && <th>Badges</th>}
+									<th>{lobby.lastColumnHeading}</th>
 								</tr>
 							</thead>
 							<tbody>
-								{lobby.teamRows.map((row) => (
+								{lobby.teamTableRows.map((row) => (
 									<tr
 										key={row.key}
-										onDragOver={row.allowDisableDrop}
-										onDrop={row.disableRow}
+										onDragOver={row.allowLeaveEmptyDropOnRow}
+										onDrop={row.leaveRowEmpty}
 									>
 										{/* Whole row merged into one cell with "(Leave Empty)" in the middle,
 										which clears when clicked */}
-										{row.disabled && (
+										{row.isLeftEmpty && (
 											<td
-												className={row.disabledCellClass}
-												colSpan={row.disabledColSpan}
-												onClick={row.enableRow}
+												className={row.leaveEmptyCellClass}
+												colSpan={row.leaveEmptyCellColSpan}
+												onClick={row.undoLeaveRowEmpty}
 											>
 												(Leave Empty)
 											</td>
 										)}
-										{!row.disabled && row.itemCells.map((cell) => (
+										{!row.isLeftEmpty && row.pictureCells.map((cell) => (
 											<td
 												key={cell.column}
-												onDragOver={cell.allowDrop}
-												onDrop={cell.drop}
+												onDragOver={cell.allowPictureDropOnCell}
+												onDrop={cell.dropPictureOnCell}
 											>
 												{/* Grey "(Any)" text in an empty Toon cell, which cannot be dragged */}
-												{cell.placeholder && (
+												{cell.anyToonText && (
 													<div className="team-text team-placeholder">
-														{cell.placeholder}
+														{cell.anyToonText}
 													</div>
 												)}
 												{/* Toon or trinket picture */}
-												{cell.item && (
+												{cell.picture && (
 													<div
 														className="team-text"
-														draggable={cell.item.draggable}
-														onDragStart={cell.item.drag}
-														onDragEnd={cell.item.dropOutside}
+														draggable={cell.picture.draggable}
+														onDragStart={cell.picture.dragPictureFromTable}
+														onDragEnd={cell.picture.endPictureDragFromTable}
 													>
 														<img
-															src={cell.item.src}
-															title={cell.item.title}
+															src={cell.picture.src}
+															title={cell.picture.title}
 															draggable={false}
 														/>
 													</div>
@@ -646,18 +646,18 @@ createRoot(document.getElementById('root')!).render(
 											</td>
 										))}
 										{/* Badge names stacked in the cell, each one draggable to another row or out of the table */}
-										{!row.disabled && lobby.verified && (
+										{!row.isLeftEmpty && lobby.isRobloxVerified && (
 											<td
-												onDragOver={row.allowBadgeDrop}
-												onDrop={row.dropBadge}
+												onDragOver={row.allowBadgeDropOnBadgesCell}
+												onDrop={row.dropBadgeOnBadgesCell}
 											>
 												{row.badges.map((badge) => (
 													<div
 														key={badge.name}
 														className="team-badge"
 														draggable={badge.draggable}
-														onDragStart={badge.drag}
-														onDragEnd={badge.dropOutside}
+														onDragStart={badge.dragBadgeFromTable}
+														onDragEnd={badge.endBadgeDragFromTable}
 													>
 														{badge.name}
 													</div>
@@ -666,23 +666,23 @@ createRoot(document.getElementById('root')!).render(
 										)}
 										{/* Reserved checkbox, or while searching either "Finding player..." with blinking
 										dots or grey "(Reserved)" */}
-										{!row.disabled && (
+										{!row.isLeftEmpty && (
 											<td>
-												{row.findingPlayer && (
+												{row.showFindingPlayerText && (
 													<span className="team-finding">
 														Finding player<span>...</span>
 													</span>
 												)}
-												{row.showReservedLabel && (
+												{row.showReservedPlayerName && (
 													<span className="team-finding team-placeholder">
-														{row.reservedLabel}
+														{row.reservedPlayerName}
 													</span>
 												)}
 												{row.showReservedCheckbox && (
 													<input
 														type="checkbox"
-														checked={row.reserved}
-														onChange={row.toggleReserved}
+														checked={row.isReserved}
+														onChange={row.toggleRowReserved}
 													/>
 												)}
 											</td>
@@ -726,20 +726,20 @@ createRoot(document.getElementById('root')!).render(
 						`}</style>
 						<form
 							id="team-form"
-							onSubmit={lobby.findPlayers}
+							onSubmit={lobby.toggleFindingPlayers}
 						>
 							<label>
 								Server link:
 								<input
 									name="serverLink"
 									type="password"
-									defaultValue={lobby.savedServerLink}
-									readOnly={lobby.serverLinkReadOnly}
-									onChange={lobby.saveServerLink}
+									defaultValue={lobby.serverLinkFieldStartValue}
+									readOnly={lobby.isServerLinkFieldLocked}
+									onChange={lobby.saveServerLinkField}
 								/>
 							</label>
 							<div id="team-form-actions">
-								<a onClick={lobby.openHowto}>How do I get a server link?</a>
+								<a onClick={lobby.openServerLinkHelpWindow}>How do I get a server link?</a>
 								{/* Find Players button, followed while searching by a spinner */}
 								<style>{`
 									#team-find {
@@ -749,7 +749,7 @@ createRoot(document.getElementById('root')!).render(
 									}
 								`}</style>
 								<span id="team-find">
-									<button>{lobby.findButtonLabel}</button>
+									<button>{lobby.findPlayersButtonText}</button>
 									{/* Ring of eight black spokes that darken one after another around the circle */}
 									<style>{`
 										#team-spinner {
@@ -790,7 +790,7 @@ createRoot(document.getElementById('root')!).render(
 										#team-spinner span:nth-child(7) { transform: rotate(270deg); animation-delay: -0.1s; }
 										#team-spinner span:nth-child(8) { transform: rotate(315deg); animation-delay: 0s; }
 									`}</style>
-									{lobby.showFindingSpinner && (
+									{lobby.showFindingPlayersSpinner && (
 										<span id="team-spinner">
 											<span />
 											<span />
@@ -804,7 +804,7 @@ createRoot(document.getElementById('root')!).render(
 									)}
 								</span>
 							</div>
-							<p id="team-form-error">{lobby.teamError}</p>
+							<p id="team-form-error">{lobby.findPlayersError}</p>
 						</form>
 						{/* Window on top of Find a Team with two screenshots that explain how to get a server link */}
 						<style>{`
@@ -832,7 +832,7 @@ createRoot(document.getElementById('root')!).render(
 								<button
 									className="window-close"
 									aria-label="Close"
-									onClick={lobby.closeHowto}
+									onClick={lobby.closeServerLinkHelpWindow}
 								>
 									×
 								</button>
@@ -866,8 +866,8 @@ createRoot(document.getElementById('root')!).render(
 						}
 					`}</style>
 					<div id="counters">
-						<span>{lobby.onlineCount} on this page</span>
-						<span>{lobby.findingCount} finding players</span>
+						<span>{lobby.onThisPageCount} on this page</span>
+						<span>{lobby.findingPlayersCount} finding players</span>
 					</div>
 				</>
 			)

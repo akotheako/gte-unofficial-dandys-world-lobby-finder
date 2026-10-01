@@ -7,77 +7,59 @@ import {
 	type SyntheticEvent,
 } from 'react'
 import { useSyncState } from '../useSyncState.ts'
-import { allowBadgeDrop } from './allowBadgeDrop.ts'
-import { allowDisableDrop } from './allowDisableDrop.ts'
-import { allowItemDrop } from './allowItemDrop.ts'
-import { checkUsername } from './checkUsername.ts'
-import { closeHowto } from './closeHowto.ts'
-import { closeWindow } from './closeWindow.ts'
-import { copyCode } from './copyCode.ts'
-import { disableRow } from './disableRow.ts'
-import { dragBadge } from './dragBadge.ts'
-import { dragFromPalette } from './dragFromPalette.ts'
-import { dragItem } from './dragItem.ts'
-import { dropBadge } from './dropBadge.ts'
-import { dropBadgeOutside } from './dropBadgeOutside.ts'
-import { dropItem } from './dropItem.ts'
-import { dropItemOutside } from './dropItemOutside.ts'
-import { enableRow } from './enableRow.ts'
-import { findPlayers } from './findPlayers.ts'
-import { loadBadges } from './loadBadges.ts'
-import { loadCode } from './loadCode.ts'
-import { loadImages } from './loadImages.ts'
-import { loadRobloxSession } from './loadRobloxSession.ts'
-import { logOut } from './logOut.ts'
-import { openHowto } from './openHowto.ts'
-import { openWindow } from './openWindow.ts'
-import { readSavedTeam } from './readSavedTeam.ts'
-import { refreshBadges } from './refreshBadges.ts'
-import { requestCloseWindow } from './requestCloseWindow.ts'
-import { saveServerLink } from './saveServerLink.ts'
-import { saveTeam } from './saveTeam.ts'
-import { startFindingCountDrift } from './startFindingCountDrift.ts'
-import { startHeartbeat } from './startHeartbeat.ts'
-import { toggleReserved } from './toggleReserved.ts'
+import { allowBadgeDropOnBadgesCell } from './allowBadgeDropOnBadgesCell.ts'
+import { allowLeaveEmptyDropOnRow } from './allowLeaveEmptyDropOnRow.ts'
+import { allowPictureDropOnCell } from './allowPictureDropOnCell.ts'
+import { closeServerLinkHelpWindow } from './closeServerLinkHelpWindow.ts'
+import { closeWindowFromXButton } from './closeWindowFromXButton.ts'
+import { copyVerificationEmojiCode } from './copyVerificationEmojiCode.ts'
+import { dragBadgeFromTable } from './dragBadgeFromTable.ts'
+import { dragFromSideWindow } from './dragFromSideWindow.ts'
+import { dragPictureFromTable } from './dragPictureFromTable.ts'
+import { dropBadgeOnBadgesCell } from './dropBadgeOnBadgesCell.ts'
+import { dropPictureOnCell } from './dropPictureOnCell.ts'
+import { endBadgeDragFromTable } from './endBadgeDragFromTable.ts'
+import { endPictureDragFromTable } from './endPictureDragFromTable.ts'
+import { fakeFindingPlayersCount } from './fakeFindingPlayersCount.ts'
+import { growWindowFromIcon } from './growWindowFromIcon.ts'
+import { keepOnThisPageCountUpdated } from './keepOnThisPageCountUpdated.ts'
+import { leaveRowEmpty } from './leaveRowEmpty.ts'
+import { loadRobloxBadgeChecklist } from './loadRobloxBadgeChecklist.ts'
+import { loadSideWindowPictures } from './loadSideWindowPictures.ts'
+import { loadVerificationEmojiCode } from './loadVerificationEmojiCode.ts'
+import { loadVerifiedRobloxAccount } from './loadVerifiedRobloxAccount.ts'
+import { logOutOfRoblox } from './logOutOfRoblox.ts'
+import { openServerLinkHelpWindow } from './openServerLinkHelpWindow.ts'
+import { readSavedTeamTable } from './readSavedTeamTable.ts'
+import { saveServerLinkField } from './saveServerLinkField.ts'
+import { saveTeamTable } from './saveTeamTable.ts'
+import { shrinkWindowIntoIcon } from './shrinkWindowIntoIcon.ts'
+import { toggleFindingPlayers } from './toggleFindingPlayers.ts'
+import { toggleRowReserved } from './toggleRowReserved.ts'
+import { undoLeaveRowEmpty } from './undoLeaveRowEmpty.ts'
+import { updateRobloxBadgeChecklist } from './updateRobloxBadgeChecklist.ts'
+import { verifyRobloxUsername } from './verifyRobloxUsername.ts'
 
-export type Roblox = {
+export type RobloxAccount = {
 	id: number
 	username: string
 }
 
-export type Badge = {
+export type RobloxBadge = {
 	name: string
 	owned: boolean
 }
 
-export type Column = 'toon' | 'trinketA' | 'trinketB'
+export type PictureColumn = 'toonPicture' | 'trinketAPicture' | 'trinketBPicture'
 
-export type Row = {
-	toon: string
-	trinketA: string
-	trinketB: string
-	badges: string[]
-	reserved: boolean
-	disabled: boolean
+export type TeamTableRow = {
+	toonPicture: string
+	trinketAPicture: string
+	trinketBPicture: string
+	badgeNames: string[]
+	isReserved: boolean
+	isLeftEmpty: boolean
 }
-
-type LobbyState = {
-	roblox: Roblox | null
-	code: string
-	error: string
-	badges: Badge[] | null
-	savedUsername: string
-	team: Row[]
-	toons: string[]
-	trinkets: string[]
-	savedServerLink: string
-	teamError: string
-	finding: boolean
-	onlineCount: number
-	findingCount: number
-}
-
-export type Lobby = ReturnType<typeof useSyncState<LobbyState>>
 
 export function useLobby() {
 	const {
@@ -85,122 +67,172 @@ export function useLobby() {
 		getSyncState,
 		setState,
 		mutateState,
-	} = useSyncState((): LobbyState => ({
-		roblox: null,
-		code: '',
-		error: '',
-		badges: null,
-		savedUsername: localStorage.getItem('robloxUsername') ?? '',
-		team: readSavedTeam(),
-		toons: [],
-		trinkets: [],
-		savedServerLink: localStorage.getItem('serverLink') ?? '',
-		teamError: '',
-		finding: false,
-		onlineCount: 0,
-		findingCount: 0,
+	} = useSyncState((): {
+		verifiedRobloxAccount: RobloxAccount | null
+		verificationEmojiCode: string
+		robloxVerificationError: string
+		robloxBadgeChecklist: RobloxBadge[] | null
+		usernameFieldStartValue: string
+		teamTableRows: TeamTableRow[]
+		toonsWindowPictures: string[]
+		trinketsWindowPictures: string[]
+		serverLinkFieldStartValue: string
+		findPlayersError: string
+		isFindingPlayers: boolean
+		onThisPageCount: number
+		findingPlayersCount: number
+		tableDragLandedInAnotherCell: boolean
+	} => ({
+		verifiedRobloxAccount: null,
+		verificationEmojiCode: '',
+		robloxVerificationError: '',
+		robloxBadgeChecklist: null,
+		usernameFieldStartValue: localStorage.getItem('robloxUsername') ?? '',
+		teamTableRows: readSavedTeamTable(),
+		toonsWindowPictures: [],
+		trinketsWindowPictures: [],
+		serverLinkFieldStartValue: localStorage.getItem('serverLink') ?? '',
+		findPlayersError: '',
+		isFindingPlayers: false,
+		onThisPageCount: 0,
+		findingPlayersCount: 0,
+		tableDragLandedInAnotherCell: false,
 	}))
 
 	// Fills the Toons and Trinkets side windows with pictures
-	useEffect(() => loadImages({ setState }), [setState])
+	useEffect(() => loadSideWindowPictures({
+		setToonsWindowPictures: (toonsWindowPictures) => setState({ toonsWindowPictures }),
+		setTrinketsWindowPictures: (trinketsWindowPictures) => setState({ trinketsWindowPictures }),
+	}), [setState])
 
 	// Keeps the "on this page" counter at the bottom of the screen up to date
-	useEffect(() => startHeartbeat({ setState }), [setState])
+	useEffect(() => keepOnThisPageCountUpdated({
+		setOnThisPageCount: (onThisPageCount) => setState({ onThisPageCount }),
+	}), [setState])
 
 	// Keeps the "finding players" counter at the bottom of the screen up to date
-	useEffect(() => startFindingCountDrift({
-		setState,
-		mutateState,
-	}), [setState, mutateState])
+	useEffect(() => fakeFindingPlayersCount({
+		getFindingPlayersCount: () => getSyncState().findingPlayersCount,
+		setFindingPlayersCount: (findingPlayersCount) => setState({ findingPlayersCount }),
+	}), [getSyncState, setState])
 
 	// Decides whether Roblox Verification opens on "Verified as <name>" or on the instructions
-	useEffect(() => loadRobloxSession({ setState }), [setState])
-	const verified = Boolean(state.roblox)
+	useEffect(() => loadVerifiedRobloxAccount({
+		setVerifiedRobloxAccount: (verifiedRobloxAccount) => setState({ verifiedRobloxAccount }),
+	}), [setState])
+	const isRobloxVerified = Boolean(state.verifiedRobloxAccount)
 
 	// Fills the badge checklist once verified, or the emoji code next to Copy otherwise
 	useEffect(() => {
-		if (verified) loadBadges({ setState })
-		else loadCode({ setState })
-	}, [verified, setState])
+		if (isRobloxVerified) {
+			loadRobloxBadgeChecklist({
+				setRobloxBadgeChecklist: (robloxBadgeChecklist) => setState({
+					robloxBadgeChecklist,
+				}),
+				setRobloxVerificationError: (robloxVerificationError) => setState({
+					robloxVerificationError,
+				}),
+			})
+		} else {
+			loadVerificationEmojiCode({
+				setVerificationEmojiCode: (verificationEmojiCode) => setState({
+					verificationEmojiCode,
+				}),
+			})
+		}
+	}, [isRobloxVerified, setState])
 
 	// Remembers the Find a Team table across reloads
 
-	// mutateState keeps the team array's identity while editing its rows, so this runs on every render
-	useEffect(() => saveTeam({ team: state.team }))
+	// mutateState keeps the rows array's identity while editing its rows, so this runs on every render
+	useEffect(() => saveTeamTable({ teamTableRows: state.teamTableRows }))
 
 	return {
 
 		// Roblox Verification icon, first in the row at the top of the screen, and its window
-		accountWindow: {
-			onIconClick: (event: MouseEvent<HTMLButtonElement>) => openWindow({
+		robloxVerificationWindow: {
+			onIconClick: (event: MouseEvent<HTMLButtonElement>) => growWindowFromIcon({
 				id: 'account',
 				event,
 			}),
-			onCancel: (event: SyntheticEvent<HTMLDialogElement>) => closeWindow({
+			onCancel: (event: SyntheticEvent<HTMLDialogElement>) => shrinkWindowIntoIcon({
 				id: 'account',
 				event,
 			}),
-			onCloseClick: () => requestCloseWindow({ id: 'account' }),
+			onCloseClick: () => closeWindowFromXButton({ id: 'account' }),
 		},
-		verified,
+		isRobloxVerified,
 
 
 		// Verified view of Roblox Verification: "Verified as <name>" and the badge checklist,
 
 		// with Update Badges at the bottom left and Log out at the bottom right
-		username: state.roblox?.username ?? '',
-		showBadgeChecklist: Boolean(state.badges),
-		badgeChecklist: (state.badges ?? []).map((badge) => ({
+		verifiedRobloxUsername: state.verifiedRobloxAccount?.username ?? '',
+		showBadgeChecklist: Boolean(state.robloxBadgeChecklist),
+		badgeChecklist: (state.robloxBadgeChecklist ?? []).map((badge) => ({
 			name: badge.name,
 			mark: badge.owned ? '✅' : '⬜',
 		})),
-		badgesMessage: state.error || 'Loading badges...',
-		refreshBadges: () => refreshBadges({ setState }),
-		logOut: () => logOut({ setState }),
+		badgeChecklistLoadingText: state.robloxVerificationError || 'Loading badges...',
+		updateRobloxBadgeChecklist: () => updateRobloxBadgeChecklist({
+			setRobloxBadgeChecklist: (robloxBadgeChecklist) => setState({ robloxBadgeChecklist }),
+			setRobloxVerificationError: (robloxVerificationError) => setState({
+				robloxVerificationError,
+			}),
+		}),
+		logOutOfRoblox: () => logOutOfRoblox({
+			setVerifiedRobloxAccount: (verifiedRobloxAccount) => setState({ verifiedRobloxAccount }),
+			setRobloxBadgeChecklist: (robloxBadgeChecklist) => setState({ robloxBadgeChecklist }),
+		}),
 
 
 		// Unverified view of Roblox Verification: the emoji code with Copy, then the username
 
 		// field with Check and any error below it
-		code: state.code,
-		copyCode: () => copyCode({ getSyncState }),
-		savedUsername: state.savedUsername,
-		checkUsername: (event: FormEvent<HTMLFormElement>) => checkUsername({
-			setState,
+		verificationEmojiCode: state.verificationEmojiCode,
+		copyVerificationEmojiCode: () => copyVerificationEmojiCode({
+			getVerificationEmojiCode: () => getSyncState().verificationEmojiCode,
+		}),
+		usernameFieldStartValue: state.usernameFieldStartValue,
+		verifyRobloxUsername: (event: FormEvent<HTMLFormElement>) => verifyRobloxUsername({
+			setRobloxVerificationError: (robloxVerificationError) => setState({
+				robloxVerificationError,
+			}),
+			setVerifiedRobloxAccount: (verifiedRobloxAccount) => setState({ verifiedRobloxAccount }),
 			event,
 		}),
-		error: state.error,
+		robloxVerificationError: state.robloxVerificationError,
 
 
 		// Find a Team icon, second in the row at the top of the screen, and its window
-		teamWindow: {
-			onIconClick: (event: MouseEvent<HTMLButtonElement>) => openWindow({
+		findATeamWindow: {
+			onIconClick: (event: MouseEvent<HTMLButtonElement>) => growWindowFromIcon({
 				id: 'team',
 				event,
 			}),
-			onCancel: (event: SyntheticEvent<HTMLDialogElement>) => closeWindow({
+			onCancel: (event: SyntheticEvent<HTMLDialogElement>) => shrinkWindowIntoIcon({
 				id: 'team',
 				event,
 			}),
-			onCloseClick: () => requestCloseWindow({ id: 'team' }),
+			onCloseClick: () => closeWindowFromXButton({ id: 'team' }),
 		},
 
 		// Greys out the Toons, Trinkets and Badges side windows while searching
-		paletteWindowClass: state.finding ? 'window team-locked' : 'window',
+		sideWindowClass: state.isFindingPlayers ? 'window team-locked' : 'window',
 
 		// "(Leave Empty)" tile, first in the Toons side window to the lower left
-		dragLeaveEmpty: (event: DragEvent) => dragFromPalette({
+		dragLeaveEmptyTile: (event: DragEvent) => dragFromSideWindow({
 			event,
-			kind: 'disable',
+			kind: 'leave-empty',
 			name: '(Leave Empty)',
 		}),
 
 		// Toon pictures in the Toons side window to the lower left
-		toonPalette: state.toons.map((name) => ({
+		toonsWindowTiles: state.toonsWindowPictures.map((name) => ({
 			name,
 			src: `/toons/${name}`,
 			title: name.replace('.png', ''),
-			drag: (event: DragEvent) => dragFromPalette({
+			dragFromSideWindow: (event: DragEvent) => dragFromSideWindow({
 				event,
 				kind: 'toon',
 				name,
@@ -208,11 +240,11 @@ export function useLobby() {
 		})),
 
 		// Trinket pictures in the Trinkets side window to the upper right
-		trinketPalette: state.trinkets.map((name) => ({
+		trinketsWindowTiles: state.trinketsWindowPictures.map((name) => ({
 			name,
 			src: `/trinkets/${name}`,
 			title: name.replace('.png', ''),
-			drag: (event: DragEvent) => dragFromPalette({
+			dragFromSideWindow: (event: DragEvent) => dragFromSideWindow({
 				event,
 				kind: 'trinket',
 				name,
@@ -220,102 +252,134 @@ export function useLobby() {
 		})),
 
 		// Badge names in the Badges side window below Trinkets, shown only once verified
-		ownedBadges: (state.badges ?? []).filter((badge) => badge.owned).map((badge) => ({
-			name: badge.name,
-			drag: (event: DragEvent) => dragFromPalette({
-				event,
-				kind: 'badge',
+		badgesWindowTiles: (state.robloxBadgeChecklist ?? [])
+			.filter((badge) => badge.owned)
+			.map((badge) => ({
 				name: badge.name,
-			}),
-		})),
+				dragFromSideWindow: (event: DragEvent) => dragFromSideWindow({
+					event,
+					kind: 'badge',
+					name: badge.name,
+				}),
+			})),
 
 		// Rows of the white table in the middle of Find a Team
-		teamRows: state.team.map((row, index) => ({
+		teamTableRows: state.teamTableRows.map((row, index) => ({
 			key: index,
 
 			// Dropping "(Leave Empty)" anywhere on the row
-			allowDisableDrop: (event: DragEvent) => allowDisableDrop({
-				getSyncState,
+			allowLeaveEmptyDropOnRow: (event: DragEvent) => allowLeaveEmptyDropOnRow({
+				getIsFindingPlayers: () => getSyncState().isFindingPlayers,
 				event,
 			}),
-			disableRow: (event: DragEvent) => disableRow({
-				mutateState,
+			leaveRowEmpty: (event: DragEvent) => leaveRowEmpty({
+				setIsLeftEmpty: (isLeftEmpty) => mutateState((state) => {
+					state.teamTableRows[index].isLeftEmpty = isLeftEmpty
+				}),
 				event,
-				index,
 			}),
 
 			// Grey "(Leave Empty)" cell that spans the whole row and clears when clicked
-			disabled: row.disabled,
-			disabledColSpan: verified ? 5 : 4,
-			disabledCellClass: state.finding ? 'team-disabled' : 'team-disabled team-clickable',
-			enableRow: () => enableRow({
-				getSyncState,
-				mutateState,
-				index,
+			isLeftEmpty: row.isLeftEmpty,
+			leaveEmptyCellColSpan: isRobloxVerified ? 5 : 4,
+			leaveEmptyCellClass: state.isFindingPlayers
+				? 'team-disabled'
+				: 'team-disabled team-clickable',
+			undoLeaveRowEmpty: () => undoLeaveRowEmpty({
+				getIsFindingPlayers: () => getSyncState().isFindingPlayers,
+				setIsLeftEmpty: (isLeftEmpty) => mutateState((state) => {
+					state.teamTableRows[index].isLeftEmpty = isLeftEmpty
+				}),
 			}),
 
 			// Toon, Trinket A and Trinket B cells, the first three columns of the row
-			itemCells: (['toon', 'trinketA', 'trinketB'] as const).map((column) => ({
-				column,
-				allowDrop: (event: DragEvent) => allowItemDrop({
-					getSyncState,
-					event,
+			pictureCells: (['toonPicture', 'trinketAPicture', 'trinketBPicture'] as const)
+				.map((column) => ({
 					column,
-				}),
-				drop: (event: DragEvent) => dropItem({
-					mutateState,
-					event,
-					index,
-					column,
-				}),
-
-				// Grey "(Any)" text in an empty Toon cell
-				placeholder: column === 'toon' && !row[column] ? '(Any)' : '',
-
-				// Picture inside the cell, which drags to another cell or out of the table to clear it
-				item: row[column] ? {
-					src: `/${column === 'toon' ? 'toons' : 'trinkets'}/${row[column]}`,
-					title: row[column].replace('.png', ''),
-					draggable: !state.finding,
-					drag: (event: DragEvent) => dragItem({
-						getSyncState,
+					allowPictureDropOnCell: (event: DragEvent) => allowPictureDropOnCell({
+						getIsFindingPlayers: () => getSyncState().isFindingPlayers,
+						event,
+						column,
+					}),
+					dropPictureOnCell: (event: DragEvent) => dropPictureOnCell({
+						getRowPicture: (rowColumn) => getSyncState().teamTableRows[index][rowColumn],
+						setPicture: (picture) => mutateState((state) => {
+							state.teamTableRows[index][column] = picture
+						}),
+						setTableDragLandedInAnotherCell: (tableDragLandedInAnotherCell) => setState({
+							tableDragLandedInAnotherCell,
+						}),
 						event,
 						index,
 						column,
 					}),
-					dropOutside: (event: DragEvent) => dropItemOutside({
-						mutateState,
-						event,
-						index,
-						column,
-					}),
-				} : null,
-			})),
+
+					// Grey "(Any)" text in an empty Toon cell
+					anyToonText: column === 'toonPicture' && !row[column] ? '(Any)' : '',
+
+					// Picture inside the cell, which drags to another cell or out of the table to
+					// clear it
+					picture: row[column] ? {
+						src: `/${column === 'toonPicture' ? 'toons' : 'trinkets'}/${row[column]}`,
+						title: row[column].replace('.png', ''),
+						draggable: !state.isFindingPlayers,
+						dragPictureFromTable: (event: DragEvent) => dragPictureFromTable({
+							getPicture: () => getSyncState().teamTableRows[index][column],
+							event,
+							index,
+							column,
+						}),
+						endPictureDragFromTable: (event: DragEvent) => endPictureDragFromTable({
+							getTableDragLandedInAnotherCell: () => (
+								getSyncState().tableDragLandedInAnotherCell
+							),
+							setTableDragLandedInAnotherCell: (tableDragLandedInAnotherCell) => (
+								setState({ tableDragLandedInAnotherCell })
+							),
+							setPicture: (picture) => mutateState((state) => {
+								state.teamTableRows[index][column] = picture
+							}),
+							event,
+						}),
+					} : null,
+				})),
 
 			// Badges cell, the fourth column, shown only once verified
-			allowBadgeDrop: (event: DragEvent) => allowBadgeDrop({
-				getSyncState,
+			allowBadgeDropOnBadgesCell: (event: DragEvent) => allowBadgeDropOnBadgesCell({
+				getIsFindingPlayers: () => getSyncState().isFindingPlayers,
 				event,
 			}),
-			dropBadge: (event: DragEvent) => dropBadge({
-				mutateState,
+			dropBadgeOnBadgesCell: (event: DragEvent) => dropBadgeOnBadgesCell({
+				getBadgeNames: () => getSyncState().teamTableRows[index].badgeNames,
+				setBadgeNames: (badgeNames) => mutateState((state) => {
+					state.teamTableRows[index].badgeNames = badgeNames
+				}),
+				setTableDragLandedInAnotherCell: (tableDragLandedInAnotherCell) => setState({
+					tableDragLandedInAnotherCell,
+				}),
 				event,
 				index,
 			}),
 
 			// Badge names stacked in that cell, which drag to another row or out of the table
-			badges: row.badges.map((name) => ({
+			badges: row.badgeNames.map((name) => ({
 				name,
-				draggable: !state.finding,
-				drag: (event: DragEvent) => dragBadge({
+				draggable: !state.isFindingPlayers,
+				dragBadgeFromTable: (event: DragEvent) => dragBadgeFromTable({
 					event,
 					index,
 					name,
 				}),
-				dropOutside: (event: DragEvent) => dropBadgeOutside({
-					mutateState,
+				endBadgeDragFromTable: (event: DragEvent) => endBadgeDragFromTable({
+					getTableDragLandedInAnotherCell: () => getSyncState().tableDragLandedInAnotherCell,
+					setTableDragLandedInAnotherCell: (tableDragLandedInAnotherCell) => setState({
+						tableDragLandedInAnotherCell,
+					}),
+					getBadgeNames: () => getSyncState().teamTableRows[index].badgeNames,
+					setBadgeNames: (badgeNames) => mutateState((state) => {
+						state.teamTableRows[index].badgeNames = badgeNames
+					}),
 					event,
-					index,
 					name,
 				}),
 			})),
@@ -323,50 +387,57 @@ export function useLobby() {
 			// Last column: the Reserved checkbox, or while searching either "Finding player..."
 
 			// or the grey reserved label
-			findingPlayer: state.finding && !row.reserved && !row.disabled,
-			showReservedLabel: state.finding && row.reserved,
-			reservedLabel: state.roblox
-				? `(@${state.roblox.username} or their friends)`
+			showFindingPlayerText: state.isFindingPlayers && !row.isReserved && !row.isLeftEmpty,
+			showReservedPlayerName: state.isFindingPlayers && row.isReserved,
+			reservedPlayerName: state.verifiedRobloxAccount
+				? `(@${state.verifiedRobloxAccount.username} or their friends)`
 				: '(Reserved)',
-			showReservedCheckbox: !state.finding,
-			reserved: row.reserved,
-			toggleReserved: (event: ChangeEvent<HTMLInputElement>) => toggleReserved({
-				mutateState,
+			showReservedCheckbox: !state.isFindingPlayers,
+			isReserved: row.isReserved,
+			toggleRowReserved: (event: ChangeEvent<HTMLInputElement>) => toggleRowReserved({
+				setIsReserved: (isReserved) => mutateState((state) => {
+					state.teamTableRows[index].isReserved = isReserved
+				}),
 				event,
-				index,
 			}),
 		})),
 
 		// Header of the last table column
-		reservedHeading: state.finding ? 'Player' : 'Reserved',
+		lastColumnHeading: state.isFindingPlayers ? 'Player' : 'Reserved',
 
 
 		// "Server link:" field below the table
-		savedServerLink: state.savedServerLink,
-		serverLinkReadOnly: state.finding,
-		saveServerLink: (event: ChangeEvent<HTMLInputElement>) => saveServerLink({ event }),
+		serverLinkFieldStartValue: state.serverLinkFieldStartValue,
+		isServerLinkFieldLocked: state.isFindingPlayers,
+		saveServerLinkField: (event: ChangeEvent<HTMLInputElement>) => saveServerLinkField({
+			event,
+		}),
 
 		// "How do I get a server link?" link below the field, and the × of the screenshot window
 
 		// that it opens
-		openHowto,
-		closeHowto,
+		openServerLinkHelpWindow,
+		closeServerLinkHelpWindow,
 
 		// Find Players button at the bottom right of Find a Team, with its spinner and the red
 
 		// error line below it
-		findPlayers: (event: FormEvent<HTMLFormElement>) => findPlayers({
-			getSyncState,
-			setState,
+		toggleFindingPlayers: (event: FormEvent<HTMLFormElement>) => toggleFindingPlayers({
+			getTeamTableRows: () => getSyncState().teamTableRows,
+			getIsFindingPlayers: () => getSyncState().isFindingPlayers,
+			setIsFindingPlayers: (isFindingPlayers) => setState({ isFindingPlayers }),
+			setFindPlayersError: (findPlayersError) => setState({ findPlayersError }),
 			event,
 		}),
-		findButtonLabel: state.finding ? 'Finding Players (Click to Cancel)' : 'Find Players',
-		showFindingSpinner: state.finding,
-		teamError: state.teamError,
+		findPlayersButtonText: state.isFindingPlayers
+			? 'Finding Players (Click to Cancel)'
+			: 'Find Players',
+		showFindingPlayersSpinner: state.isFindingPlayers,
+		findPlayersError: state.findPlayersError,
 
 
 		// Two counters at the bottom middle of the screen
-		onlineCount: state.onlineCount,
-		findingCount: state.findingCount,
+		onThisPageCount: state.onThisPageCount,
+		findingPlayersCount: state.findingPlayersCount,
 	}
 }
