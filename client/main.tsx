@@ -1,18 +1,31 @@
-import { StrictMode, createElement, useEffect, useState, type ReactNode } from 'react'
+import {
+	StrictMode,
+	createElement,
+	type MouseEventHandler,
+	type ReactEventHandler,
+	type ReactNode,
+} from 'react'
 import { createRoot } from 'react-dom/client'
+import { useLobby } from './lobby/useLobby.ts'
 
 // Desktop icon that opens an old-style grey window with a navy title bar and an × button
 function DesktopWindow({
 	id,
+	iconId,
 	title,
-	left,
 	image,
+	onIconClick,
+	onCancel,
+	onCloseClick,
 	children,
 }: {
 	id: string
+	iconId: string
 	title: string
-	left: number
 	image: string
+	onIconClick: MouseEventHandler<HTMLButtonElement>
+	onCancel: ReactEventHandler<HTMLDialogElement>
+	onCloseClick: () => void
 	children: ReactNode
 }) {
 	return (
@@ -52,39 +65,11 @@ function DesktopWindow({
 				.window-icon:active {
 					transform: translate(1px, 1px);
 				}
-				#${id}-icon {
-					left: ${left}px;
-				}
 			`}</style>
 			<button
-				id={`${id}-icon`}
+				id={iconId}
 				className="window-icon"
-				onClick={(event) => {
-					const dialog = document.getElementById(id) as HTMLDialogElement
-					if (dialog.open) return
-					// Only one window is open at a time, so any other window shrinks back into its icon
-					for (const other of document.querySelectorAll<HTMLDialogElement>('dialog.window[open]')) {
-						other.requestClose()
-					}
-					// show() instead of showModal() leaves out the dark backdrop and keeps the page clickable
-					dialog.show()
-					// The window grows out of the icon, starting at its position and size
-					const from = event.currentTarget.getBoundingClientRect()
-					const to = dialog.getBoundingClientRect()
-					dialog.animate([
-						{
-							translate: `${from.x - to.x}px ${from.y - to.y}px`,
-							scale: `${from.width / to.width} ${from.height / to.height}`,
-						},
-						{
-							translate: '0 0',
-							scale: '1',
-						},
-					], {
-						duration: 200,
-						easing: 'ease-out',
-					})
-				}}
+				onClick={onIconClick}
 			>
 				<img
 					src={image}
@@ -118,27 +103,7 @@ function DesktopWindow({
 				id={id}
 				className="window"
 				closedby="closerequest"
-				// Esc and × land here, and the window shrinks into the icon before closing
-				onCancel={(event) => {
-					event.preventDefault()
-					const dialog = event.currentTarget
-					const from = dialog.getBoundingClientRect()
-					const icon = document.getElementById(`${id}-icon`)!
-					const to = icon.getBoundingClientRect()
-					dialog.animate([
-						{
-							translate: '0 0',
-							scale: '1',
-						},
-						{
-							translate: `${to.x - from.x}px ${to.y - from.y}px`,
-							scale: `${to.width / from.width} ${to.height / from.height}`,
-						},
-					], {
-						duration: 150,
-						easing: 'ease-in',
-					}).onfinish = () => dialog.close()
-				}}
+				onCancel={onCancel}
 			>
 				{/* Navy title bar with the window's title and an × button */}
 				<style>{`
@@ -179,9 +144,7 @@ function DesktopWindow({
 					<button
 						className="window-close"
 						aria-label="Close"
-						onClick={() => (
-							document.getElementById(id) as HTMLDialogElement
-						).requestClose()}
+						onClick={onCloseClick}
 					>
 						×
 					</button>
@@ -196,88 +159,7 @@ createRoot(document.getElementById('root')!).render(
 	<StrictMode>
 		{/* Desktop with the Roblox Verification and Find a Team icons and their windows */}
 		{createElement(() => {
-			const [roblox, setRoblox] = useState<{
-				id: number
-				username: string
-			} | null>(null)
-			const [code, setCode] = useState('')
-			const [error, setError] = useState('')
-			const [badges, setBadges] = useState<{
-				name: string
-				owned: boolean
-			}[] | null>(null)
-			const [team, setTeam] = useState<{
-				toon: string
-				trinketA: string
-				trinketB: string
-				badges: string[]
-				reserved: boolean
-			}[]>(() => (
-				JSON.parse(localStorage.getItem('team') ?? 'null') ?? Array.from({ length: 8 }, () => ({}))
-			).map((row: object) => ({
-				toon: '',
-				trinketA: '',
-				trinketB: '',
-				badges: [],
-				reserved: false,
-				...row,
-			})))
-			useEffect(() => localStorage.setItem('team', JSON.stringify(team)), [team])
-			const [toons, setToons] = useState<string[]>([])
-			const [trinkets, setTrinkets] = useState<string[]>([])
-			useEffect(() => {
-				fetch('/api/images/toons')
-					.then((res) => res.json())
-					.then(setToons)
-				fetch('/api/images/trinkets')
-					.then((res) => res.json())
-					.then(setTrinkets)
-			}, [])
-			const [teamError, setTeamError] = useState('')
-			const [finding, setFinding] = useState(false)
-			const [onlineCount, setOnlineCount] = useState(0)
-			useEffect(() => {
-				// The id survives reloads, so a reloaded tab still counts as one person
-				const id = sessionStorage.getItem('onlineId') ?? crypto.randomUUID()
-				sessionStorage.setItem('onlineId', id)
-				const beat = () => fetch('/api/online', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ id }),
-				})
-					.then((res) => res.json())
-					.then((data: { count: number }) => setOnlineCount(data.count))
-				beat()
-				const interval = setInterval(beat, 15_000)
-				return () => clearInterval(interval)
-			}, [])
-			// Placeholder number until finding players works for real
-			const [findingCount, setFindingCount] = useState(() => 3 + Math.floor(Math.random() * 6))
-			useEffect(() => {
-				const interval = setInterval(() => setFindingCount((count) => (
-					Math.max(1, count + Math.floor(Math.random() * 3) - 1)
-				)), 15_000)
-				return () => clearInterval(interval)
-			}, [])
-			useEffect(() => {
-				fetch('/api/roblox/me')
-					.then((res) => res.json())
-					.then(setRoblox)
-			}, [])
-			useEffect(() => {
-				if (roblox) {
-					fetch('/api/roblox/badges')
-						.then(async (res) => {
-							const data = await res.json()
-							if (res.ok) setBadges(data)
-							else setError(data.error)
-						})
-					return
-				}
-				fetch('/api/roblox/code')
-					.then((res) => res.json())
-					.then((data: { code: string }) => setCode(data.code))
-			}, [roblox])
+			const lobby = useLobby()
 			return (
 				<>
 					{/* Hidden filter that makes the icon pictures blocky and reduces them to a few colors */}
@@ -333,16 +215,23 @@ createRoot(document.getElementById('root')!).render(
 							</feComponentTransfer>
 						</filter>
 					</svg>
+					{/* Roblox Verification icon, first in the row */}
+					<style>{`
+						#account-icon {
+							left: 12px;
+						}
+					`}</style>
 					<DesktopWindow
 						id="account"
+						iconId="account-icon"
 						title="Roblox Verification"
-						left={12}
 						image="/Gossip_Bud.webp"
+						{...lobby.accountWindow}
 					>
-						{roblox ? (
+						{lobby.verified ? (
 							// "Verified as <name>", the badge checklist, and Update Badges and Log out buttons
 							<>
-								<p>Verified as {roblox.username}</p>
+								<p>Verified as {lobby.username}</p>
 								{/* Dandy's World badge checklist, "Loading badges...", or an error */}
 								<style>{`
 									#account-badges {
@@ -352,16 +241,16 @@ createRoot(document.getElementById('root')!).render(
 										list-style: none;
 									}
 								`}</style>
-								{badges ? (
+								{lobby.showBadgeChecklist ? (
 									<ul id="account-badges">
-										{badges.map((badge) => (
+										{lobby.badgeChecklist.map((badge) => (
 											<li key={badge.name}>
-												{badge.owned ? '✅' : '⬜'} {badge.name}
+												{badge.mark} {badge.name}
 											</li>
 										))}
 									</ul>
 								) : (
-									<p>{error || 'Loading badges...'}</p>
+									<p>{lobby.badgesMessage}</p>
 								)}
 								{/* Update Badges button on the left and Log out on the right, away from the × button */}
 								<style>{`
@@ -371,25 +260,8 @@ createRoot(document.getElementById('root')!).render(
 									}
 								`}</style>
 								<div id="account-actions">
-									<button onClick={async () => {
-										setBadges(null)
-										setError('')
-										const res = await fetch('/api/roblox/badges?refresh')
-										const data = await res.json()
-										if (res.ok) setBadges(data)
-										else setError(data.error)
-									}}
-									>
-										Update Badges
-									</button>
-									<button onClick={async () => {
-										await fetch('/api/roblox/logout', { method: 'POST' })
-										setRoblox(null)
-										setBadges(null)
-									}}
-									>
-										Log out
-									</button>
+									<button onClick={lobby.refreshBadges}>Update Badges</button>
+									<button onClick={lobby.logOut}>Log out</button>
 								</div>
 							</>
 						) : (
@@ -426,13 +298,11 @@ createRoot(document.getElementById('root')!).render(
 								`}</style>
 								<div id="account-code">
 									<input
-										value={code}
+										value={lobby.code}
 										readOnly
 										tabIndex={-1}
 									/>
-									<button onClick={() => navigator.clipboard.writeText(code)}>
-										Copy
-									</button>
+									<button onClick={lobby.copyCode}>Copy</button>
 								</div>
 								<p>Then enter your username below and click [Check]:</p>
 								{/* Roblox username field with Check, and any error below */}
@@ -446,37 +316,32 @@ createRoot(document.getElementById('root')!).render(
 								`}</style>
 								<form
 									id="account-username"
-									onSubmit={async (event) => {
-										event.preventDefault()
-										const username = new FormData(event.currentTarget).get('username') as string
-										localStorage.setItem('robloxUsername', username)
-										const res = await fetch('/api/roblox/check', {
-											method: 'POST',
-											headers: { 'Content-Type': 'application/json' },
-											body: JSON.stringify({ username }),
-										})
-										const data = await res.json()
-										setError(res.ok ? '' : data.error)
-										if (res.ok) setRoblox(data)
-									}}
+									onSubmit={lobby.checkUsername}
 								>
 									<input
 										name="username"
-										defaultValue={localStorage.getItem('robloxUsername') ?? ''}
+										defaultValue={lobby.savedUsername}
 										placeholder="Roblox username"
 										required
 									/>
 									<button>Check</button>
-									<p>{error}</p>
+									<p>{lobby.error}</p>
 								</form>
 							</>
 						)}
 					</DesktopWindow>
+					{/* Find a Team icon, second in the row */}
+					<style>{`
+						#team-icon {
+							left: 132px;
+						}
+					`}</style>
 					<DesktopWindow
 						id="team"
+						iconId="team-icon"
 						title="Find a Team"
-						left={132}
 						image="/All_Together.webp"
+						{...lobby.teamWindow}
 					>
 						{/* Side windows that hang outside this window's edges */}
 						<style>{`
@@ -540,16 +405,20 @@ createRoot(document.getElementById('root')!).render(
 								box-shadow: none;
 							}
 							.team-palette img,
-							.team-palette .team-any {
+							.team-palette .team-text {
 								width: 48px;
 								height: 48px;
 								cursor: grab;
 							}
-							.team-any {
+							.team-text {
 								display: flex;
 								align-items: center;
 								justify-content: center;
 								font-size: 11px;
+							}
+							.team-placeholder {
+								color: #a8a8a8;
+								cursor: default;
 							}
 						`}</style>
 						{/* Toons window to the lower left, whose toons drag into the Toon column */}
@@ -559,21 +428,21 @@ createRoot(document.getElementById('root')!).render(
 						>
 							<div className="window-title">Toons</div>
 							<div className="team-palette">
-								{/* "(Any)" text tile before the toon pictures */}
+								{/* "(Leave Empty)" text tile before the toon pictures */}
 								<div
-									className="team-any"
+									className="team-text"
 									draggable
-									onDragStart={(event) => event.dataTransfer.setData('toon', '(Any)')}
+									onDragStart={lobby.dragLeaveEmptyToon}
 								>
-									(Any)
+									(Leave Empty)
 								</div>
-								{toons.map((name) => (
+								{lobby.toonPalette.map((toon) => (
 									<img
-										key={name}
-										src={`/toons/${name}`}
-										title={name.replace('.png', '')}
+										key={toon.name}
+										src={toon.src}
+										title={toon.title}
 										draggable
-										onDragStart={(event) => event.dataTransfer.setData('toon', name)}
+										onDragStart={toon.drag}
 									/>
 								))}
 							</div>
@@ -585,13 +454,13 @@ createRoot(document.getElementById('root')!).render(
 						>
 							<div className="window-title">Trinkets</div>
 							<div className="team-palette">
-								{trinkets.map((name) => (
+								{lobby.trinketPalette.map((trinket) => (
 									<img
-										key={name}
-										src={`/trinkets/${name}`}
-										title={name.replace('.png', '')}
+										key={trinket.name}
+										src={trinket.src}
+										title={trinket.title}
 										draggable
-										onDragStart={(event) => event.dataTransfer.setData('trinket', name)}
+										onDragStart={trinket.drag}
 									/>
 								))}
 							</div>
@@ -618,18 +487,18 @@ createRoot(document.getElementById('root')!).render(
 								background: #e0e0e0;
 							}
 						`}</style>
-						{roblox && (
+						{lobby.verified && (
 							<div
 								id="team-badges"
 								className="window"
 							>
 								<div className="window-title">Badges</div>
 								<ul>
-									{badges?.filter((badge) => badge.owned).map((badge) => (
+									{lobby.ownedBadges.map((badge) => (
 										<li
 											key={badge.name}
 											draggable
-											onDragStart={(event) => event.dataTransfer.setData('badge', badge.name)}
+											onDragStart={badge.drag}
 										>
 											{badge.name}
 										</li>
@@ -651,6 +520,11 @@ createRoot(document.getElementById('root')!).render(
 								padding: 2px 6px;
 								border: 1px solid #808080;
 								text-align: center;
+							}
+							#team-table th:nth-child(-n + 3),
+							#team-table td:nth-child(-n + 3) {
+								min-width: 0;
+								width: 60px;
 							}
 							#team-table th {
 								height: 20px;
@@ -680,6 +554,7 @@ createRoot(document.getElementById('root')!).render(
 							}
 							.team-finding {
 								display: block;
+								max-width: 120px;
 								text-align: left;
 								font-size: 11px;
 							}
@@ -702,75 +577,37 @@ createRoot(document.getElementById('root')!).render(
 									<th>Toon</th>
 									<th>Trinket A</th>
 									<th>Trinket B</th>
-									{roblox && <th>Badges</th>}
+									{lobby.verified && <th>Badges</th>}
 									<th>Reserved</th>
 								</tr>
 							</thead>
 							<tbody>
-								{team.map((row, index) => (
-									<tr key={index}>
-										{(['toon', 'trinketA', 'trinketB'] as const).map((column) => (
+								{lobby.teamRows.map((row) => (
+									<tr key={row.key}>
+										{row.itemCells.map((cell) => (
 											<td
-												key={column}
-												onDragOver={(event) => {
-													const kind = column === 'toon' ? 'toon' : 'trinket'
-													if (!finding && event.dataTransfer.types.includes(kind)) event.preventDefault()
-												}}
-												onDrop={(event) => {
-													const kind = column === 'toon' ? 'toon' : 'trinket'
-													const name = event.dataTransfer.getData(kind)
-													const from = event.dataTransfer.getData('from')
-													if (from === `${index} ${column}`) return
-													// A row cannot hold the same trinket twice, unless it is moving between the two columns
-													const otherTrinket = {
-														toon: '',
-														trinketA: 'trinketB',
-														trinketB: 'trinketA',
-													}[column] as 'trinketA' | 'trinketB' | ''
-													if (
-														otherTrinket
-														&& row[otherTrinket] === name
-														&& from !== `${index} ${otherTrinket}`
-													) return
-													setTeam((current) => current.map((other, otherIndex) => ({
-														...other,
-														// An image dragged from another cell moves out of that cell
-														...(from.startsWith(`${otherIndex} `) && {
-															[from.split(' ')[1]]: '',
-														}),
-														...(otherIndex === index && {
-															[column]: name,
-														}),
-													})))
-												}}
+												key={cell.column}
+												onDragOver={cell.allowDrop}
+												onDrop={cell.drop}
 											>
-												{/* Toon or trinket picture, or "(Any)" as text */}
-												{row[column] && (
+												{/* Grey "(Any)" text in an empty Toon cell, which cannot be dragged */}
+												{cell.placeholder && (
+													<div className="team-text team-placeholder">
+														{cell.placeholder}
+													</div>
+												)}
+												{/* Toon or trinket picture, or "(Leave Empty)" as text */}
+												{cell.item && (
 													<div
-														className="team-any"
-														draggable={!finding}
-														onDragStart={(event) => {
-															const kind = column === 'toon' ? 'toon' : 'trinket'
-															event.dataTransfer.setData(kind, row[column])
-															event.dataTransfer.setData('from', `${index} ${column}`)
-														}}
-														// Dropped anywhere that is not a matching cell, the image leaves the table
-														onDragEnd={(event) => {
-															if (event.dataTransfer.dropEffect !== 'none') return
-															setTeam((current) => current.map((other, otherIndex) => (
-																otherIndex === index
-																	? {
-																		...other,
-																		[column]: '',
-																	}
-																	: other
-															)))
-														}}
+														className="team-text"
+														draggable={cell.item.draggable}
+														onDragStart={cell.item.drag}
+														onDragEnd={cell.item.dropOutside}
 													>
-														{row[column] === '(Any)' ? '(Any)' : (
+														{cell.item.text || (
 															<img
-																src={`/${column === 'toon' ? 'toons' : 'trinkets'}/${row[column]}`}
-																title={row[column].replace('.png', '')}
+																src={cell.item.src}
+																title={cell.item.title}
 																draggable={false}
 															/>
 														)}
@@ -779,85 +616,40 @@ createRoot(document.getElementById('root')!).render(
 											</td>
 										))}
 										{/* Badge names stacked in the cell, each one draggable to another row or out of the table */}
-										{roblox && (
+										{lobby.verified && (
 											<td
-												onDragOver={(event) => {
-													if (!finding && event.dataTransfer.types.includes('badge')) event.preventDefault()
-												}}
-												onDrop={(event) => {
-													const name = event.dataTransfer.getData('badge')
-													const from = event.dataTransfer.getData('from')
-													if (from === `${index} badges`) return
-													// A row holds one badge per category, so a new badge replaces its category's old one
-													const category = [
-														['Speed Walker', 'Long Distance Runner', 'Marathon Runner'],
-														['Machine Enthusiast', 'Machine Master', 'THE Machine'],
-														['Clocked In', 'Overtime'],
-														['Hissy Fit'],
-														['Just Keep Swimming'],
-														['Double Digits!', 'Skilled Toon!', 'Super Skilled Pro!', 'Twisteds Fear Me.'],
-													].find((names) => names.includes(name)) ?? [name]
-													setTeam((current) => current.map((other, otherIndex) => ({
-														...other,
-														...(from === `${otherIndex} badges` && {
-															badges: other.badges.filter((badge) => badge !== name),
-														}),
-														...(otherIndex === index && {
-															badges: [
-																...other.badges.filter((badge) => !category.includes(badge)),
-																name,
-															],
-														}),
-													})))
-												}}
+												onDragOver={row.allowBadgeDrop}
+												onDrop={row.dropBadge}
 											>
-												{row.badges.map((name) => (
+												{row.badges.map((badge) => (
 													<div
-														key={name}
+														key={badge.name}
 														className="team-badge"
-														draggable={!finding}
-														onDragStart={(event) => {
-															event.dataTransfer.setData('badge', name)
-															event.dataTransfer.setData('from', `${index} badges`)
-														}}
-														// Dropped anywhere that is not a Badges cell, the badge leaves the table
-														onDragEnd={(event) => {
-															if (event.dataTransfer.dropEffect !== 'none') return
-															setTeam((current) => current.map((other, otherIndex) => (
-																otherIndex === index
-																	? {
-																		...other,
-																		badges: other.badges.filter((badge) => badge !== name),
-																	}
-																	: other
-															)))
-														}}
+														draggable={badge.draggable}
+														onDragStart={badge.drag}
+														onDragEnd={badge.dropOutside}
 													>
-														{name}
+														{badge.name}
 													</div>
 												))}
 											</td>
 										)}
-										{/* Reserved checkbox, or "Finding player..." with blinking dots while searching */}
+										{/* Reserved checkbox, or while searching either "Finding player..." with blinking
+										dots or "(Reserved)" */}
 										<td>
-											{finding && !row.reserved ? (
-												row.toon && (
-													<span className="team-finding">
-														Finding player<span>...</span>
-													</span>
-												)
-											) : (
+											{row.findingPlayer && (
+												<span className="team-finding">
+													Finding player<span>...</span>
+												</span>
+											)}
+											{row.showReservedLabel && (
+												<span className="team-finding">{row.reservedLabel}</span>
+											)}
+											{row.showReservedCheckbox && (
 												<input
 													type="checkbox"
 													checked={row.reserved}
-													disabled={finding}
-													onChange={(event) => setTeam(team.map((other, otherIndex) => (otherIndex === index
-														? {
-															...other,
-															reserved: event.target.checked,
-														}
-														: other
-													)))}
+													onChange={row.toggleReserved}
 												/>
 											)}
 										</td>
@@ -873,8 +665,15 @@ createRoot(document.getElementById('root')!).render(
 								gap: 8px;
 								margin-top: 12px;
 							}
+							#team-form label {
+								display: flex;
+								align-items: center;
+								gap: 4px;
+								white-space: nowrap;
+							}
 							#team-form input {
-								width: 420px;
+								flex: 1;
+								min-width: 0;
 							}
 							#team-form-actions {
 								display: flex;
@@ -893,48 +692,23 @@ createRoot(document.getElementById('root')!).render(
 						`}</style>
 						<form
 							id="team-form"
-							onSubmit={(event) => {
-								event.preventDefault()
-								if (finding) {
-									setFinding(false)
-									return
-								}
-								const serverLink = new FormData(event.currentTarget).get('serverLink') as string
-								console.log({
-									team,
-									serverLink,
-								})
-								if (!team.some((row) => row.toon && !row.reserved)) {
-									setTeamError('At least 1 non-empty & non-reserved row is needed to start finding players!')
-								} else if (!team.some((row) => row.toon && row.reserved)) {
-									setTeamError('At least 1 non-empty reserved row (You!) is needed to start finding players!')
-								} else if (!serverLink.trim()) {
-									setTeamError('A server link is needed!')
-								} else if (!/^https:\/\/www\.roblox\.com\/share\?code=[0-9a-f]{32}&type=Server$/i
-									.test(serverLink.trim())) {
-									setTeamError('The server link is invalid!')
-								} else {
-									setTeamError('')
-									setFinding(true)
-								}
-							}}
+							onSubmit={lobby.findPlayers}
 						>
 							<label>
-								Server link:{' '}
+								Server link:
 								<input
 									name="serverLink"
-									defaultValue={localStorage.getItem('serverLink') ?? ''}
-									readOnly={finding}
-									onChange={(event) => localStorage.setItem('serverLink', event.target.value)}
+									type="password"
+									defaultValue={lobby.savedServerLink}
+									readOnly={lobby.serverLinkReadOnly}
+									onChange={lobby.saveServerLink}
 								/>
 							</label>
 							<div id="team-form-actions">
-								<a onClick={() => (document.getElementById('team-howto') as HTMLDialogElement).show()}>
-									How do I get a server link?
-								</a>
-								<button>{finding ? 'Finding Players (Click to Cancel)' : 'Find Players'}</button>
+								<a onClick={lobby.openHowto}>How do I get a server link?</a>
+								<button>{lobby.findButtonLabel}</button>
 							</div>
-							<p id="team-form-error">{teamError}</p>
+							<p id="team-form-error">{lobby.teamError}</p>
 						</form>
 						{/* Window on top of Find a Team with two screenshots that explain how to get a server link */}
 						<style>{`
@@ -962,7 +736,7 @@ createRoot(document.getElementById('root')!).render(
 								<button
 									className="window-close"
 									aria-label="Close"
-									onClick={() => (document.getElementById('team-howto') as HTMLDialogElement).close()}
+									onClick={lobby.closeHowto}
 								>
 									×
 								</button>
@@ -996,8 +770,8 @@ createRoot(document.getElementById('root')!).render(
 						}
 					`}</style>
 					<div id="counters">
-						<span>{onlineCount} on this page</span>
-						<span>{findingCount} finding players</span>
+						<span>{lobby.onlineCount} on this page</span>
+						<span>{lobby.findingCount} finding players</span>
 					</div>
 				</>
 			)

@@ -5,10 +5,8 @@ import type { DeepPartial } from '../shared/genericTypes.ts'
 export const useSyncState = <T>(initialState: T) => {
 	const [state, setState] = useState(initialState)
 	const stateRef = useRef(state)
-
-	return {
-		/** Use asyncState in component props */
-		asyncState: state,
+	// Created once, so effects can list these functions as dependencies without re-running
+	const [functions] = useState(() => ({
 		/** Use getSyncState() in functions */
 		getSyncState: () => stateRef.current,
 		setState: (arg: Partial<T>) => {
@@ -66,5 +64,11 @@ export const useSyncState = <T>(initialState: T) => {
 			stateRef.current = newState
 			setState(newState)
 		},
+	}))
+
+	return {
+		/** Use asyncState in component props */
+		asyncState: state,
+		...functions,
 	}
 }

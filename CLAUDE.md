@@ -1,7 +1,8 @@
 # dwlobby
 
-The whole frontend is `client/main.tsx`, and the whole page is one component inside its `render`
-call. `server/main.ts` is the wiring file for the backend. Each backend feature lives in its own
+`client/main.tsx` is the whole view of the frontend. `client/lobby/useLobby.ts` is the wiring file
+for its logic, so reading it tells you everything that the page can do and every value that it can
+show. `server/main.ts` is the wiring file for the backend. Each backend feature lives in its own
 module next to it, such as `server/roblox.ts`, and `server/main.ts` mounts it. Code that both the
 frontend and the backend can use goes in `shared/`.
 `README.md` explains how to run the project and how to recreate it from zero.
@@ -18,12 +19,15 @@ frontend and the backend can use goes in `shared/`.
   used, instead of defining it first and using it later. Anything with a single place of use,
   including types, functions, constants and React components, is written directly at that place
   instead of being given a name.
-  - React components need one adjustment. The whole page is a single component, written inline in
-    the `render` call with `createElement(() => { ... })`, because JSX cannot use an inline function
-    as a tag. All state lives at the top of that component, so that every feature can use every
-    other feature's data, and new state is added there as it is needed. The `render` call runs only
-    once, so the component is created once and never remounts. Never create a component inside
-    another component, because that one is created again on every render, and React then remounts
+  - The frontend logic is the exception. Every reaction of the page, meaning every click, input,
+    drag, drop, fetch or timer, gets its own file in `client/lobby/`, and `useLobby` wires it. All
+    state lives in `useLobby`.
+  - The view only shows the values that `useLobby` returns, as they are, and passes on the
+    functions that it returns. Every label, image path and condition is computed in `useLobby`.
+  - The whole page is a single component, written inline in the `render` call with
+    `createElement(() => { ... })`, because JSX cannot use an inline function as a tag. The `render`
+    call runs only once, so the component is created once and never remounts. Never create a
+    component inside another component, because that one is created again on every render, and React then remounts
     it and loses its state. A piece of UI that is used in more than one place becomes a component
     defined at the top level of the file, above the `render` call, and styles that such places
     share go in classes instead of ids.
