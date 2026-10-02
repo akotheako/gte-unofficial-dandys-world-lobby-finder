@@ -8,6 +8,7 @@ export function checkInWithServer({
 	getServerLink,
 	getIsFindingPlayers,
 	getInviteFromLink,
+	getShownTeamStatus,
 	setOnThisPageCount,
 	setFindingPlayersCount,
 	setInvitingTeam,
@@ -31,6 +32,7 @@ export function checkInWithServer({
 		inviteCode: string
 		rowIndex: number
 	} | null
+	getShownTeamStatus: () => CheckInAnswer['shownTeamStatus']
 	setOnThisPageCount: (onThisPageCount: number) => void
 	setFindingPlayersCount: (findingPlayersCount: number) => void
 	setInvitingTeam: (invitingTeam: CheckInAnswer['invitingTeam']) => void
@@ -83,8 +85,11 @@ export function checkInWithServer({
 		if (answer) {
 			setOnThisPageCount(answer.onThisPageCount)
 			setFindingPlayersCount(answer.findingPlayersCount)
-			setInvitingTeam(answer.invitingTeam)
-			setShownTeamStatus(answer.shownTeamStatus)
+			// Once the team got together, its status stays as it was until Find a Team is closed
+			if (!getShownTeamStatus()?.teamServerLink) {
+				setInvitingTeam(answer.invitingTeam)
+				setShownTeamStatus(answer.shownTeamStatus)
+			}
 			if (answer.error) {
 				setFindPlayersError(answer.error)
 				if (invite) {

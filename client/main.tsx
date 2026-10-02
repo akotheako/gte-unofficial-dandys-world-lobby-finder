@@ -162,7 +162,7 @@ createRoot(document.getElementById('root')!).render(
 			const logic = useLogic()
 			return (
 				<>
-					{/* Hidden filter that makes the icon pictures blocky and reduces them to a few colors */}
+					{/* Hidden filter that makes the icon pictures and the Team found! picture blocky and reduces them to a few colors */}
 					<svg
 						width="0"
 						height="0"
@@ -695,6 +695,8 @@ createRoot(document.getElementById('root')!).render(
 													<div
 														key={badge.name}
 														className="team-badge-or-role"
+														data-crossed-out={badge.isCrossedOut}
+														title={badge.crossedOutTooltip}
 														draggable={badge.draggable}
 														onDragStart={badge.dragBadgeFromTable}
 														onDragEnd={badge.endBadgeDragFromTable}
@@ -807,7 +809,20 @@ createRoot(document.getElementById('root')!).render(
 							{logic.invitedFriendText && <p id="team-invited-friend">{logic.invitedFriendText}</p>}
 							{logic.showServerLinkField && (
 								<label>
-									Server link (recommended):
+									Server link{" "}
+									{/* "(recommended)" text that explains itself on hover */}
+									<style>{`
+										#team-server-link-recommended {
+											cursor: help;
+										}
+									`}</style>
+									<span
+										id="team-server-link-recommended"
+										title={`A match needs at least one server link, so if you share yours, it's more probable to find a team faster`}
+									>
+										(recommended)
+									</span>
+									:
 									<input
 										name="serverLink"
 										type="password"
@@ -993,29 +1008,65 @@ createRoot(document.getElementById('root')!).render(
 								</span>
 							</div>
 							<p id="team-form-error">{logic.findPlayersError}</p>
-							{/* Line that says the team is found, followed by the blue link to its Roblox server */}
-							<style>{`
-								#team-found {
-									margin: 0;
-									overflow-wrap: anywhere;
-								}
-								#team-found a {
-									color: #00e;
-								}
-							`}</style>
-							{logic.showTeamServerLink && (
-								<p id="team-found">
-									{logic.teamFoundText}{' '}
-									<a
-										href={logic.teamServerLink}
-										target="_blank"
-										rel="noreferrer"
-									>
-										{logic.teamServerLink}
-									</a>
-								</p>
-							)}
 						</form>
+						{/* Window on top of Find a Team that says the team is found, with the blue link to its
+						Roblox server below the text, and the picture of everyone at the elevator sitting on top
+						of the window */}
+						<style>{`
+							#team-found {
+								max-width: 520px;
+								overflow: visible;
+								overflow-wrap: anywhere;
+							}
+							#team-found img {
+								position: absolute;
+								bottom: 100%;
+								left: 50%;
+								translate: -50% 0;
+								width: 33%;
+								filter: url(#retro);
+							}
+							#team-found p {
+								margin: 0;
+							}
+							#team-found a {
+								color: #00e;
+							}
+						`}</style>
+						<dialog
+							id="team-found"
+							className="window"
+							closedby="closerequest"
+						>
+							{/* Picture of all of the toons waiting together at the elevator, above the window */}
+							<img
+								src="/Everyone_at_elevator.webp"
+								alt="All of the toons waiting together at the elevator"
+							/>
+							{/* Title bar with Team found! and a grey × button that closes the window */}
+							<div className="window-title">
+								Team found!
+								<button
+									className="window-close"
+									aria-label="Close"
+									onClick={logic.closeTeamFoundWindow}
+								>
+									×
+								</button>
+							</div>
+							{/* Text that says who joined whose team, then the server link on the next line */}
+							<p>
+								{logic.teamFoundText}
+								<br />
+								<a
+									href={logic.teamServerLink}
+									target="_blank"
+									rel="noreferrer"
+								>
+									{logic.teamServerLink}
+								</a>
+							</p>
+						</dialog>
 						{/* Window on top of Find a Team with two screenshots that explain how to get a server link */}
 						<style>{`
 							#team-howto {

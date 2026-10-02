@@ -1,5 +1,10 @@
 // Options of the dropdown in the Player column of Find a Team
-export type PlayerChoice = 'findPlayer' | 'me' | 'unverifiedFriend' | 'invitedFriend'
+export type PlayerChoice =
+	| 'findPlayer'
+	| 'findVerifiedPlayer'
+	| 'me'
+	| 'unverifiedFriend'
+	| 'invitedFriend'
 
 // Row of the white table in the middle of Find a Team
 export type TeamTableRow = {

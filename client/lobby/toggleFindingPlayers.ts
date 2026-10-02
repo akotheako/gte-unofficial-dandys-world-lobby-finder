@@ -25,8 +25,10 @@ export function toggleFindingPlayers({
 	}
 	const filledRows = getTeamTableRows().filter((row) => !row.isLeftEmpty)
 	const serverLink = getServerLink().trim()
-	if (!filledRows.some((row) => row.playerChoice === 'findPlayer')) {
-		setFindPlayersError('At least 1 "Find player" row is needed to start finding players!')
+	if (!filledRows.some((row) => (
+		row.playerChoice === 'findPlayer' || row.playerChoice === 'findVerifiedPlayer'
+	))) {
+		setFindPlayersError('At least 1 row has to find a player to start finding players!')
 	} else if (filledRows.filter((row) => row.playerChoice === 'me').length !== 1) {
 		setFindPlayersError('Exactly 1 row has to be "Me" to start finding players!')
 	} else if (serverLink && !robloxServerLinkPattern.test(serverLink)) {

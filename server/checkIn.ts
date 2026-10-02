@@ -9,7 +9,8 @@ const cookieSecret = process.env.COOKIE_SECRET
 if (!cookieSecret) throw new Error('COOKIE_SECRET is not set, see README.md')
 
 type StoredTeamTableRow = TeamTableRow & {
-	// Player from another search who took this "Find player" row, with the row that describes them
+	// Player from another search who took this "Find any player" or "Find verified player" row,
+	// with the row that describes them
 	joinedPlayer: {
 		teamId: string
 		playerInRow: PlayerInRow
@@ -101,29 +102,38 @@ function membersOf({
 	})
 }
 
-// Picks a different "Find player" row of the team for every member, or returns null when they
-// cannot all fit. An empty Toon or Trinket cell means "(Any)" on both sides.
+// Picks a different "Find any player" or "Find verified player" row of the team for every member,
+// or returns null when they cannot all fit. An empty Toon or Trinket cell means "(Any)" on both
+// sides.
 function findOpenRowsForMembers({
-	memberRows,
+	members,
 	team,
 }: {
-	memberRows: TeamTableRow[]
+	members: {
+		row: TeamTableRow
+		playerInRow: PlayerInRow
+	}[]
 	team: Team
 }) {
 	const rows = team.team_table_rows
-	const openRowIndexes = rows.flatMap((row, index) => (
-		!row.isLeftEmpty && row.playerChoice === 'findPlayer' && !row.joinedPlayer ? [index] : []
-	))
+	const openRowIndexes = rows.flatMap((row, index) => {
+		const isFindRow = row.playerChoice === 'findPlayer' || row.playerChoice === 'findVerifiedPlayer'
+		return !row.isLeftEmpty && isFindRow && !row.joinedPlayer ? [index] : []
+	})
 	const chosenRowIndexes: number[] = []
 	const placeMember = (memberIndex: number): boolean => {
-		if (memberIndex === memberRows.length) return true
-		const member = memberRows[memberIndex]
+		if (memberIndex === members.length) return true
+		const {
+			row: member, playerInRow,
+		} = members[memberIndex]
+		const isVerified = 'robloxUsername' in playerInRow && Boolean(playerInRow.robloxUsername)
 		const memberTrinkets = [member.trinketAPicture, member.trinketBPicture].filter(Boolean)
 		for (const rowIndex of openRowIndexes) {
 			const open = rows[rowIndex]
 			const missingTrinkets = [open.trinketAPicture, open.trinketBPicture]
 				.filter((trinket) => trinket && !memberTrinkets.includes(trinket))
 			const fits = !chosenRowIndexes.slice(0, memberIndex).includes(rowIndex)
+				&& (open.playerChoice !== 'findVerifiedPlayer' || isVerified)
 				&& (!open.toonPicture || !member.toonPicture || open.toonPicture === member.toonPicture)
 				// A member's empty trinket slot can take any trinket that the row asks for
 				&& missingTrinkets.length <= 2 - memberTrinkets.length
@@ -142,14 +152,14 @@ function findOpenRowsForMembers({
 		}
 		return false
 	}
-	return placeMember(0) ? chosenRowIndexes.slice(0, memberRows.length) : null
+	return placeMember(0) ? chosenRowIndexes.slice(0, members.length) : null
 }
 
 // Every open page checks in under its random page id every few seconds. The check-in counts the
 // open pages, keeps the page's team on the server while it has an "Invite friend" row or searches,
 // lets a page that opened an invite link join the inviting team, and merges searches that fit each
-// other: the members of one search, the joiner, take "Find player" rows of the other, the host,
-// and every player then gets the host's server link.
+// other: the members of one search, the joiner, take rows that find a player in the other, the
+// host, and every player then gets the host's server link.
 export const checkIn = new Hono()
 
 // The tables are created on the first request, so a new database needs no setup step
@@ -291,18 +301,25 @@ checkIn.post('/', async (c) => {
 					robloxAccount?.username ?? '',
 					// Only the fields that matching reads are stored, since other players see them
 					JSON.stringify(sentTeam.teamTableRows.slice(0, 8).map((row): StoredTeamTableRow => {
-						const playerChoice = (['me', 'unverifiedFriend', 'invitedFriend'] as const)
-							.find((choice) => choice === row.playerChoice) ?? 'findPlayer'
+						const playerChoice = ([
+							'findVerifiedPlayer',
+							'me',
+							'unverifiedFriend',
+							'invitedFriend',
+						] as const).find((choice) => choice === row.playerChoice) ?? 'findPlayer'
 						const badgeNames = row.badgeNames.map(String)
 						return {
 							toonPicture: String(row.toonPicture),
 							trinketAPicture: String(row.trinketAPicture),
 							trinketBPicture: String(row.trinketBPicture),
-							// A "Find player" row asks for its badges. The user's own row keeps only
-							// badges that Roblox confirmed, an invited friend brings their own badges
-							// when they join, and nobody can confirm an unverified friend's badges.
+							// A "Find verified player" row asks for its badges, while a "Find any
+							// player" row cannot, since nobody can confirm an unverified player's
+							// badges. The user's own row keeps only badges that Roblox confirmed, an
+							// invited friend brings their own badges when they join, and an
+							// unverified friend has no confirmed badges.
 							badgeNames: {
-								findPlayer: badgeNames,
+								findPlayer: [],
+								findVerifiedPlayer: badgeNames,
 								me: badgeNames.filter((name) => ownedBadgeNames.includes(name)),
 								unverifiedFriend: [],
 								invitedFriend: [],
@@ -422,7 +439,7 @@ checkIn.post('/', async (c) => {
 							joiner,
 							joiningMembers,
 							rowIndexes: findOpenRowsForMembers({
-								memberRows: joiningMembers.map((member) => member.row),
+								members: joiningMembers,
 								team: host,
 							}),
 						}
@@ -431,10 +448,10 @@ checkIn.post('/', async (c) => {
 					.find(({
 						host, joiner, rowIndexes,
 					}) => rowIndexes && findOpenRowsForMembers({
-						memberRows: membersOf({
+						members: membersOf({
 							team: host,
 							invitedFriends,
-						}).map((member) => member.row),
+						}),
 						team: joiner,
 					}))
 				if (!merge) continue

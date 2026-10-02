@@ -18,6 +18,7 @@ import {
 	chooseRegionOrFloorGoalDropdownOption,
 } from './chooseRegionOrFloorGoalDropdownOption.ts'
 import { closeServerLinkHelpWindow } from './closeServerLinkHelpWindow.ts'
+import { closeTeamFoundWindow } from './closeTeamFoundWindow.ts'
 import { closeWindowFromXButton } from './closeWindowFromXButton.ts'
 import { copyInviteLink } from './copyInviteLink.ts'
 import { copyVerificationEmojiCode } from './copyVerificationEmojiCode.ts'
@@ -41,6 +42,7 @@ import { loadVerifiedRobloxAccount } from './loadVerifiedRobloxAccount.ts'
 import { logOutOfRoblox } from './logOutOfRoblox.ts'
 import { openFindATeamFromInviteLink } from './openFindATeamFromInviteLink.ts'
 import { openServerLinkHelpWindow } from './openServerLinkHelpWindow.ts'
+import { openTeamFoundWindow } from './openTeamFoundWindow.ts'
 import { readSavedTeamTable } from './readSavedTeamTable.ts'
 import { saveServerLinkField } from './saveServerLinkField.ts'
 import { toggleDandyRunOrEarlyDyleCheckbox } from './toggleDandyRunOrEarlyDyleCheckbox.ts'
@@ -192,6 +194,7 @@ export function useLogic() {
 		getServerLink: () => getSyncState().serverLink,
 		getIsFindingPlayers: () => getSyncState().isFindingPlayers,
 		getInviteFromLink: () => getSyncState().inviteFromLink,
+		getShownTeamStatus: () => getSyncState().shownTeamStatus,
 		setOnThisPageCount: (onThisPageCount) => setState({ onThisPageCount }),
 		setFindingPlayersCount: (findingPlayersCount) => setState({ findingPlayersCount }),
 		setInvitingTeam: (invitingTeam) => setState({ invitingTeam }),
@@ -218,6 +221,12 @@ export function useLogic() {
 		: state.isFindingPlayers
 	const hasJoinedATeam = Boolean(shownTeamStatus?.hasJoinedATeam)
 	const shownTeamTableRows = invitingTeam?.teamTableRows ?? state.teamTableRows
+
+	// Opens the team found window as soon as the server link of the team arrives
+	const teamServerLink = shownTeamStatus?.teamServerLink ?? ''
+	useEffect(() => {
+		if (teamServerLink) openTeamFoundWindow()
+	}, [teamServerLink])
 
 	// Clears the red error below Find Players once the user changes what it complained about.
 	// mutateState keeps the rows array's identity, so the rows are compared as text.
@@ -309,10 +318,11 @@ export function useLogic() {
 					id: 'team',
 					event,
 				})
+				// The next check-in brings back the current status of the team
+				setState({ shownTeamStatus: null })
 				leaveInvitingTeam({
 					setInviteFromLink: (inviteFromLink) => setState({ inviteFromLink }),
 					setInvitingTeam: (invitingTeam) => setState({ invitingTeam }),
-					setShownTeamStatus: (shownTeamStatus) => setState({ shownTeamStatus }),
 				})
 			},
 			onCloseClick: () => closeWindowFromXButton({ id: 'team' }),
@@ -495,9 +505,14 @@ export function useLogic() {
 				index,
 			}),
 
-			// Badge names stacked in that cell, which drag to another row or out of the table
+			// Badge names stacked in that cell, which drag to another row or out of the table.
+			// While the table is locked, they are crossed out in a "Find any player" row.
 			badges: row.badgeNames.map((name) => ({
 				name,
+				isCrossedOut: isTableLocked && row.playerChoice === 'findPlayer',
+				crossedOutTooltip: isTableLocked && row.playerChoice === 'findPlayer'
+					? 'Badges cannot be verified for unverified players'
+					: undefined,
 				draggable: !isTableLocked,
 				dragBadgeFromTable: (event: DragEvent) => dragBadgeFromTable({
 					event,
@@ -591,12 +606,13 @@ export function useLogic() {
 				const showFindingPlayerText = isSearching
 					&& !hasJoinedATeam
 					&& !playerInRow
-					&& row.playerChoice === 'findPlayer'
+					&& (row.playerChoice === 'findPlayer' || row.playerChoice === 'findVerifiedPlayer')
 				return {
 					showFindingPlayerText,
 					showPlayerName: isTableLocked && !showFindingPlayerText,
 					playerName: playerInRowName ? `(${playerInRowName})` : {
-						findPlayer: '(Find player)',
+						findPlayer: '(Find any player)',
+						findVerifiedPlayer: '(Find verified player)',
 						me: '(You)',
 						unverifiedFriend: '(Unverified friend)',
 						invitedFriend: '(Invite not accepted)',
@@ -638,7 +654,11 @@ export function useLogic() {
 		playerDropdownOptions: [
 			{
 				value: 'findPlayer',
-				text: 'Find player',
+				text: 'Find any player',
+			},
+			{
+				value: 'findVerifiedPlayer',
+				text: 'Find verified player',
 			},
 			{
 				value: 'me',
@@ -741,8 +761,6 @@ export function useLogic() {
 		),
 
 		// Find Players button at the bottom right of Find a Team, with its spinner and the red
-
-		// error line below it
 		// error line below it. An invited friend only watches, so they get no button.
 		showFindPlayersButton: !isInvitedFriend,
 		toggleFindingPlayers: (event: FormEvent<HTMLFormElement>) => toggleFindingPlayers({
@@ -762,27 +780,26 @@ export function useLogic() {
 			&& !hasJoinedATeam
 			&& shownTeamTableRows.some((row, index) => (
 				!row.isLeftEmpty
-				&& row.playerChoice === 'findPlayer'
+				&& (row.playerChoice === 'findPlayer' || row.playerChoice === 'findVerifiedPlayer')
 				&& !shownTeamStatus?.playersInRows[index]
 			)),
 		findPlayersError: state.findPlayersError,
 
-		// Line below the error with the server link of the team, once players got together
-		showTeamServerLink: Boolean(shownTeamStatus?.teamServerLink),
+		// Window on top of Find a Team that opens once players got together, with the server link
+		// of the team and a × that closes it
+		closeTeamFoundWindow,
 		teamFoundText: (() => {
 			const host = shownTeamStatus?.hostRobloxUsername
 			if (hasJoinedATeam) {
-				const joiner = isInvitedFriend ? 'Your team' : 'You'
-				return host
-					? `${joiner} joined @${host}'s team! Join their server:`
-					: `${joiner} joined a team! Join its server:`
+				if (host) return `The host is @${host}. Everyone, join their server!`
+				return `${isInvitedFriend ? 'Your team' : 'You'} joined a team! Join its server:`
 			}
 			if (!isInvitedFriend) return 'Players joined your team! Everyone meets in this server:'
 			return host
 				? `Players joined @${host}'s team! Everyone meets in this server:`
 				: 'Players joined the team! Everyone meets in this server:'
 		})(),
-		teamServerLink: shownTeamStatus?.teamServerLink ?? '',
+		teamServerLink,
 
 
 		// Two counters at the bottom middle of the screen
