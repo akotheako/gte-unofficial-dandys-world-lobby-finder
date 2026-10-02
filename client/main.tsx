@@ -647,18 +647,32 @@ createRoot(document.getElementById('root')!).render(
 								id="team-reserved"
 								className={logic.sideWindowClass}
 							>
-								<div className="window-title">Reserved</div>
+								<div className="window-title">Reserved Slots</div>
 								{/* Small grey "Drag onto the Player column" line above the chips */}
 								<div className="team-drag-hint">{logic.reservedWindowDragHint}</div>
-								{/* White sunken list with one chip per line, followed by the two buttons that
-								add a friend */}
+								{/* Three old-style etched group boxes, "ME", "VERIFIED FRIENDS" and "UNVERIFIED
+								FRIENDS", with one chip per line, and in the friend boxes a button below the chips */}
 								<style>{`
-									#team-reserved .team-palette {
+									#team-reserved fieldset {
 										display: flex;
 										flex-direction: column;
 										align-items: stretch;
 										gap: 4px;
 										width: 256px;
+										margin: 0 0 8px;
+										padding: 4px 8px 8px;
+										border: 2px groove #fff;
+									}
+									#team-reserved fieldset:last-child {
+										margin-bottom: 0;
+									}
+									#team-reserved legend {
+										padding: 0 4px;
+										font-weight: bold;
+									}
+									.team-locked fieldset {
+										opacity: 0.5;
+										pointer-events: none;
 									}
 									.team-reserved-friend {
 										display: flex;
@@ -675,16 +689,12 @@ createRoot(document.getElementById('root')!).render(
 										font-size: 11px;
 									}
 								`}</style>
-								<div className="team-palette">
+								<fieldset>
+									<legend>ME</legend>
 									<ReservedWindowEntry chip={logic.reservedWindowMeChip} />
-									{/* Thin grey line above the verified friends and their invite button */}
-									<style>{`
-										.team-reserved-separator {
-											margin: 2px 0;
-											border-top: 1px solid #808080;
-										}
-									`}</style>
-									<div className="team-reserved-separator" />
+								</fieldset>
+								<fieldset>
+									<legend>VERIFIED FRIENDS</legend>
 									{logic.reservedWindowVerifiedFriendChips.map((chip) => (
 										<ReservedWindowEntry
 											key={chip.key}
@@ -693,8 +703,9 @@ createRoot(document.getElementById('root')!).render(
 									))}
 									{/* Button that copies the one invite link for every verified friend */}
 									<button onClick={logic.copyInviteLink}>{logic.copyInviteLinkButtonText}</button>
-									{/* Thin grey line above the unverified friends and their add button */}
-									<div className="team-reserved-separator" />
+								</fieldset>
+								<fieldset>
+									<legend>UNVERIFIED FRIENDS</legend>
 									{logic.reservedWindowUnverifiedFriendChips.map((chip) => (
 										<ReservedWindowEntry
 											key={chip.key}
@@ -702,7 +713,7 @@ createRoot(document.getElementById('root')!).render(
 										/>
 									))}
 									<button onClick={logic.addUnverifiedFriend}>+ Add unverified friend</button>
-								</div>
+								</fieldset>
 							</div>}
 						</div>
 						{/* Badges window in the middle of the screen, with a checkbox for each owned badge */}

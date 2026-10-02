@@ -1,0 +1,6 @@
+{
+	"autoMemoryEnabled": false,
+	"claudeMdExcludes": [
+		"**/gte-unofficial-dandys-world-lobby-finder/CLAUDE.md"
+	]
+}

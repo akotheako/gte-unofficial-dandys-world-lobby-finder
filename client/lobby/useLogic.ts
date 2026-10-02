@@ -415,8 +415,8 @@ export function useLogic() {
 
 		// Reserved window below the Trinkets window, with "Me", every verified friend who opened the
 		// invite link and every unverified friend as a chip that drags into the Player column.
-		// Every friend's chip has an × that removes the friend. Lines separate "Me", the verified
-		// friends with "Copy invite link", and the unverified friends with their add button. An
+		// Every friend's chip has an × that removes the friend. Group boxes separate "Me", the
+		// verified friends with "Copy invite link", and the unverified friends with their add button. An
 		// invited friend only watches the host's team, so they do not see this window.
 		showReservedWindow: !isInvitedFriend,
 		reservedWindowDragHint: 'Drag onto the Player column',
