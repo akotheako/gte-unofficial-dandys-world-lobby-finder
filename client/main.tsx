@@ -2,6 +2,7 @@ import {
 	StrictMode,
 	createElement,
 	type ChangeEventHandler,
+	type DragEventHandler,
 	type MouseEventHandler,
 	type ReactEventHandler,
 	type ReactNode,
@@ -229,6 +230,71 @@ function ChecklistWindow({
 	)
 }
 
+// Plain black name of whom a row is reserved for, like a badge or role name in its cell, which the
+// Reserved window lists and the Player column of the Find a Team table holds. It turns light grey
+// with a hand cursor on hover.
+function ReservationChip({
+	text,
+	onDragStart,
+	onDragEnd,
+}: {
+	text: string
+	onDragStart: DragEventHandler
+	onDragEnd?: DragEventHandler
+}) {
+	return (
+		<>
+			<style>{`
+				.team-chip {
+					white-space: nowrap;
+					cursor: pointer;
+				}
+				.team-chip:hover {
+					background: #e0e0e0;
+				}
+			`}</style>
+			<div
+				className="team-chip"
+				draggable
+				onDragStart={onDragStart}
+				onDragEnd={onDragEnd}
+			>
+				{text}
+			</div>
+		</>
+	)
+}
+
+// Line of the Reserved window with a name that drags into the Player column, and a grey × after a
+// friend's name
+function ReservedWindowEntry({ chip }: {
+	chip: {
+		text: string
+		dragFromSideWindow: DragEventHandler
+		showRemoveFriendButton: boolean
+		removeFriend: () => void
+	}
+}) {
+	return (
+		<div className="team-reserved-friend">
+			<ReservationChip
+				text={chip.text}
+				onDragStart={chip.dragFromSideWindow}
+			/>
+			{/* Grey × button that removes the friend */}
+			{chip.showRemoveFriendButton && (
+				<button
+					className="window-close"
+					aria-label="Remove friend"
+					onClick={chip.removeFriend}
+				>
+					×
+				</button>
+			)}
+		</div>
+	)
+}
+
 createRoot(document.getElementById('root')!).render(
 	<StrictMode>
 		{/* Desktop with the Roblox Verification and Find a Team icons and their windows */}
@@ -437,16 +503,19 @@ createRoot(document.getElementById('root')!).render(
 								overflow: visible;
 							}
 							#team-toons,
-							#team-trinkets {
+							#team-trinkets-and-reserved {
 								position: absolute;
 							}
 							#team-toons {
 								right: calc(100% + 24px);
 								top: 180px;
 							}
-							#team-trinkets {
+							#team-trinkets-and-reserved {
 								left: calc(100% + 24px);
 								top: 20px;
+								display: flex;
+								flex-direction: column;
+								gap: 24px;
 							}
 							.team-palette {
 								max-height: 360px;
@@ -546,25 +615,95 @@ createRoot(document.getElementById('root')!).render(
 								))}
 							</div>
 						</div>
-						{/* Trinkets window to the upper right, whose trinkets drag into the Trinket columns */}
-						<div
-							id="team-trinkets"
-							className={logic.sideWindowClass}
-						>
-							<div className="window-title">Trinkets</div>
-							{/* Small grey "Drag onto the table" line above the tiles */}
-							<div className="team-drag-hint">{logic.sideWindowDragHint}</div>
-							<div className="team-palette">
-								{logic.trinketsWindowTiles.map((trinket) => (
-									<img
-										key={trinket.name}
-										src={trinket.src}
-										title={trinket.title}
-										draggable
-										onDragStart={trinket.dragFromSideWindow}
-									/>
-								))}
+						{/* Column to the right with the Trinkets window above the Reserved window */}
+						<div id="team-trinkets-and-reserved">
+							{/* Trinkets window, whose trinkets drag into the Trinket columns */}
+							<style>{`
+								#team-trinkets .team-palette {
+									max-height: 240px;
+								}
+							`}</style>
+							<div
+								id="team-trinkets"
+								className={logic.sideWindowClass}
+							>
+								<div className="window-title">Trinkets</div>
+								{/* Small grey "Drag onto the table" line above the tiles */}
+								<div className="team-drag-hint">{logic.sideWindowDragHint}</div>
+								<div className="team-palette">
+									{logic.trinketsWindowTiles.map((trinket) => (
+										<img
+											key={trinket.name}
+											src={trinket.src}
+											title={trinket.title}
+											draggable
+											onDragStart={trinket.dragFromSideWindow}
+										/>
+									))}
+								</div>
 							</div>
+							{/* Reserved window, whose chips drag into the Player column */}
+							{logic.showReservedWindow && <div
+								id="team-reserved"
+								className={logic.sideWindowClass}
+							>
+								<div className="window-title">Reserved</div>
+								{/* Small grey "Drag onto the Player column" line above the chips */}
+								<div className="team-drag-hint">{logic.reservedWindowDragHint}</div>
+								{/* White sunken list with one chip per line, followed by the two buttons that
+								add a friend */}
+								<style>{`
+									#team-reserved .team-palette {
+										display: flex;
+										flex-direction: column;
+										align-items: stretch;
+										gap: 4px;
+										width: 256px;
+									}
+									.team-reserved-friend {
+										display: flex;
+										align-items: center;
+										gap: 4px;
+									}
+									.team-reserved-friend .team-chip {
+										flex: 1;
+									}
+									.team-reserved-friend .window-close {
+										flex: none;
+									}
+									#team-reserved button {
+										font-size: 11px;
+									}
+								`}</style>
+								<div className="team-palette">
+									<ReservedWindowEntry chip={logic.reservedWindowMeChip} />
+									{/* Thin grey line above the verified friends and their invite button */}
+									<style>{`
+										.team-reserved-separator {
+											margin: 2px 0;
+											border-top: 1px solid #808080;
+										}
+									`}</style>
+									<div className="team-reserved-separator" />
+									{logic.reservedWindowVerifiedFriendChips.map((chip) => (
+										<ReservedWindowEntry
+											key={chip.key}
+											chip={chip}
+										/>
+									))}
+									{/* Button that copies the one invite link for every verified friend */}
+									<button onClick={logic.copyInviteLink}>{logic.copyInviteLinkButtonText}</button>
+									{/* Thin grey line above the unverified friends and their add button */}
+									<div className="team-reserved-separator" />
+									{logic.reservedWindowUnverifiedFriendChips.map((chip) => (
+										<ReservedWindowEntry
+											key={chip.key}
+											chip={chip}
+										/>
+									))}
+									<button onClick={logic.addUnverifiedFriend}>+ Add unverified friend</button>
+								</div>
+							</div>}
 						</div>
 						{/* Badges window in the middle of the screen, with a checkbox for each owned badge */}
 						<ChecklistWindow
@@ -628,20 +767,24 @@ createRoot(document.getElementById('root')!).render(
 								height: 20px;
 								background: #c0c0c0;
 							}
-							#team-table select {
-								font-size: 11px;
+							#team-table th[title] {
+								cursor: help;
 							}
-							.team-invite {
+							#team-table .team-chip {
+								display: inline-block;
+							}
+							.team-verified-only {
 								display: flex;
-								flex-direction: column;
+								justify-content: center;
 								align-items: center;
 								gap: 2px;
 								margin-top: 2px;
 								font-size: 11px;
-								color: #808080;
+								white-space: nowrap;
+								cursor: pointer;
 							}
-							.team-invite button {
-								font-size: 11px;
+							.team-verified-only input {
+								margin: 0;
 							}
 							#team-table img {
 								width: 40px;
@@ -675,7 +818,8 @@ createRoot(document.getElementById('root')!).render(
 									<th>Trinket B</th>
 									{logic.isRobloxVerified && <th>Badges</th>}
 									<th>Role</th>
-									<th>Player</th>
+									{/* Player header that explains on hover which rows are left for players to find */}
+									<th title={logic.playerColumnHeaderTooltip}>Player</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -771,10 +915,14 @@ createRoot(document.getElementById('root')!).render(
 												))}
 											</td>
 										)}
-										{/* Player dropdown, or while the table is locked either "Finding player..." with
-										blinking dots or the grey name of the player in the row */}
+										{/* Chip from the Reserved window above a "Verified only" checkbox, or while the
+										table is locked either "Finding player..." with blinking dots or the grey name of
+										the player in the row */}
 										{!row.isLeftEmpty && (
-											<td>
+											<td
+												onDragOver={row.allowReservationDropOnPlayerCell}
+												onDrop={row.dropReservationOnPlayerCell}
+											>
 												{row.showFindingPlayerText && (
 													<span className="team-finding">
 														Finding player<span>...</span>
@@ -785,33 +933,23 @@ createRoot(document.getElementById('root')!).render(
 														{row.playerName}
 													</span>
 												)}
-												{row.showPlayerDropdown && (
-													<select
-														value={row.chosenPlayerDropdownOption}
-														onChange={row.choosePlayerInRow}
-													>
-														{logic.playerDropdownOptions.map((option) => (
-															<option
-																key={option.value}
-																value={option.value}
-															>
-																{option.text}
-															</option>
-														))}
-													</select>
+												{row.reservationChip && (
+													<ReservationChip
+														text={row.reservationChip.text}
+														onDragStart={row.reservationChip.dragReservationFromTable}
+														onDragEnd={row.reservationChip.endReservationDragFromTable}
+													/>
 												)}
-												{/* "Copy invite link" button with a grey line below it that says whether the
-												friend joined */}
-												{row.showInviteLink && (
-													<div className="team-invite">
-														<button
-															type="button"
-															onClick={row.copyInviteLink}
-														>
-															{row.copyInviteLinkButtonText}
-														</button>
-														{row.invitedFriendText}
-													</div>
+												{/* Small "Verified only" checkbox below the chip */}
+												{row.showVerifiedOnlyCheckbox && (
+													<label className="team-verified-only">
+														<input
+															type="checkbox"
+															checked={row.isVerifiedOnlyCheckboxChecked}
+															onChange={row.toggleVerifiedOnlyCheckbox}
+														/>
+														Verified only
+													</label>
 												)}
 											</td>
 										)}
@@ -986,7 +1124,8 @@ createRoot(document.getElementById('root')!).render(
 								</div>
 							</fieldset>
 							<div>
-								{/* Find Players button, followed while searching by a spinner */}
+								{/* Find Players button, greyed out with a tooltip while the team cannot search, followed
+									while searching by a spinner */}
 								<style>{`
 									#team-find {
 										display: flex;
@@ -995,8 +1134,15 @@ createRoot(document.getElementById('root')!).render(
 										gap: 6px;
 									}
 								`}</style>
-								<span id="team-find">
-									{logic.showFindPlayersButton && <button>{logic.findPlayersButtonText}</button>}
+								<span
+									id="team-find"
+									title={logic.findPlayersButtonDisabledTooltip}
+								>
+									{logic.showFindPlayersButton && (
+										<button disabled={logic.isFindPlayersButtonDisabled}>
+											{logic.findPlayersButtonText}
+										</button>
+									)}
 									{/* Ring of eight black spokes that darken one after another around the circle */}
 									<style>{`
 										#team-spinner {

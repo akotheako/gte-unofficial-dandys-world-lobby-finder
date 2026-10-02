@@ -1,13 +1,17 @@
+// Every verified friend joins with the same link. Once it was copied, the server keeps the team
+// for as long as the tab is open, so that friends can open the link at any time.
 export function copyInviteLink({
 	inviteCode,
-	setCopiedInviteLinkRowIndex,
-	index,
+	setIsInviteLinkCopied,
+	setIsCopiedTextShown,
 }: {
 	inviteCode: string
-	setCopiedInviteLinkRowIndex: (copiedInviteLinkRowIndex: number | null) => void
-	index: number
+	setIsInviteLinkCopied: (isInviteLinkCopied: boolean) => void
+	setIsCopiedTextShown: (isCopiedTextShown: boolean) => void
 }) {
-	navigator.clipboard.writeText(`${location.origin}/?invite=${inviteCode}&row=${index}`)
-	setCopiedInviteLinkRowIndex(index)
-	setTimeout(() => setCopiedInviteLinkRowIndex(null), 3000)
+	navigator.clipboard.writeText(`${location.origin}/?invite=${inviteCode}`)
+	sessionStorage.setItem('isInviteLinkCopied', 'true')
+	setIsInviteLinkCopied(true)
+	setIsCopiedTextShown(true)
+	setTimeout(() => setIsCopiedTextShown(false), 3000)
 }

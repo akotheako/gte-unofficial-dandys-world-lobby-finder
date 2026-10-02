@@ -6,13 +6,14 @@ import {
 	type MouseEvent,
 	type SyntheticEvent,
 } from 'react'
-import type { CheckInAnswer, PlayerChoice, TeamTableRow } from '../../shared/teamTypes.ts'
+import type { CheckInAnswer, ReservedFor, TeamTableRow } from '../../shared/teamTypes.ts'
 import { useSyncState } from '../useSyncState.ts'
 import { allowLeaveEmptyDropOnRow } from './allowLeaveEmptyDropOnRow.ts'
 import { allowPictureDropOnCell } from './allowPictureDropOnCell.ts'
 import { allowPictureDropOnLeftEmptyRow } from './allowPictureDropOnLeftEmptyRow.ts'
+import { addUnverifiedFriend } from './addUnverifiedFriend.ts'
+import { allowReservationDropOnPlayerCell } from './allowReservationDropOnPlayerCell.ts'
 import { checkInWithServer } from './checkInWithServer.ts'
-import { choosePlayerInRow } from './choosePlayerInRow.ts'
 import {
 	chooseRegionOrFloorGoalDropdownOption,
 } from './chooseRegionOrFloorGoalDropdownOption.ts'
@@ -25,7 +26,10 @@ import { dragFromSideWindow } from './dragFromSideWindow.ts'
 import { dragPictureFromTable } from './dragPictureFromTable.ts'
 import { dropPictureOnCell } from './dropPictureOnCell.ts'
 import { dropPictureOnLeftEmptyRow } from './dropPictureOnLeftEmptyRow.ts'
+import { dragReservationFromTable } from './dragReservationFromTable.ts'
+import { dropReservationOnPlayerCell } from './dropReservationOnPlayerCell.ts'
 import { endPictureDragFromTable } from './endPictureDragFromTable.ts'
+import { endReservationDragFromTable } from './endReservationDragFromTable.ts'
 import { growWindowFromIcon } from './growWindowFromIcon.ts'
 import { leaveInvitingTeam } from './leaveInvitingTeam.ts'
 import { leaveRowEmpty } from './leaveRowEmpty.ts'
@@ -39,6 +43,7 @@ import { openFindATeamFromInviteLink } from './openFindATeamFromInviteLink.ts'
 import { openServerLinkHelpWindow } from './openServerLinkHelpWindow.ts'
 import { openTeamFoundWindow } from './openTeamFoundWindow.ts'
 import { readSavedTeamTable } from './readSavedTeamTable.ts'
+import { removeFriendFromReservedWindow } from './removeFriendFromReservedWindow.ts'
 import { saveServerLinkField } from './saveServerLinkField.ts'
 import { toggleDandyRunOrEarlyDyleCheckbox } from './toggleDandyRunOrEarlyDyleCheckbox.ts'
 import { saveTeamTable } from './saveTeamTable.ts'
@@ -46,6 +51,7 @@ import { shrinkWindowIntoIcon } from './shrinkWindowIntoIcon.ts'
 import { toggleBadgeCheckbox } from './toggleBadgeCheckbox.ts'
 import { toggleFindingPlayers } from './toggleFindingPlayers.ts'
 import { toggleRoleCheckbox } from './toggleRoleCheckbox.ts'
+import { toggleVerifiedOnlyCheckbox } from './toggleVerifiedOnlyCheckbox.ts'
 import { undoLeaveRowEmpty } from './undoLeaveRowEmpty.ts'
 import { updateRobloxBadgeChecklist } from './updateRobloxBadgeChecklist.ts'
 import { verifyRobloxUsername } from './verifyRobloxUsername.ts'
@@ -75,6 +81,10 @@ export function useLogic() {
 		robloxVerificationError: string
 		robloxBadgeChecklist: RobloxBadge[] | null
 		usernameFieldStartValue: string
+		unverifiedFriendNumbers: number[]
+		removedVerifiedFriendUsernames: string[]
+		isInviteLinkCopied: boolean
+		isCopiedTextShown: boolean
 		teamTableRows: TeamTableRow[]
 		toonsWindowPictures: string[]
 		trinketsWindowPictures: string[]
@@ -88,13 +98,9 @@ export function useLogic() {
 		isFindingPlayers: boolean
 		pageId: string
 		inviteCode: string
-		inviteFromLink: {
-			inviteCode: string
-			rowIndex: number
-		} | null
+		inviteFromLink: { inviteCode: string } | null
 		invitingTeam: CheckInAnswer['invitingTeam']
 		shownTeamStatus: CheckInAnswer['shownTeamStatus']
-		copiedInviteLinkRowIndex: number | null
 		// null until the first check-in answers
 		onThisPageCount: number | null
 		findingPlayersCount: number | null
@@ -108,7 +114,20 @@ export function useLogic() {
 		robloxVerificationError: '',
 		robloxBadgeChecklist: null,
 		usernameFieldStartValue: localStorage.getItem('robloxUsername') ?? '',
-		teamTableRows: readSavedTeamTable(),
+		...(() => {
+			const unverifiedFriendNumbers: number[] = JSON.parse(
+				localStorage.getItem('unverifiedFriendNumbers') ?? '[]',
+			)
+			return {
+				unverifiedFriendNumbers,
+				teamTableRows: readSavedTeamTable({ unverifiedFriendNumbers }),
+			}
+		})(),
+		removedVerifiedFriendUsernames: JSON.parse(
+			sessionStorage.getItem('removedVerifiedFriendUsernames') ?? '[]',
+		),
+		isInviteLinkCopied: sessionStorage.getItem('isInviteLinkCopied') === 'true',
+		isCopiedTextShown: false,
 		toonsWindowPictures: [],
 		trinketsWindowPictures: [],
 		serverLinkFieldStartValue: localStorage.getItem('serverLink') ?? '',
@@ -121,20 +140,13 @@ export function useLogic() {
 		isFindingPlayers: false,
 		pageId: sessionStorage.getItem('pageId') ?? crypto.randomUUID(),
 		inviteCode: sessionStorage.getItem('inviteCode') ?? crypto.randomUUID(),
-		// Invite links look like /?invite=<invite code>&row=<row index>
+		// Invite links look like /?invite=<invite code>
 		inviteFromLink: (() => {
-			const searchParams = new URLSearchParams(location.search)
-			const inviteCode = searchParams.get('invite')
-			return inviteCode
-				? {
-					inviteCode,
-					rowIndex: Number(searchParams.get('row')),
-				}
-				: null
+			const inviteCode = new URLSearchParams(location.search).get('invite')
+			return inviteCode ? { inviteCode } : null
 		})(),
 		invitingTeam: null,
 		shownTeamStatus: null,
-		copiedInviteLinkRowIndex: null,
 		onThisPageCount: null,
 		findingPlayersCount: null,
 		tableDragLandedInAnotherCell: false,
@@ -178,15 +190,14 @@ export function useLogic() {
 	}, [isRobloxVerified, setState])
 
 	// Keeps both counters at the bottom of the screen up to date, and keeps the team on the server
-	// in sync while it searches, while it has an "Invite friend" row, or while this page is an
-	// invited friend's. A change of any of those checks in again right away.
-	const hasInviteFriendRow = state.teamTableRows.some((row) => (
-		!row.isLeftEmpty && row.playerChoice === 'invitedFriend'
-	))
+	// in sync while it searches, once its invite link was copied, or while this page is an invited
+	// friend's. A change of any of those checks in again right away.
 	useEffect(() => checkInWithServer({
 		pageId: getSyncState().pageId,
 		inviteCode: getSyncState().inviteCode,
 		getTeamTableRows: () => getSyncState().teamTableRows,
+		getRemovedVerifiedFriendUsernames: () => getSyncState().removedVerifiedFriendUsernames,
+		getIsInviteLinkCopied: () => getSyncState().isInviteLinkCopied,
 		getTeamSettings: () => ({
 			isDandyRun: getSyncState().isDandyRunCheckboxChecked,
 			isEarlyDyle: getSyncState().isEarlyDyleCheckboxChecked,
@@ -207,7 +218,7 @@ export function useLogic() {
 	}), [
 		state.isFindingPlayers,
 		state.inviteFromLink,
-		hasInviteFriendRow,
+		state.isInviteLinkCopied,
 		getSyncState,
 		setState,
 	])
@@ -223,6 +234,25 @@ export function useLogic() {
 		: state.isFindingPlayers
 	const hasJoinedATeam = Boolean(shownTeamStatus?.hasJoinedATeam)
 	const shownTeamTableRows = invitingTeam?.teamTableRows ?? state.teamTableRows
+
+	// Text of a chip from the Reserved side window, which shows in that window and in the Player
+	// column. An invited friend sees the host's name on the host's "Me" chips. The server's list of
+	// verified friends catches up with a removal on the next check-in.
+	const verifiedFriendUsernamesInTeam = (shownTeamStatus?.verifiedFriendRobloxUsernames ?? [])
+		.filter((username) => !state.removedVerifiedFriendUsernames.includes(username))
+	const reservationChipText = (reservedFor: ReservedFor) => {
+		if (reservedFor === 'me') {
+			if (!isInvitedFriend) return 'Me'
+			return invitingTeam?.hostRobloxUsername ? `@${invitingTeam.hostRobloxUsername}` : 'Host'
+		}
+		if (reservedFor.startsWith('unverifiedFriend:')) {
+			return `Unverified friend #${reservedFor.split(':')[1]}`
+		}
+		const username = reservedFor.slice('verifiedFriend:'.length)
+		return !shownTeamStatus || verifiedFriendUsernamesInTeam.includes(username)
+			? `@${username}`
+			: `@${username} (left the team)`
+	}
 
 	// Opens the team found window as soon as the server link of the team arrives
 	const teamServerLink = shownTeamStatus?.teamServerLink ?? ''
@@ -382,6 +412,67 @@ export function useLogic() {
 				name,
 			}),
 		})),
+
+		// Reserved window below the Trinkets window, with "Me", every verified friend who opened the
+		// invite link and every unverified friend as a chip that drags into the Player column.
+		// Every friend's chip has an × that removes the friend. Lines separate "Me", the verified
+		// friends with "Copy invite link", and the unverified friends with their add button. An
+		// invited friend only watches the host's team, so they do not see this window.
+		showReservedWindow: !isInvitedFriend,
+		reservedWindowDragHint: 'Drag onto the Player column',
+		...(() => {
+			const reservedWindowChipOf = (reservedFor: ReservedFor) => {
+				return {
+					key: reservedFor,
+					text: reservationChipText(reservedFor),
+					dragFromSideWindow: (event: DragEvent) => dragFromSideWindow({
+						event,
+						kind: 'reserved-for',
+						name: reservedFor,
+					}),
+					showRemoveFriendButton: reservedFor !== 'me',
+					removeFriend: () => removeFriendFromReservedWindow({
+						getUnverifiedFriendNumbers: () => getSyncState().unverifiedFriendNumbers,
+						setUnverifiedFriendNumbers: (unverifiedFriendNumbers) => setState({
+							unverifiedFriendNumbers,
+						}),
+						getRemovedVerifiedFriendUsernames: () => (
+							getSyncState().removedVerifiedFriendUsernames
+						),
+						setRemovedVerifiedFriendUsernames: (removedVerifiedFriendUsernames) => setState({
+							removedVerifiedFriendUsernames,
+						}),
+						clearReservationFromTable: (removedReservedFor) => mutateState((state) => {
+							state.teamTableRows.forEach((row) => {
+								if (row.reservedFor === removedReservedFor) row.reservedFor = ''
+							})
+						}),
+						reservedFor,
+					}),
+				}
+			}
+			return {
+				reservedWindowMeChip: reservedWindowChipOf('me'),
+				reservedWindowVerifiedFriendChips: verifiedFriendUsernamesInTeam.map((username) => (
+					reservedWindowChipOf(`verifiedFriend:${username}`)
+				)),
+				reservedWindowUnverifiedFriendChips: state.unverifiedFriendNumbers.map((number) => (
+					reservedWindowChipOf(`unverifiedFriend:${number}`)
+				)),
+			}
+		})(),
+		copyInviteLinkButtonText: state.isCopiedTextShown ? 'Copied!' : 'Copy invite link',
+		copyInviteLink: () => copyInviteLink({
+			inviteCode: getSyncState().inviteCode,
+			setIsInviteLinkCopied: (isInviteLinkCopied) => setState({ isInviteLinkCopied }),
+			setIsCopiedTextShown: (isCopiedTextShown) => setState({ isCopiedTextShown }),
+		}),
+		addUnverifiedFriend: () => addUnverifiedFriend({
+			getUnverifiedFriendNumbers: () => getSyncState().unverifiedFriendNumbers,
+			setUnverifiedFriendNumbers: (unverifiedFriendNumbers) => setState({
+				unverifiedFriendNumbers,
+			}),
+		}),
 
 		// Badges window in the middle of the screen, which a Badges cell opens, with a checkbox for
 		// each owned badge and a × that closes it
@@ -562,13 +653,13 @@ export function useLogic() {
 			noRolesText: row.roleNames.length ? '' : '(none required)',
 
 			// Badge names stacked in the Badges cell, the fourth column, shown only once verified.
-			// They are crossed out in a "Find any player" row.
+			// They are crossed out while "Verified only" is unchecked.
 			badges: row.badgeNames.map((name) => ({
 				name,
-				isCrossedOut: row.playerChoice === 'findPlayer',
-				crossedOutTooltip: row.playerChoice === 'findPlayer'
-					? 'Badges cannot be verified for unverified players'
-					: undefined,
+				isCrossedOut: !row.isVerifiedPlayerRequired,
+				crossedOutTooltip: row.isVerifiedPlayerRequired
+					? undefined
+					: 'Badges cannot be verified for unverified players. Check "Verified only".',
 			})),
 
 			// Role names stacked in the Role cell after Badges.
@@ -585,8 +676,9 @@ export function useLogic() {
 					}
 				}),
 
-			// Player column, the last one: the player dropdown, or while the table is locked either
-			// "Finding player..." or the grey name of the player in the row
+			// Player column, the last one: a chip from the Reserved window above a "Verified only"
+			// checkbox, or while the table is locked either "Finding player..." or the grey name of
+			// the player in the row
 			...(() => {
 				const playerInRow = shownTeamStatus?.playersInRows[index] ?? null
 				const playerInRowName = (() => {
@@ -600,79 +692,80 @@ export function useLogic() {
 						? `Friend of @${playerInRow.unverifiedFriendOf}`
 						: 'Unverified friend'
 				})()
+				// A searching row without a player shows "Finding player..." once the server told
+				// which rows the team's own players are in, since a chip on several rows takes
+				// only one of them
 				const showFindingPlayerText = isSearching
 					&& !hasJoinedATeam
+					&& Boolean(shownTeamStatus)
 					&& !playerInRow
-					&& (row.playerChoice === 'findPlayer' || row.playerChoice === 'findVerifiedPlayer')
 				return {
 					showFindingPlayerText,
 					showPlayerName: isTableLocked && !showFindingPlayerText,
-					playerName: playerInRowName ? `(${playerInRowName})` : {
-						findPlayer: '(Find any player)',
-						findVerifiedPlayer: '(Find verified player)',
-						me: '(You)',
-						unverifiedFriend: '(Unverified friend)',
-						invitedFriend: '(Invite not accepted)',
-					}[row.playerChoice],
-					showPlayerDropdown: !isTableLocked,
-					chosenPlayerDropdownOption: row.playerChoice,
-					choosePlayerInRow: (event: ChangeEvent<HTMLSelectElement>) => choosePlayerInRow({
-						getPlayerChoices: () => getSyncState().teamTableRows.map((row) => row.playerChoice),
-						setPlayerChoices: (playerChoices) => mutateState((state) => {
-							state.teamTableRows.forEach((row, rowIndex) => {
-								row.playerChoice = playerChoices[rowIndex]
-							})
+					playerName: `(${playerInRowName || (() => {
+						if (row.reservedFor) return reservationChipText(row.reservedFor)
+						return row.isVerifiedPlayerRequired ? 'Find verified player' : 'Find any player'
+					})()})`,
+					// Dropping a chip from the Reserved window or from another Player cell
+					allowReservationDropOnPlayerCell: (event: DragEvent) => (
+						allowReservationDropOnPlayerCell({
+							getIsTableLocked: () => (
+								getSyncState().isFindingPlayers || Boolean(getSyncState().inviteFromLink)
+							),
+							event,
+						})
+					),
+					dropReservationOnPlayerCell: (event: DragEvent) => dropReservationOnPlayerCell({
+						setReservedFor: (reservedFor) => mutateState((state) => {
+							state.teamTableRows[index].reservedFor = reservedFor
+						}),
+						setTableDragLandedInAnotherCell: (tableDragLandedInAnotherCell) => setState({
+							tableDragLandedInAnotherCell,
 						}),
 						event,
 						index,
 					}),
 
-					// "Copy invite link" button below the dropdown of an "Invite friend" row, and the
-					// grey line below it that says whether the friend joined
-					showInviteLink: !isTableLocked && row.playerChoice === 'invitedFriend',
-					copyInviteLinkButtonText: state.copiedInviteLinkRowIndex === index
-						? 'Copied!'
-						: 'Copy invite link',
-					copyInviteLink: () => copyInviteLink({
-						inviteCode: getSyncState().inviteCode,
-						setCopiedInviteLinkRowIndex: (copiedInviteLinkRowIndex) => setState({
-							copiedInviteLinkRowIndex,
+					// Chip in the cell, which drags to another Player cell or out of the table to
+					// clear it
+					reservationChip: !isTableLocked && row.reservedFor ? {
+						text: reservationChipText(row.reservedFor),
+						dragReservationFromTable: (event: DragEvent) => dragReservationFromTable({
+							getReservedFor: () => getSyncState().teamTableRows[index].reservedFor,
+							event,
+							index,
 						}),
-						index,
-					}),
-					invitedFriendText: playerInRowName
-						? `${playerInRowName} joined`
-						: 'Waiting for your friend...',
+						endReservationDragFromTable: (event: DragEvent) => endReservationDragFromTable({
+							getTableDragLandedInAnotherCell: () => (
+								getSyncState().tableDragLandedInAnotherCell
+							),
+							setTableDragLandedInAnotherCell: (tableDragLandedInAnotherCell) => (
+								setState({ tableDragLandedInAnotherCell })
+							),
+							setReservedFor: (reservedFor) => mutateState((state) => {
+								state.teamTableRows[index].reservedFor = reservedFor
+							}),
+							event,
+						}),
+					} : null,
+
+					// "Verified only" checkbox below the chip
+					showVerifiedOnlyCheckbox: !isTableLocked,
+					isVerifiedOnlyCheckboxChecked: row.isVerifiedPlayerRequired,
+					toggleVerifiedOnlyCheckbox: (event: ChangeEvent<HTMLInputElement>) => (
+						toggleVerifiedOnlyCheckbox({
+							setIsVerifiedPlayerRequired: (isVerifiedPlayerRequired) => mutateState((state) => {
+								state.teamTableRows[index].isVerifiedPlayerRequired = isVerifiedPlayerRequired
+							}),
+							event,
+						})
+					),
 				}
 			})(),
 		})),
-
-		// Options of the dropdown in every row of the Player column
-		playerDropdownOptions: [
-			{
-				value: 'findPlayer',
-				text: 'Find any player',
-			},
-			{
-				value: 'findVerifiedPlayer',
-				text: 'Find verified player',
-			},
-			{
-				value: 'me',
-				text: 'Me',
-			},
-			{
-				value: 'unverifiedFriend',
-				text: 'Unverified friend',
-			},
-			{
-				value: 'invitedFriend',
-				text: 'Invite friend',
-			},
-		] satisfies {
-			value: PlayerChoice
-			text: string
-		}[],
+		// Tooltip of the Player column header, which explains what a row without a chip means
+		playerColumnHeaderTooltip: `A row without a chip is left for a player to find, and so is every extra row that shares a chip.
+"Verified only" lets only verified players take it.`,
 
 
 		// "Server link (recommended):" field below the table and the help link below it, which an
@@ -761,7 +854,6 @@ export function useLogic() {
 		// error line below it. An invited friend only watches, so they get no button.
 		showFindPlayersButton: !isInvitedFriend,
 		toggleFindingPlayers: (event: FormEvent<HTMLFormElement>) => toggleFindingPlayers({
-			getTeamTableRows: () => getSyncState().teamTableRows,
 			getServerLink: () => getSyncState().serverLink,
 			getIsFindingPlayers: () => getSyncState().isFindingPlayers,
 			setIsFindingPlayers: (isFindingPlayers) => setState({ isFindingPlayers }),
@@ -773,13 +865,41 @@ export function useLogic() {
 			if (hasJoinedATeam) return 'Leave Team'
 			return state.isFindingPlayers ? 'Finding Players (Click to Cancel)' : 'Find Players'
 		})(),
+		// Find Players is greyed out, with this tooltip saying why, while the team cannot search
+		...(() => {
+			const filledRows = state.teamTableRows.filter((row) => !row.isLeftEmpty)
+			const reservations = new Set(filledRows.flatMap((row) => (
+				row.reservedFor ? [row.reservedFor] : []
+			)))
+			const findPlayersButtonDisabledTooltip = (() => {
+				if (state.isFindingPlayers || hasJoinedATeam) return ''
+				if (!reservations.has('me')) {
+					return '"Me" from the Reserved window has to be on at least 1 row that is not "(Leave Empty)".'
+				}
+				if (reservations.size >= filledRows.length) {
+					return `At least 1 row has to be left for a player to find.
+That is a row without a chip, or an extra row that shares a chip.`
+				}
+				if ([...reservations].some((reservedFor) => (
+					reservedFor.startsWith('verifiedFriend:')
+					&& !verifiedFriendUsernamesInTeam.some((username) => (
+						reservedFor === `verifiedFriend:${username}`
+					))
+				))) {
+					return 'A verified friend in the table left the team. Drag their name out of the table.'
+				}
+				return ''
+			})()
+			return {
+				isFindPlayersButtonDisabled: Boolean(findPlayersButtonDisabledTooltip),
+				findPlayersButtonDisabledTooltip,
+			}
+		})(),
 		// The spinner stops once the team joined another team, or once every row of it is taken
 		showFindingPlayersSpinner: isSearching
 			&& !hasJoinedATeam
 			&& shownTeamTableRows.some((row, index) => (
-				!row.isLeftEmpty
-				&& (row.playerChoice === 'findPlayer' || row.playerChoice === 'findVerifiedPlayer')
-				&& !shownTeamStatus?.playersInRows[index]
+				!row.isLeftEmpty && !shownTeamStatus?.playersInRows[index]
 			)),
 		findPlayersError: state.findPlayersError,
 		// Line below Find Players, visible while a search without a server link waits for players,

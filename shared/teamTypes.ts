@@ -1,10 +1,7 @@
-// Options of the dropdown in the Player column of Find a Team
-export type PlayerChoice =
-	| 'findPlayer'
-	| 'findVerifiedPlayer'
-	| 'me'
-	| 'unverifiedFriend'
-	| 'invitedFriend'
+// Chip from the Reserved side window that a Player cell of Find a Team holds, or '' when the row
+// is left for a player to find. "Unverified friend #N" keeps its number, and a verified friend is
+// known by their Roblox username.
+export type ReservedFor = '' | 'me' | `unverifiedFriend:${number}` | `verifiedFriend:${string}`
 
 // Row of the white table in the middle of Find a Team
 export type TeamTableRow = {
@@ -13,7 +10,9 @@ export type TeamTableRow = {
 	trinketBPicture: string
 	badgeNames: string[]
 	roleNames: string[]
-	playerChoice: PlayerChoice
+	// "Verified only" checkbox of the Player cell, which counts for a found player in the row
+	isVerifiedPlayerRequired: boolean
+	reservedFor: ReservedFor
 	isLeftEmpty: boolean
 }
 
@@ -39,6 +38,8 @@ export type CheckInAnswer = {
 	// Who is in each row of the team that the page shows, and whether the team was found
 	shownTeamStatus: {
 		playersInRows: (PlayerInRow | null)[]
+		// Verified friends who opened the invite link of the shown team
+		verifiedFriendRobloxUsernames: string[]
 		isSearching: boolean
 		hasJoinedATeam: boolean
 		hostRobloxUsername: string

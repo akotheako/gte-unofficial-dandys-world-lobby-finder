@@ -2,27 +2,25 @@ import { Hono } from 'hono'
 import { getSignedCookie } from 'hono/cookie'
 import { badgeCategories } from '../shared/badgeCategories.ts'
 import { robloxServerLinkPattern } from '../shared/robloxServerLinkPattern.ts'
-import type { CheckInAnswer, PlayerInRow, TeamTableRow } from '../shared/teamTypes.ts'
+import type {
+	CheckInAnswer,
+	PlayerInRow,
+	ReservedFor,
+	TeamTableRow,
+} from '../shared/teamTypes.ts'
 import { database } from './database.ts'
 
 const cookieSecret = process.env.COOKIE_SECRET
 if (!cookieSecret) throw new Error('COOKIE_SECRET is not set, see README.md')
 
-type StoredTeamTableRow = TeamTableRow & {
-	// Player from another search who took this "Find any player" or "Find verified player" row,
-	// with the row that describes them
-	joinedPlayer: {
-		teamId: string
-		playerInRow: PlayerInRow
-		row: TeamTableRow
-	} | null
-}
-
 type Team = {
 	team_id: string
 	invite_code: string
 	roblox_username: string
-	team_table_rows: StoredTeamTableRow[]
+	roblox_badge_names: string[]
+	// Verified friends whom the host removed, whom the invite link no longer lets in
+	removed_roblox_usernames: string[]
+	team_table_rows: TeamTableRow[]
 	server_link: string
 	is_dandy_run: boolean
 	is_early_dyle: boolean
@@ -33,133 +31,157 @@ type Team = {
 	started_at: Date
 }
 
-type InvitedFriend = {
+type VerifiedFriend = {
 	page_id: string
 	team_id: string
-	row_index: number
 	roblox_username: string
 	badge_names: string[]
 }
 
-// The player in a row of a team, with the row that describes them, or null for an open row
-function playerInRowOf({
+// Verified friends who opened the team's invite link and whom the host did not remove
+function verifiedFriendsOf({
 	team,
-	rowIndex,
-	invitedFriends,
+	verifiedFriends,
 }: {
 	team: Team
-	rowIndex: number
-	invitedFriends: InvitedFriend[]
-}): {
-	row: TeamTableRow
-	playerInRow: PlayerInRow
-} | null {
-	const row = team.team_table_rows[rowIndex]
-	if (row.joinedPlayer) return row.joinedPlayer
-	if (row.isLeftEmpty) return null
-	if (row.playerChoice === 'me') {
-		return {
-			row,
-			playerInRow: { robloxUsername: team.roblox_username },
-		}
-	}
-	if (row.playerChoice === 'unverifiedFriend') {
-		return {
-			row,
-			playerInRow: { unverifiedFriendOf: team.roblox_username },
-		}
-	}
-	const friend = invitedFriends.find((invitedFriend) => (
-		invitedFriend.team_id === team.team_id && invitedFriend.row_index === rowIndex
+	verifiedFriends: VerifiedFriend[]
+}) {
+	return verifiedFriends.filter((verifiedFriend) => (
+		verifiedFriend.team_id === team.team_id
+		&& !team.removed_roblox_usernames.includes(verifiedFriend.roblox_username)
 	))
-	if (row.playerChoice === 'invitedFriend' && friend) {
-		return {
-			row: {
-				...row,
-				badgeNames: friend.badge_names,
-			},
-			playerInRow: { robloxUsername: friend.roblox_username },
-		}
-	}
-	return null
 }
 
-// Players who are already in the team
-function membersOf({
+// Player whom a team brings, meaning the host, an unverified friend, or a verified friend who
+// accepted their invite, with the rows that the team reserved for them
+type TeamPlayer = {
+	teamId: string
+	playerInRow: PlayerInRow
+	isVerified: boolean
+	badgeNames: string[]
+	reservedRowIndexes: number[]
+}
+
+function playersOf({
 	team,
-	invitedFriends,
+	verifiedFriends,
 }: {
 	team: Team
-	invitedFriends: InvitedFriend[]
-}) {
-	return team.team_table_rows.flatMap((_row, rowIndex) => {
-		const member = playerInRowOf({
-			team,
-			rowIndex,
-			invitedFriends,
-		})
-		return member ? [member] : []
+	verifiedFriends: VerifiedFriend[]
+}): TeamPlayer[] {
+	const rows = team.team_table_rows
+	const reservations = new Set(rows.flatMap((row) => (
+		!row.isLeftEmpty && row.reservedFor ? [row.reservedFor] : []
+	)))
+	return [...reservations].flatMap((reservedFor) => {
+		const player = (() => {
+			if (reservedFor === 'me') {
+				return {
+					playerInRow: { robloxUsername: team.roblox_username },
+					isVerified: Boolean(team.roblox_username),
+					badgeNames: team.roblox_badge_names,
+				}
+			}
+			if (reservedFor.startsWith('unverifiedFriend:')) {
+				return {
+					playerInRow: { unverifiedFriendOf: team.roblox_username },
+					isVerified: false,
+					badgeNames: [],
+				}
+			}
+			const friend = verifiedFriendsOf({
+				team,
+				verifiedFriends,
+			}).find((verifiedFriend) => (
+				`verifiedFriend:${verifiedFriend.roblox_username}` === reservedFor
+			))
+			return friend
+				? {
+					playerInRow: { robloxUsername: friend.roblox_username },
+					isVerified: true,
+					badgeNames: friend.badge_names,
+				}
+				: null
+		})()
+		if (!player) return []
+		return [{
+			teamId: team.team_id,
+			...player,
+			reservedRowIndexes: rows.flatMap((row, index) => (
+				!row.isLeftEmpty && row.reservedFor === reservedFor ? [index] : []
+			)),
+		}]
 	})
 }
 
-// Picks a different "Find any player" or "Find verified player" row of the team for every member,
-// or returns null when they cannot all fit. An empty Toon or Trinket cell means "(Any)" on both
-// sides.
-function findOpenRowsForMembers({
-	members,
+// Puts every player into a different row of the team, or returns null when they cannot all fit.
+// The team's own players can only take a row reserved for them, and players from other teams can
+// take any row that one of their own reserved rows fits, including a reserved row that the
+// team's own player does not end up in. An empty Toon or Trinket cell means "(Any)" on both sides.
+function placePlayersInRows({
+	players,
 	team,
+	teamsById,
 }: {
-	members: {
-		row: TeamTableRow
-		playerInRow: PlayerInRow
-	}[]
+	players: TeamPlayer[]
 	team: Team
+	teamsById: Map<string, Team>
 }) {
 	const rows = team.team_table_rows
-	const openRowIndexes = rows.flatMap((row, index) => {
-		const isFindRow = row.playerChoice === 'findPlayer' || row.playerChoice === 'findVerifiedPlayer'
-		return !row.isLeftEmpty && isFindRow && !row.joinedPlayer ? [index] : []
-	})
-	const chosenRowIndexes: number[] = []
-	const placeMember = (memberIndex: number): boolean => {
-		if (memberIndex === members.length) return true
-		const {
-			row: member, playerInRow,
-		} = members[memberIndex]
-		const isVerified = 'robloxUsername' in playerInRow && Boolean(playerInRow.robloxUsername)
-		const memberTrinkets = [member.trinketAPicture, member.trinketBPicture].filter(Boolean)
-		for (const rowIndex of openRowIndexes) {
-			const open = rows[rowIndex]
-			const missingTrinkets = [open.trinketAPicture, open.trinketBPicture]
-				.filter((trinket) => trinket && !memberTrinkets.includes(trinket))
-			const fits = !chosenRowIndexes.slice(0, memberIndex).includes(rowIndex)
-				&& (open.playerChoice !== 'findVerifiedPlayer' || isVerified)
-				&& (!open.toonPicture || !member.toonPicture || open.toonPicture === member.toonPicture)
-				// A member's empty trinket slot can take any trinket that the row asks for
-				&& missingTrinkets.length <= 2 - memberTrinkets.length
-				// A harder badge of the same category also counts, such as Marathon Runner for
-				// Speed Walker
-				&& open.badgeNames.every((wanted) => {
+	const playersInRows: (TeamPlayer | null)[] = rows.map(() => null)
+	const fits = ({
+		player,
+		rowIndex,
+	}: {
+		player: TeamPlayer
+		rowIndex: number
+	}) => {
+		const row = rows[rowIndex]
+		if (row.isLeftEmpty || playersInRows[rowIndex]) return false
+		if (player.teamId === team.team_id) return player.reservedRowIndexes.includes(rowIndex)
+		const playerRows = teamsById.get(player.teamId)?.team_table_rows ?? []
+		return player.reservedRowIndexes.some((playerRowIndex) => {
+			const playerRow = playerRows[playerRowIndex]
+			const playerTrinkets = [playerRow.trinketAPicture, playerRow.trinketBPicture].filter(Boolean)
+			const missingTrinkets = [row.trinketAPicture, row.trinketBPicture]
+				.filter((trinket) => trinket && !playerTrinkets.includes(trinket))
+			return (!row.toonPicture || !playerRow.toonPicture || row.toonPicture === playerRow.toonPicture)
+				// A player's empty trinket slot can take any trinket that the row asks for
+				&& missingTrinkets.length <= 2 - playerTrinkets.length
+				&& row.roleNames.every((role) => playerRow.roleNames.includes(role))
+				// Badges only count for a verified player, since nobody can confirm the badges of
+				// an unverified one. A harder badge of the same category also counts, such as
+				// Marathon Runner for Speed Walker.
+				&& (!row.isVerifiedPlayerRequired || (player.isVerified && row.badgeNames.every((wanted) => {
 					const category = badgeCategories.find((names) => names.includes(wanted)) ?? [wanted]
-					return member.badgeNames.some((owned) => (
+					return player.badgeNames.some((owned) => (
 						category.indexOf(owned) >= category.indexOf(wanted)
 					))
-				})
-				&& open.roleNames.every((role) => member.roleNames.includes(role))
-			if (!fits) continue
-			chosenRowIndexes[memberIndex] = rowIndex
-			if (placeMember(memberIndex + 1)) return true
+				})))
+		})
+	}
+	const placePlayer = (playerIndex: number): boolean => {
+		if (playerIndex === players.length) return true
+		for (const rowIndex of rows.keys()) {
+			if (!fits({
+				player: players[playerIndex],
+				rowIndex,
+			})) continue
+			playersInRows[rowIndex] = players[playerIndex]
+			if (placePlayer(playerIndex + 1)) return true
+			playersInRows[rowIndex] = null
 		}
 		return false
 	}
-	return placeMember(0) ? chosenRowIndexes.slice(0, members.length) : null
+	return placePlayer(0) ? playersInRows : null
 }
 
 // Every open page checks in under its random page id every few seconds. The check-in counts the
-// open pages, keeps the page's team on the server while it has an "Invite friend" row or searches,
-// lets a page that opened an invite link join the inviting team, and merges searches that fit each
-// other: the members of one search, the joiner, take rows that find a player in the other, the
-// host, and every player then gets the host's server link.
+// open pages, keeps the page's team on the server once its invite link was copied or while it
+// searches, lets a page that opened an invite link join the inviting team, and merges searches
+// that fit each other. A merged team is a host and the searches that joined it, and every player
+// of it has to fit a row of every table in it, so every search gets what it asked for. Every
+// player then gets the host's server link.
 export const checkIn = new Hono()
 
 // The tables are created on the first request, so a new database needs no setup step
@@ -184,13 +206,17 @@ checkIn.use(async (_c, next) => {
 			joined_team_id text,
 			started_at timestamptz NOT NULL DEFAULT now()
 		);
-		CREATE TABLE IF NOT EXISTS invited_friends (
+		ALTER TABLE teams ADD COLUMN IF NOT EXISTS roblox_badge_names jsonb NOT NULL DEFAULT '[]';
+		ALTER TABLE teams ADD COLUMN IF NOT EXISTS removed_roblox_usernames jsonb NOT NULL DEFAULT '[]';
+		ALTER TABLE teams DROP COLUMN IF EXISTS verified_friend_ids;
+		CREATE TABLE IF NOT EXISTS verified_friends (
 			page_id text PRIMARY KEY,
 			team_id text NOT NULL,
-			row_index int NOT NULL,
 			roblox_username text NOT NULL,
 			badge_names jsonb NOT NULL
 		);
+		ALTER TABLE verified_friends DROP COLUMN IF EXISTS friend_id;
+		DROP TABLE IF EXISTS invited_friends;
 		DROP TABLE IF EXISTS searching_teams;
 	`).catch((error) => {
 		tablesAreCreated = undefined
@@ -203,9 +229,10 @@ checkIn.use(async (_c, next) => {
 checkIn.post('/', async (c) => {
 	const body = await c.req.json<{
 		pageId: string
-		// The page's own table, sent while it has an "Invite friend" row or searches
+		// The page's own table, sent once its invite link was copied or while it searches
 		team: {
 			teamTableRows: TeamTableRow[]
+			removedRobloxUsernames: string[]
 			inviteCode: string
 			serverLink: string
 			isDandyRun: boolean
@@ -215,10 +242,7 @@ checkIn.post('/', async (c) => {
 			isFindingPlayers: boolean
 		} | null
 		// The invite link that the page was opened with
-		invite: {
-			inviteCode: string
-			rowIndex: number
-		} | null
+		invite: { inviteCode: string } | null
 	}>()
 	const pageId = String(body.pageId)
 	const cookie = await getSignedCookie(c, cookieSecret, 'roblox')
@@ -252,7 +276,7 @@ checkIn.post('/', async (c) => {
 		await client.query(`
 			DELETE FROM open_pages WHERE last_seen_at < now() - interval '90 seconds';
 			DELETE FROM teams WHERE team_id NOT IN (SELECT page_id FROM open_pages);
-			DELETE FROM invited_friends WHERE page_id NOT IN (SELECT page_id FROM open_pages);
+			DELETE FROM verified_friends WHERE page_id NOT IN (SELECT page_id FROM open_pages);
 		`)
 
 		const sentTeam = body.team
@@ -266,7 +290,7 @@ checkIn.post('/', async (c) => {
 			const { rows: [savedTeam] } = await client.query<Team>(`
 				SELECT * FROM teams WHERE team_id = $1
 			`, [pageId])
-			// A running search keeps its rows, which hold the players who joined it, since the
+			// A running search keeps the team that it joined and its place in the queue, since the
 			// table cannot change while it runs
 			if (!savedTeam?.is_searching || !sentTeam.isFindingPlayers) {
 				await client.query(`
@@ -274,6 +298,8 @@ checkIn.post('/', async (c) => {
 						team_id,
 						invite_code,
 						roblox_username,
+						roblox_badge_names,
+						removed_roblox_usernames,
 						team_table_rows,
 						server_link,
 						is_dandy_run,
@@ -282,10 +308,12 @@ checkIn.post('/', async (c) => {
 						floor_goal,
 						is_searching
 					)
-					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 					ON CONFLICT (team_id) DO UPDATE SET
 						invite_code = excluded.invite_code,
 						roblox_username = excluded.roblox_username,
+						roblox_badge_names = excluded.roblox_badge_names,
+						removed_roblox_usernames = excluded.removed_roblox_usernames,
 						team_table_rows = excluded.team_table_rows,
 						server_link = excluded.server_link,
 						is_dandy_run = excluded.is_dandy_run,
@@ -299,35 +327,23 @@ checkIn.post('/', async (c) => {
 					pageId,
 					String(sentTeam.inviteCode),
 					robloxAccount?.username ?? '',
+					JSON.stringify(ownedBadgeNames),
+					JSON.stringify(sentTeam.removedRobloxUsernames.slice(0, 100).map(String)),
 					// Only the fields that matching reads are stored, since other players see them
-					JSON.stringify(sentTeam.teamTableRows.slice(0, 8).map((row): StoredTeamTableRow => {
-						const playerChoice = ([
-							'findVerifiedPlayer',
-							'me',
-							'unverifiedFriend',
-							'invitedFriend',
-						] as const).find((choice) => choice === row.playerChoice) ?? 'findPlayer'
-						const badgeNames = row.badgeNames.map(String)
+					JSON.stringify(sentTeam.teamTableRows.slice(0, 8).map((row): TeamTableRow => {
+						const reservedFor = String(row.reservedFor)
+						const isKnownReservation = reservedFor === 'me'
+							|| /^unverifiedFriend:\d+$/.test(reservedFor)
+							|| reservedFor.startsWith('verifiedFriend:')
 						return {
 							toonPicture: String(row.toonPicture),
 							trinketAPicture: String(row.trinketAPicture),
 							trinketBPicture: String(row.trinketBPicture),
-							// A "Find verified player" row asks for its badges, while a "Find any
-							// player" row cannot, since nobody can confirm an unverified player's
-							// badges. The user's own row keeps only badges that Roblox confirmed, an
-							// invited friend brings their own badges when they join, and an
-							// unverified friend has no confirmed badges.
-							badgeNames: {
-								findPlayer: [],
-								findVerifiedPlayer: badgeNames,
-								me: badgeNames.filter((name) => ownedBadgeNames.includes(name)),
-								unverifiedFriend: [],
-								invitedFriend: [],
-							}[playerChoice],
+							badgeNames: row.badgeNames.map(String),
 							roleNames: row.roleNames.map(String),
-							playerChoice,
+							isVerifiedPlayerRequired: Boolean(row.isVerifiedPlayerRequired),
+							reservedFor: isKnownReservation ? reservedFor as ReservedFor : '',
 							isLeftEmpty: Boolean(row.isLeftEmpty),
-							joinedPlayer: null,
 						}
 					})),
 					serverLink,
@@ -345,35 +361,35 @@ checkIn.post('/', async (c) => {
 			const { rows: [invitingTeam] } = await client.query<Team>(`
 				SELECT * FROM teams WHERE invite_code = $1
 			`, [String(body.invite.inviteCode)])
-			const rowIndex = Number(body.invite.rowIndex)
-			const row = invitingTeam?.team_table_rows[rowIndex]
-			const { rows: [friendInRow] } = await client.query<InvitedFriend>(`
-				SELECT * FROM invited_friends WHERE team_id = $1 AND row_index = $2
-			`, [invitingTeam?.team_id ?? '', rowIndex])
-			const hasJoined = friendInRow?.page_id === pageId
-			if (!row || row.isLeftEmpty || row.playerChoice !== 'invitedFriend') {
-				error = hasJoined ? 'The host took you out of the team' : 'This invite link expired'
+			const { rows: friendsInTeam } = await client.query<VerifiedFriend>(`
+				SELECT * FROM verified_friends WHERE team_id = $1
+			`, [invitingTeam?.team_id ?? ''])
+			const hasJoined = friendsInTeam.some((friend) => friend.page_id === pageId)
+			if (!invitingTeam) {
+				error = 'This invite link expired'
 			} else if (!robloxAccount) {
 				error = 'Verify your Roblox account to join the team that invited you'
 			} else if (invitingTeam.team_id === pageId) {
-				error = 'This invite link is for a friend, send it to them'
-			} else if (friendInRow && !hasJoined) {
-				error = 'Someone else already joined with this invite link'
+				error = 'This invite link is for your friends, send it to them'
+			} else if (invitingTeam.removed_roblox_usernames.includes(robloxAccount.username)) {
+				error = 'The host took you out of the team'
+			} else if (friendsInTeam.some((friend) => (
+				friend.page_id !== pageId && friend.roblox_username === robloxAccount.username
+			))) {
+				error = 'You already joined this team in another tab'
 			} else if (!hasJoined && invitingTeam.is_searching) {
 				error = 'The team already started finding players'
 			} else {
 				await client.query(`
-					INSERT INTO invited_friends (page_id, team_id, row_index, roblox_username, badge_names)
-					VALUES ($1, $2, $3, $4, $5)
+					INSERT INTO verified_friends (page_id, team_id, roblox_username, badge_names)
+					VALUES ($1, $2, $3, $4)
 					ON CONFLICT (page_id) DO UPDATE SET
 						team_id = excluded.team_id,
-						row_index = excluded.row_index,
 						roblox_username = excluded.roblox_username,
 						badge_names = excluded.badge_names
 				`, [
 					pageId,
 					invitingTeam.team_id,
-					rowIndex,
 					robloxAccount.username,
 					JSON.stringify(ownedBadgeNames),
 				])
@@ -381,37 +397,31 @@ checkIn.post('/', async (c) => {
 			}
 		}
 		if (!invitingTeamId) {
-			await client.query('DELETE FROM invited_friends WHERE page_id = $1', [pageId])
+			await client.query('DELETE FROM verified_friends WHERE page_id = $1', [pageId])
 		}
 
 		const { rows: teams } = await client.query<Team>('SELECT * FROM teams ORDER BY started_at')
-		const { rows: invitedFriends } = await client.query<InvitedFriend>(`
-			SELECT * FROM invited_friends
+		const { rows: verifiedFriends } = await client.query<VerifiedFriend>(`
+			SELECT * FROM verified_friends
 		`)
 		const teamsById = new Map(teams.map((team) => [team.team_id, team]))
 		const changedTeams = new Set<Team>()
 
-		// Frees the rows of joined players who left, and puts players whose host left back into
-		// the search
+		// Puts searches whose host left or stopped searching back into the search
 		for (const team of teams) {
-			for (const row of team.team_table_rows) {
-				const joiner = row.joinedPlayer && teamsById.get(row.joinedPlayer.teamId)
-				if (row.joinedPlayer && joiner?.joined_team_id !== team.team_id) {
-					row.joinedPlayer = null
-					changedTeams.add(team)
-				}
-			}
-		}
-		for (const team of teams) {
-			const host = team.joined_team_id ? teamsById.get(team.joined_team_id) : undefined
-			const isStillInHostTeam = host?.is_searching && host.team_table_rows.some((row) => (
-				row.joinedPlayer?.teamId === team.team_id
-			))
-			if (team.joined_team_id && !isStillInHostTeam) {
+			if (team.joined_team_id && !teamsById.get(team.joined_team_id)?.is_searching) {
 				team.joined_team_id = null
 				changedTeams.add(team)
 			}
 		}
+		// The host and every search that joined it
+		const mergedTeamOf = (host: Team) => teams.filter((team) => (
+			team === host || (team.is_searching && team.joined_team_id === host.team_id)
+		))
+		const allPlayersOf = (mergedTeam: Team[]) => mergedTeam.flatMap((team) => playersOf({
+			team,
+			verifiedFriends,
+		}))
 
 		const myTeam = teamsById.get(pageId)
 		if (myTeam?.is_searching && !myTeam.joined_team_id) {
@@ -429,54 +439,37 @@ checkIn.post('/', async (c) => {
 					&& other.team_table_rows.filter((row) => !row.isLeftEmpty).length
 						=== myTeam.team_table_rows.filter((row) => !row.isLeftEmpty).length
 				if (!areSettingsCompatible) continue
-				// A closed tab keeps its search for up to 90 seconds, so the same verified player
-				// can search twice, and must not end up twice in one team
-				const verifiedUsernamesOf = (team: Team) => membersOf({
-					team,
-					invitedFriends,
-				}).flatMap(({ playerInRow }) => (
-					'robloxUsername' in playerInRow && playerInRow.robloxUsername
-						? [playerInRow.robloxUsername]
-						: []
-				))
-				const otherUsernames = verifiedUsernamesOf(other)
-				if (verifiedUsernamesOf(myTeam).some((name) => otherUsernames.includes(name))) continue
-				// The older search hosts when both ways fit, and a team that others already joined
+				// The older search hosts when both ways fit, and a search that others already joined
 				// can only host
 				const merge = [[other, myTeam], [myTeam, other]]
-					.filter(([, joiner]) => !joiner.team_table_rows.some((row) => row.joinedPlayer))
+					.filter(([, joiner]) => mergedTeamOf(joiner).length === 1)
 					.map(([host, joiner]) => {
-						const joiningMembers = membersOf({
-							team: joiner,
-							invitedFriends,
-						})
+						const mergedTeam = [...mergedTeamOf(host), joiner]
 						return {
 							host,
 							joiner,
-							joiningMembers,
-							rowIndexes: findOpenRowsForMembers({
-								members: joiningMembers,
-								team: host,
-							}),
+							mergedTeam,
+							players: allPlayersOf(mergedTeam),
 						}
 					})
-					// The host's players also have to fit the rows that the joiner asked for
 					.find(({
-						host, joiner, rowIndexes,
-					}) => rowIndexes && findOpenRowsForMembers({
-						members: membersOf({
-							team: host,
-							invitedFriends,
-						}),
-						team: joiner,
-					}))
+						mergedTeam, players,
+					}) => {
+						// A closed tab keeps its search for up to 90 seconds, so the same verified
+						// player can search twice, and must not end up twice in one team
+						const verifiedUsernames = players.flatMap(({ playerInRow }) => (
+							'robloxUsername' in playerInRow && playerInRow.robloxUsername
+								? [playerInRow.robloxUsername]
+								: []
+						))
+						return new Set(verifiedUsernames).size === verifiedUsernames.length
+							&& mergedTeam.every((team) => placePlayersInRows({
+								players,
+								team,
+								teamsById,
+							}))
+					})
 				if (!merge) continue
-				merge.joiningMembers.forEach((member, index) => {
-					merge.host.team_table_rows[merge.rowIndexes![index]].joinedPlayer = {
-						teamId: merge.joiner.team_id,
-						...member,
-					}
-				})
 				merge.joiner.joined_team_id = merge.host.team_id
 				merge.host.server_link ||= merge.joiner.server_link
 				changedTeams.add(merge.host)
@@ -487,11 +480,10 @@ checkIn.post('/', async (c) => {
 
 		for (const team of changedTeams) {
 			await client.query(`
-				UPDATE teams SET team_table_rows = $2, joined_team_id = $3, server_link = $4
+				UPDATE teams SET joined_team_id = $2, server_link = $3
 				WHERE team_id = $1
 			`, [
 				team.team_id,
-				JSON.stringify(team.team_table_rows),
 				team.joined_team_id,
 				team.server_link,
 			])
@@ -509,53 +501,26 @@ checkIn.post('/', async (c) => {
 
 		const shownTeam = invitingTeamId ? teamsById.get(invitingTeamId) : myTeam
 		const finalHost = shownTeam?.joined_team_id ? teamsById.get(shownTeam.joined_team_id) : shownTeam
-		const isTeamFound = Boolean(shownTeam?.is_searching && (
-			shownTeam.joined_team_id || shownTeam.team_table_rows.some((row) => row.joinedPlayer)
-		))
-		// A team that joined a host shows the host's players in its own rows that find a player.
-		// The host's own players always fit those rows, since the merge checked that, while
-		// players who joined the host later only show when all of them fit too.
-		const hostPlayersInRows: (PlayerInRow | undefined)[] = []
-		if (shownTeam && finalHost && finalHost !== shownTeam) {
-			const hostMembers = finalHost.team_table_rows.flatMap((row, rowIndex) => {
-				const member = row.joinedPlayer?.teamId === shownTeam.team_id
-					? null
-					: playerInRowOf({
-						team: finalHost,
-						rowIndex,
-						invitedFriends,
-					})
-				return member
-					? [{
-						...member,
-						isHostsOwnPlayer: !row.joinedPlayer,
-					}]
-					: []
-			})
-			const placedMembers = [hostMembers, hostMembers.filter((member) => member.isHostsOwnPlayer)]
-				.map((members) => ({
-					members,
-					rowIndexes: findOpenRowsForMembers({
-						members,
-						team: shownTeam,
-					}),
-				}))
-				.find(({ rowIndexes }) => rowIndexes)
-			placedMembers?.members.forEach((member, index) => {
-				hostPlayersInRows[placedMembers.rowIndexes![index]] = member.playerInRow
-			})
-		}
+		const shownMergedTeam = finalHost ? mergedTeamOf(finalHost) : []
+		// The merge checked that every player fits every table of the merged team, so the second
+		// try, with only the shown team's own players, is for a team that fell apart meanwhile
+		const playersInShownRows = shownTeam && (placePlayersInRows({
+			players: allPlayersOf(shownMergedTeam),
+			team: shownTeam,
+			teamsById,
+		}) ?? placePlayersInRows({
+			players: playersOf({
+				team: shownTeam,
+				verifiedFriends,
+			}),
+			team: shownTeam,
+			teamsById,
+		}))
 		return c.json({
 			...counts,
 			error,
 			invitingTeam: invitingTeamId && shownTeam ? {
-				// Each taken row shows the player in it, such as the friend with the badges that they
-				// brought, and each open row shows what it asks for
-				teamTableRows: shownTeam.team_table_rows.map((row, rowIndex) => playerInRowOf({
-					team: shownTeam,
-					rowIndex,
-					invitedFriends,
-				})?.row ?? row),
+				teamTableRows: shownTeam.team_table_rows,
 				isDandyRun: shownTeam.is_dandy_run,
 				isEarlyDyle: shownTeam.is_early_dyle,
 				region: shownTeam.region,
@@ -563,15 +528,19 @@ checkIn.post('/', async (c) => {
 				hostRobloxUsername: shownTeam.roblox_username,
 			} : null,
 			shownTeamStatus: shownTeam && finalHost ? {
-				playersInRows: shownTeam.team_table_rows.map((_row, rowIndex) => playerInRowOf({
+				playersInRows: shownTeam.team_table_rows.map((_row, rowIndex) => (
+					playersInShownRows?.[rowIndex]?.playerInRow ?? null
+				)),
+				verifiedFriendRobloxUsernames: verifiedFriendsOf({
 					team: shownTeam,
-					rowIndex,
-					invitedFriends,
-				})?.playerInRow ?? hostPlayersInRows[rowIndex] ?? null),
+					verifiedFriends,
+				}).map((verifiedFriend) => verifiedFriend.roblox_username),
 				isSearching: shownTeam.is_searching,
 				hasJoinedATeam: Boolean(shownTeam.joined_team_id),
 				hostRobloxUsername: finalHost.roblox_username,
-				teamServerLink: isTeamFound ? finalHost.server_link : '',
+				teamServerLink: shownTeam.is_searching && shownMergedTeam.length > 1
+					? finalHost.server_link
+					: '',
 			} : null,
 		} satisfies CheckInAnswer)
 	} catch (error) {
@@ -587,6 +556,6 @@ checkIn.post('/leave', async (c) => {
 	const { pageId } = await c.req.json<{ pageId: string }>()
 	await database.query('DELETE FROM open_pages WHERE page_id = $1', [String(pageId)])
 	await database.query('DELETE FROM teams WHERE team_id = $1', [String(pageId)])
-	await database.query('DELETE FROM invited_friends WHERE page_id = $1', [String(pageId)])
+	await database.query('DELETE FROM verified_friends WHERE page_id = $1', [String(pageId)])
 	return c.body(null, 204)
 })

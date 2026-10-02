@@ -4,6 +4,8 @@ export function checkInWithServer({
 	pageId,
 	inviteCode,
 	getTeamTableRows,
+	getRemovedVerifiedFriendUsernames,
+	getIsInviteLinkCopied,
 	getTeamSettings,
 	getServerLink,
 	getIsFindingPlayers,
@@ -20,6 +22,8 @@ export function checkInWithServer({
 	pageId: string
 	inviteCode: string
 	getTeamTableRows: () => TeamTableRow[]
+	getRemovedVerifiedFriendUsernames: () => string[]
+	getIsInviteLinkCopied: () => boolean
 	getTeamSettings: () => {
 		isDandyRun: boolean
 		isEarlyDyle: boolean
@@ -28,10 +32,7 @@ export function checkInWithServer({
 	}
 	getServerLink: () => string
 	getIsFindingPlayers: () => boolean
-	getInviteFromLink: () => {
-		inviteCode: string
-		rowIndex: number
-	} | null
+	getInviteFromLink: () => { inviteCode: string } | null
 	getShownTeamStatus: () => CheckInAnswer['shownTeamStatus']
 	setOnThisPageCount: (onThisPageCount: number) => void
 	setFindingPlayersCount: (findingPlayersCount: number) => void
@@ -51,10 +52,8 @@ export function checkInWithServer({
 		const invite = getInviteFromLink()
 		const teamTableRows = getTeamTableRows()
 		const isFindingPlayers = getIsFindingPlayers()
-		// The server keeps the team while it searches, or while a friend may open its invite link
-		const team = !invite && (isFindingPlayers || teamTableRows.some((row) => (
-			!row.isLeftEmpty && row.playerChoice === 'invitedFriend'
-		)))
+		// The server keeps the team while it searches, or once friends may open its invite link
+		const team = !invite && (isFindingPlayers || getIsInviteLinkCopied())
 			? {
 				// Solar Support is crossed out on every row whose toon is not Bobette
 				teamTableRows: teamTableRows.map((row) => ({
@@ -63,6 +62,7 @@ export function checkInWithServer({
 						role !== 'Solar Support' || row.toonPicture === 'bobette.png'
 					)),
 				})),
+				removedRobloxUsernames: getRemovedVerifiedFriendUsernames(),
 				inviteCode,
 				serverLink: getServerLink(),
 				...getTeamSettings(),
