@@ -20,6 +20,7 @@ import {
 import { closeServerLinkHelpWindow } from './closeServerLinkHelpWindow.ts'
 import { closeTeamFoundWindow } from './closeTeamFoundWindow.ts'
 import { closeWindowFromXButton } from './closeWindowFromXButton.ts'
+import { copyChecklistNames } from './copyChecklistNames.ts'
 import { copyInviteLink } from './copyInviteLink.ts'
 import { copyVerificationEmojiCode } from './copyVerificationEmojiCode.ts'
 import { dragFromSideWindow } from './dragFromSideWindow.ts'
@@ -40,6 +41,7 @@ import { loadVerifiedRobloxAccount } from './loadVerifiedRobloxAccount.ts'
 import { logOutOfRoblox } from './logOutOfRoblox.ts'
 import { openBadgesOrRolesWindow } from './openBadgesOrRolesWindow.ts'
 import { openFindATeamFromInviteLink } from './openFindATeamFromInviteLink.ts'
+import { pasteChecklistNames } from './pasteChecklistNames.ts'
 import { openServerLinkHelpWindow } from './openServerLinkHelpWindow.ts'
 import { openTeamFoundWindow } from './openTeamFoundWindow.ts'
 import { readSavedTeamTable } from './readSavedTeamTable.ts'
@@ -107,6 +109,12 @@ export function useLogic() {
 		tableDragLandedInAnotherCell: boolean
 		rowIndexInBadgesWindow: number
 		rowIndexInRolesWindow: number
+		// null until Copy is clicked in that window
+		copiedBadgeNames: string[] | null
+		copiedRoleNames: string[] | null
+		// Button of that window that reads "Copied!" or "Pasted!" for 3 seconds after its click
+		badgesWindowConfirmedButton: 'Copy' | 'Paste' | null
+		rolesWindowConfirmedButton: 'Copy' | 'Paste' | null
 	} => ({
 		verifiedRobloxAccount: null,
 		verificationEmojiCode: '',
@@ -152,6 +160,10 @@ export function useLogic() {
 		tableDragLandedInAnotherCell: false,
 		rowIndexInBadgesWindow: 0,
 		rowIndexInRolesWindow: 0,
+		copiedBadgeNames: null,
+		copiedRoleNames: null,
+		badgesWindowConfirmedButton: null,
+		rolesWindowConfirmedButton: null,
 	}))
 
 	// Fills the Toons and Trinkets side windows with pictures
@@ -453,6 +465,8 @@ export function useLogic() {
 			}
 			return {
 				reservedWindowMeChip: reservedWindowChipOf('me'),
+				// "VERIFIED FRIENDS" box, only for a verified host
+				showReservedWindowVerifiedFriends: isRobloxVerified,
 				reservedWindowVerifiedFriendChips: verifiedFriendUsernamesInTeam.map((username) => (
 					reservedWindowChipOf(`verifiedFriend:${username}`)
 				)),
@@ -478,8 +492,36 @@ export function useLogic() {
 		// each owned badge and a × that closes it
 		badgesWindowCheckboxes: (state.robloxBadgeChecklist ?? [])
 			.filter((badge) => badge.owned)
-			.map((badge) => ({
+			.map((badge, index, ownedBadges) => ({
 				name: badge.name,
+				// Grey line between two listed badges of different groups, which is when two groups
+				// hold one of them each
+				hasLineAbove: index > 0 && [
+					[
+						'Speed Walker',
+						'Long Distance Runner',
+						'Marathon Runner',
+					],
+					[
+						'Machine Enthusiast',
+						'Machine Master',
+						'THE Machine',
+					],
+					[
+						'Clocked In',
+						'Overtime',
+						'Hissy Fit',
+					],
+					['Just Keep Swimming'],
+					[
+						'Double Digits!',
+						'Skilled Toon!',
+						'Super Skilled Pro!',
+						'Twisteds Fear Me.',
+					],
+				].filter((group) => (
+					group.includes(badge.name) || group.includes(ownedBadges[index - 1].name)
+				)).length === 2,
 				isChecked: state.teamTableRows[state.rowIndexInBadgesWindow].badgeNames
 					.includes(badge.name),
 				toggleCheckbox: (event: ChangeEvent<HTMLInputElement>) => toggleBadgeCheckbox({
@@ -494,6 +536,29 @@ export function useLogic() {
 				}),
 			})),
 		closeBadgesWindow: () => closeWindowFromXButton({ id: 'team-badges' }),
+		// Copy and Paste buttons at the bottom of the Badges window. Paste is greyed out until Copy
+		// was clicked there.
+		badgesWindowCopyButtonText: state.badgesWindowConfirmedButton === 'Copy' ? 'Copied!' : 'Copy',
+		badgesWindowPasteButtonText: (
+			state.badgesWindowConfirmedButton === 'Paste' ? 'Pasted!' : 'Paste'
+		),
+		isBadgesWindowPasteDisabled: !state.copiedBadgeNames,
+		copyBadgesWindowNames: () => copyChecklistNames({
+			checkedNames: state.teamTableRows[state.rowIndexInBadgesWindow].badgeNames,
+			setCopiedNames: (copiedBadgeNames) => setState({ copiedBadgeNames }),
+			setConfirmedButton: (badgesWindowConfirmedButton) => setState({
+				badgesWindowConfirmedButton,
+			}),
+		}),
+		pasteBadgesWindowNames: () => pasteChecklistNames({
+			copiedNames: state.copiedBadgeNames ?? [],
+			setCheckedNames: (badgeNames) => mutateState((state) => {
+				state.teamTableRows[state.rowIndexInBadgesWindow].badgeNames = badgeNames
+			}),
+			setConfirmedButton: (badgesWindowConfirmedButton) => setState({
+				badgesWindowConfirmedButton,
+			}),
+		}),
 
 		// Roles window in the middle of the screen, which a Role cell opens, with a checkbox for each
 		// role and a × that closes it
@@ -506,6 +571,7 @@ export function useLogic() {
 			'Extractor',
 		].map((name) => ({
 			name,
+			hasLineAbove: false,
 			isChecked: state.teamTableRows[state.rowIndexInRolesWindow].roleNames.includes(name),
 			toggleCheckbox: (event: ChangeEvent<HTMLInputElement>) => toggleRoleCheckbox({
 				getRoleNames: () => (
@@ -519,6 +585,29 @@ export function useLogic() {
 			}),
 		})),
 		closeRolesWindow: () => closeWindowFromXButton({ id: 'team-roles' }),
+		// Copy and Paste buttons at the bottom of the Roles window. Paste is greyed out until Copy
+		// was clicked there.
+		rolesWindowCopyButtonText: state.rolesWindowConfirmedButton === 'Copy' ? 'Copied!' : 'Copy',
+		rolesWindowPasteButtonText: (
+			state.rolesWindowConfirmedButton === 'Paste' ? 'Pasted!' : 'Paste'
+		),
+		isRolesWindowPasteDisabled: !state.copiedRoleNames,
+		copyRolesWindowNames: () => copyChecklistNames({
+			checkedNames: state.teamTableRows[state.rowIndexInRolesWindow].roleNames,
+			setCopiedNames: (copiedRoleNames) => setState({ copiedRoleNames }),
+			setConfirmedButton: (rolesWindowConfirmedButton) => setState({
+				rolesWindowConfirmedButton,
+			}),
+		}),
+		pasteRolesWindowNames: () => pasteChecklistNames({
+			copiedNames: state.copiedRoleNames ?? [],
+			setCheckedNames: (roleNames) => mutateState((state) => {
+				state.teamTableRows[state.rowIndexInRolesWindow].roleNames = roleNames
+			}),
+			setConfirmedButton: (rolesWindowConfirmedButton) => setState({
+				rolesWindowConfirmedButton,
+			}),
+		}),
 
 		// Rows of the white table in the middle of Find a Team
 		teamTableRows: shownTeamTableRows.map((row, index) => ({
@@ -704,7 +793,9 @@ export function useLogic() {
 					showPlayerName: isTableLocked && !showFindingPlayerText,
 					playerName: `(${playerInRowName || (() => {
 						if (row.reservedFor) return reservationChipText(row.reservedFor)
-						return row.isVerifiedPlayerRequired ? 'Find verified player' : 'Find any player'
+						return isRobloxVerified && row.isVerifiedPlayerRequired
+							? 'Find verified player'
+							: 'Find any player'
 					})()})`,
 					// Dropping a chip from the Reserved window or from another Player cell
 					allowReservationDropOnPlayerCell: (event: DragEvent) => (
@@ -749,8 +840,10 @@ export function useLogic() {
 						}),
 					} : null,
 
-					// "Verified only" checkbox below the chip
-					showVerifiedOnlyCheckbox: !isTableLocked,
+					// "Verified only" checkbox below the chip, only for a verified host
+					showVerifiedOnlyCheckbox: isRobloxVerified && !isTableLocked,
+					verifiedOnlyCheckboxTooltip: `Only players with a verified Roblox account can take this row.
+Badges can only be checked for verified players.`,
 					isVerifiedOnlyCheckboxChecked: row.isVerifiedPlayerRequired,
 					toggleVerifiedOnlyCheckbox: (event: ChangeEvent<HTMLInputElement>) => (
 						toggleVerifiedOnlyCheckbox({
@@ -768,7 +861,7 @@ export function useLogic() {
 "Verified only" lets only verified players take it.`,
 
 
-		// "Server link (recommended):" field below the table and the help link below it, which an
+		// "Server link (recommended):" field below the table and the "?" right of it, which an
 		// invited friend does not see, since the host's server link is the one that counts
 		showServerLinkField: !isInvitedFriend,
 		serverLinkFieldStartValue: state.serverLinkFieldStartValue,
@@ -778,7 +871,7 @@ export function useLogic() {
 			event,
 		}),
 
-		// "How do I get a server link?" link below the field, and the × of the screenshot window
+		// "?" right of the server link field, and the × of the screenshot window
 
 		// that it opens
 		openServerLinkHelpWindow,
@@ -903,8 +996,7 @@ That is a row without a chip, or an extra row that shares a chip.`
 			)),
 		findPlayersError: state.findPlayersError,
 		// Line below Find Players, visible while a search without a server link waits for players,
-		// since two searches only match when at least one of them has a server link. It keeps its
-		// space while hidden, so the window does not grow when a search starts.
+		// since two searches only match when at least one of them has a server link
 		findingWithoutServerLinkHint:
 			'Without a server link, you can only match a team that has one. Adding yours finds a team faster.',
 		findingWithoutServerLinkHintClass: isSearching && !hasJoinedATeam && !state.serverLink.trim()

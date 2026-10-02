@@ -164,15 +164,26 @@ function ChecklistWindow({
 	title,
 	checkboxes,
 	onCloseClick,
+	copyButtonText,
+	pasteButtonText,
+	isPasteDisabled,
+	onCopyClick,
+	onPasteClick,
 }: {
 	id: string
 	title: string
 	checkboxes: {
 		name: string
+		hasLineAbove: boolean
 		isChecked: boolean
 		toggleCheckbox: ChangeEventHandler<HTMLInputElement>
 	}[]
 	onCloseClick: () => void
+	copyButtonText: string
+	pasteButtonText: string
+	isPasteDisabled: boolean
+	onCopyClick: () => void
+	onPasteClick: () => void
 }) {
 	return (
 		<dialog
@@ -191,7 +202,8 @@ function ChecklistWindow({
 					×
 				</button>
 			</div>
-			{/* White sunken list with one checkbox per line */}
+			{/* White sunken list with one checkbox per line, with grey lines that split the badges
+			into groups */}
 			<style>{`
 				.team-checklist {
 					min-width: 180px;
@@ -213,10 +225,17 @@ function ChecklistWindow({
 				.team-checklist label:hover {
 					background: #e0e0e0;
 				}
+				.team-checklist label[data-has-line-above="true"] {
+					padding-top: 2px;
+					border-top: 1px solid #c0c0c0;
+				}
 			`}</style>
 			<div className="team-checklist">
 				{checkboxes.map((checkbox) => (
-					<label key={checkbox.name}>
+					<label
+						key={checkbox.name}
+						data-has-line-above={checkbox.hasLineAbove}
+					>
 						<input
 							type="checkbox"
 							checked={checkbox.isChecked}
@@ -226,13 +245,35 @@ function ChecklistWindow({
 					</label>
 				))}
 			</div>
+			{/* Row of two grey buttons under the list, Copy and Paste, which carry the checked names
+			to another row and read "Copied!" or "Pasted!" for 3 seconds after a click. Paste is greyed
+			out until Copy was clicked in the same window. */}
+			<style>{`
+				.team-checklist-buttons {
+					display: flex;
+					gap: 4px;
+					margin-top: 4px;
+				}
+				.team-checklist-buttons button {
+					flex: 1;
+				}
+			`}</style>
+			<div className="team-checklist-buttons">
+				<button onClick={onCopyClick}>{copyButtonText}</button>
+				<button
+					disabled={isPasteDisabled}
+					onClick={onPasteClick}
+				>
+					{pasteButtonText}
+				</button>
+			</div>
 		</dialog>
 	)
 }
 
 // Plain black name of whom a row is reserved for, like a badge or role name in its cell, which the
 // Reserved window lists and the Player column of the Find a Team table holds. It turns light grey
-// with a hand cursor on hover.
+// with an open hand cursor on hover.
 function ReservationChip({
 	text,
 	onDragStart,
@@ -247,7 +288,7 @@ function ReservationChip({
 			<style>{`
 				.team-chip {
 					white-space: nowrap;
-					cursor: pointer;
+					cursor: grab;
 				}
 				.team-chip:hover {
 					background: #e0e0e0;
@@ -650,8 +691,9 @@ createRoot(document.getElementById('root')!).render(
 								<div className="window-title">Reserved Slots</div>
 								{/* Small grey "Drag onto the Player column" line above the chips */}
 								<div className="team-drag-hint">{logic.reservedWindowDragHint}</div>
-								{/* Three old-style etched group boxes, "ME", "VERIFIED FRIENDS" and "UNVERIFIED
-								FRIENDS", with one chip per line, and in the friend boxes a button below the chips */}
+								{/* Old-style etched group boxes, "ME", "VERIFIED FRIENDS" once verified, and
+								"UNVERIFIED FRIENDS", with one chip per line, and in the friend boxes a button below
+								the chips */}
 								<style>{`
 									#team-reserved fieldset {
 										display: flex;
@@ -693,17 +735,21 @@ createRoot(document.getElementById('root')!).render(
 									<legend>ME</legend>
 									<ReservedWindowEntry chip={logic.reservedWindowMeChip} />
 								</fieldset>
-								<fieldset>
-									<legend>VERIFIED FRIENDS</legend>
-									{logic.reservedWindowVerifiedFriendChips.map((chip) => (
-										<ReservedWindowEntry
-											key={chip.key}
-											chip={chip}
-										/>
-									))}
-									{/* Button that copies the one invite link for every verified friend */}
-									<button onClick={logic.copyInviteLink}>{logic.copyInviteLinkButtonText}</button>
-								</fieldset>
+								{logic.showReservedWindowVerifiedFriends && (
+									<fieldset>
+										<legend>VERIFIED FRIENDS</legend>
+										{logic.reservedWindowVerifiedFriendChips.map((chip) => (
+											<ReservedWindowEntry
+												key={chip.key}
+												chip={chip}
+											/>
+										))}
+										{/* Button that copies the one invite link for every verified friend */}
+										<button onClick={logic.copyInviteLink}>
+											{logic.copyInviteLinkButtonText}
+										</button>
+									</fieldset>
+								)}
 								<fieldset>
 									<legend>UNVERIFIED FRIENDS</legend>
 									{logic.reservedWindowUnverifiedFriendChips.map((chip) => (
@@ -722,6 +768,11 @@ createRoot(document.getElementById('root')!).render(
 							title="Badges"
 							checkboxes={logic.badgesWindowCheckboxes}
 							onCloseClick={logic.closeBadgesWindow}
+							copyButtonText={logic.badgesWindowCopyButtonText}
+							pasteButtonText={logic.badgesWindowPasteButtonText}
+							isPasteDisabled={logic.isBadgesWindowPasteDisabled}
+							onCopyClick={logic.copyBadgesWindowNames}
+							onPasteClick={logic.pasteBadgesWindowNames}
 						/>
 						{/* Roles window in the middle of the screen, with a checkbox for each role */}
 						<ChecklistWindow
@@ -729,6 +780,11 @@ createRoot(document.getElementById('root')!).render(
 							title="Roles"
 							checkboxes={logic.rolesWindowCheckboxes}
 							onCloseClick={logic.closeRolesWindow}
+							copyButtonText={logic.rolesWindowCopyButtonText}
+							pasteButtonText={logic.rolesWindowPasteButtonText}
+							isPasteDisabled={logic.isRolesWindowPasteDisabled}
+							onCopyClick={logic.copyRolesWindowNames}
+							onPasteClick={logic.pasteRolesWindowNames}
 						/>
 						{/* Badge or role name stacked in a table cell. A crossed-out one is grey with a line through
 						it and a "?" cursor, because the row cannot have it. */}
@@ -792,10 +848,11 @@ createRoot(document.getElementById('root')!).render(
 								margin-top: 2px;
 								font-size: 11px;
 								white-space: nowrap;
-								cursor: pointer;
+								cursor: help;
 							}
 							.team-verified-only input {
 								margin: 0;
+								cursor: pointer;
 							}
 							#team-table img {
 								width: 40px;
@@ -953,7 +1010,10 @@ createRoot(document.getElementById('root')!).render(
 												)}
 												{/* Small "Verified only" checkbox below the chip */}
 												{row.showVerifiedOnlyCheckbox && (
-													<label className="team-verified-only">
+													<label
+														className="team-verified-only"
+														title={row.verifiedOnlyCheckboxTooltip}
+													>
 														<input
 															type="checkbox"
 															checked={row.isVerifiedOnlyCheckboxChecked}
@@ -968,7 +1028,7 @@ createRoot(document.getElementById('root')!).render(
 								))}
 							</tbody>
 						</table>
-						{/* "Server link:" field, then a help link, two run tags and Find Players, each on its own row */}
+						{/* "Server link:" field with a "?", TEAM SETTINGS and Find Players, each on its own row */}
 						<style>{`
 							#team-form {
 								display: flex;
@@ -1000,47 +1060,59 @@ createRoot(document.getElementById('root')!).render(
 						>
 							{/* Line for a friend who opened an invite link, saying whose team they are in */}
 							{logic.invitedFriendText && <p id="team-invited-friend">{logic.invitedFriendText}</p>}
+							{/* Row with the "Server link:" field and a "?" on its right */}
+							<style>{`
+								#team-server-link-row {
+									display: flex;
+									align-items: center;
+								}
+								#team-server-link-row > label {
+									flex: 1;
+									min-width: 0;
+								}
+							`}</style>
 							{logic.showServerLinkField && (
-								<label>
-									Server link{" "}
-									{/* "(recommended)" text that explains itself on hover */}
-									<style>{`
+								<div id="team-server-link-row">
+									<label>
+										Server link{" "}
+										{/* "(recommended)" text that explains itself on hover */}
+										<style>{`
 										#team-server-link-recommended {
 											cursor: help;
 										}
 									`}</style>
-									<span
-										id="team-server-link-recommended"
-										title={`A match needs at least one server link, so if you share yours, it's more probable to find a team faster`}
+										<span
+											id="team-server-link-recommended"
+											title={`A match needs at least one server link, so if you share yours, it's more probable to find a team faster`}
+										>
+											(recommended)
+										</span>
+										:
+										<input
+											name="serverLink"
+											type="password"
+											defaultValue={logic.serverLinkFieldStartValue}
+											readOnly={logic.isServerLinkFieldLocked}
+											onChange={logic.saveServerLinkField}
+										/>
+									</label>
+									{/* Blue underlined "?" right of the field that opens the server link help window */}
+									<style>{`
+									#team-server-link-help {
+										margin: 0 8px;
+										color: #00e;
+										text-decoration: underline;
+										cursor: pointer;
+									}
+								`}</style>
+									<a
+										id="team-server-link-help"
+										title="How do I get a server link?"
+										onClick={logic.openServerLinkHelpWindow}
 									>
-										(recommended)
-									</span>
-									:
-									<input
-										name="serverLink"
-										type="password"
-										defaultValue={logic.serverLinkFieldStartValue}
-										readOnly={logic.isServerLinkFieldLocked}
-										onChange={logic.saveServerLinkField}
-									/>
-								</label>
-							)}
-							{/* Blue underlined link that opens the server link help window */}
-							<style>{`
-								#team-server-link-help {
-									align-self: flex-start;
-									color: #00e;
-									text-decoration: underline;
-									cursor: pointer;
-								}
-							`}</style>
-							{logic.showServerLinkField && (
-								<a
-									id="team-server-link-help"
-									onClick={logic.openServerLinkHelpWindow}
-								>
-									How do I get a server link?
-								</a>
+										?
+									</a>
+								</div>
 							)}
 							{/* Old-style etched group box titled "TEAM SETTINGS", with checkboxes on the left and
 							dropdowns on the right */}
@@ -1209,23 +1281,31 @@ createRoot(document.getElementById('root')!).render(
 								</span>
 							</div>
 							<p id="team-form-error">{logic.findPlayersError}</p>
-							{/* Small dark grey line under Find Players that asks for a server link while the
-							search runs without one, and keeps its space while invisible */}
+							{/* Small dark grey line under Find Players with a warning sign on its left, that asks
+							for a server link while the search runs without one */}
 							<style>{`
 								#team-server-link-hint {
 									max-width: 360px;
 									margin: 0;
+									display: flex;
+									align-items: center;
+									gap: 6px;
 									color: #404040;
 									font-size: 11px;
 								}
 								#team-server-link-hint.team-invisible {
-									visibility: hidden;
+									display: none;
+								}
+								#team-server-link-hint span {
+									font-size: 16px;
 								}
 							`}</style>
 							<p
 								id="team-server-link-hint"
 								className={logic.findingWithoutServerLinkHintClass}
 							>
+								{/* Warning sign left of the text */}
+								<span aria-hidden="true">⚠</span>
 								{logic.findingWithoutServerLinkHint}
 							</p>
 						</form>

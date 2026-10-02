@@ -71,7 +71,14 @@ roblox.post('/check', async (c) => {
 
 roblox.get('/me', async (c) => {
 	const cookie = await getSignedCookie(c, cookieSecret, 'roblox')
-	return c.json(cookie ? JSON.parse(cookie) : null)
+	if (!cookie) return c.json(null)
+	// The page asks on every visit, so the session only expires after 30 days without one
+	await setSignedCookie(c, 'roblox', cookie, cookieSecret, {
+		httpOnly: true,
+		sameSite: 'Lax',
+		maxAge: 60 * 60 * 24 * 30,
+	})
+	return c.json(JSON.parse(cookie))
 })
 
 // Parallel requests for one user share one check, because each check makes 15 Roblox requests.

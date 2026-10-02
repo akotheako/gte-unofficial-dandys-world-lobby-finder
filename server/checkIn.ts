@@ -151,13 +151,16 @@ function placePlayersInRows({
 				&& row.roleNames.every((role) => playerRow.roleNames.includes(role))
 				// Badges only count for a verified player, since nobody can confirm the badges of
 				// an unverified one. A harder badge of the same category also counts, such as
-				// Marathon Runner for Speed Walker.
-				&& (!row.isVerifiedPlayerRequired || (player.isVerified && row.badgeNames.every((wanted) => {
-					const category = badgeCategories.find((names) => names.includes(wanted)) ?? [wanted]
-					return player.badgeNames.some((owned) => (
-						category.indexOf(owned) >= category.indexOf(wanted)
-					))
-				})))
+				// Marathon Runner for Speed Walker. "Verified only" counts only for a team whose host
+				// is verified, since only they can see the checkbox.
+				&& (!row.isVerifiedPlayerRequired
+					|| !team.roblox_username
+					|| (player.isVerified && row.badgeNames.every((wanted) => {
+						const category = badgeCategories.find((names) => names.includes(wanted)) ?? [wanted]
+						return player.badgeNames.some((owned) => (
+							category.indexOf(owned) >= category.indexOf(wanted)
+						))
+					})))
 		})
 	}
 	const placePlayer = (playerIndex: number): boolean => {
