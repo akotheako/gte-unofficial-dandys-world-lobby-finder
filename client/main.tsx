@@ -1,6 +1,7 @@
 import {
 	StrictMode,
 	createElement,
+	type ChangeEventHandler,
 	type MouseEventHandler,
 	type ReactEventHandler,
 	type ReactNode,
@@ -155,6 +156,79 @@ function DesktopWindow({
 	)
 }
 
+// Grey window in the middle of the screen with a navy title bar, an × button, and a white list of
+// checkboxes, which the Badges and Role cells of the Find a Team table open
+function ChecklistWindow({
+	id,
+	title,
+	checkboxes,
+	onCloseClick,
+}: {
+	id: string
+	title: string
+	checkboxes: {
+		name: string
+		isChecked: boolean
+		toggleCheckbox: ChangeEventHandler<HTMLInputElement>
+	}[]
+	onCloseClick: () => void
+}) {
+	return (
+		<dialog
+			id={id}
+			className="window"
+			closedby="any"
+		>
+			{/* Title bar with the window's title and a grey × button that closes the window */}
+			<div className="window-title">
+				{title}
+				<button
+					className="window-close"
+					aria-label="Close"
+					onClick={onCloseClick}
+				>
+					×
+				</button>
+			</div>
+			{/* White sunken list with one checkbox per line */}
+			<style>{`
+				.team-checklist {
+					min-width: 180px;
+					display: flex;
+					flex-direction: column;
+					gap: 2px;
+					padding: 4px;
+					background: #fff;
+					border: 2px solid;
+					border-color: #808080 #fff #fff #808080;
+				}
+				.team-checklist label {
+					display: flex;
+					align-items: center;
+					gap: 4px;
+					white-space: nowrap;
+					cursor: pointer;
+				}
+				.team-checklist label:hover {
+					background: #e0e0e0;
+				}
+			`}</style>
+			<div className="team-checklist">
+				{checkboxes.map((checkbox) => (
+					<label key={checkbox.name}>
+						<input
+							type="checkbox"
+							checked={checkbox.isChecked}
+							onChange={checkbox.toggleCheckbox}
+						/>
+						{checkbox.name}
+					</label>
+				))}
+			</div>
+		</dialog>
+	)
+}
+
 createRoot(document.getElementById('root')!).render(
 	<StrictMode>
 		{/* Desktop with the Roblox Verification and Find a Team icons and their windows */}
@@ -252,6 +326,17 @@ createRoot(document.getElementById('root')!).render(
 									</ul>
 								) : (
 									<p>{logic.badgeChecklistLoadingText}</p>
+								)}
+								{/* Red line under the badges when Update Badges failed */}
+								<style>{`
+									#account-badge-update-error {
+										margin: 0 0 1em;
+										color: #a00;
+										text-align: center;
+									}
+								`}</style>
+								{logic.badgeUpdateError && (
+									<p id="account-badge-update-error">{logic.badgeUpdateError}</p>
 								)}
 								{/* Update Badges button on the left and Log out on the right, away from the × button */}
 								<style>{`
@@ -352,8 +437,7 @@ createRoot(document.getElementById('root')!).render(
 								overflow: visible;
 							}
 							#team-toons,
-							#team-trinkets,
-							#team-badges-and-roles {
+							#team-trinkets {
 								position: absolute;
 							}
 							#team-toons {
@@ -363,13 +447,6 @@ createRoot(document.getElementById('root')!).render(
 							#team-trinkets {
 								left: calc(100% + 24px);
 								top: 20px;
-							}
-							#team-badges-and-roles {
-								left: calc(100% + 24px);
-								top: 460px;
-								display: flex;
-								align-items: flex-start;
-								gap: 24px;
 							}
 							.team-palette {
 								max-height: 360px;
@@ -426,8 +503,7 @@ createRoot(document.getElementById('root')!).render(
 								background: #808080;
 								color: #c0c0c0;
 							}
-							.team-locked .team-palette,
-							.team-locked ul {
+							.team-locked .team-palette {
 								opacity: 0.5;
 								filter: grayscale(1);
 								pointer-events: none;
@@ -436,6 +512,11 @@ createRoot(document.getElementById('root')!).render(
 								color: #a8a8a8;
 								cursor: default;
 							}
+							.team-drag-hint {
+								margin-bottom: 4px;
+								color: #404040;
+								font-size: 11px;
+							}
 						`}</style>
 						{/* Toons window to the lower left, whose toons drag into the Toon column */}
 						<div
@@ -443,6 +524,8 @@ createRoot(document.getElementById('root')!).render(
 							className={logic.sideWindowClass}
 						>
 							<div className="window-title">Toons</div>
+							{/* Small grey "Drag onto the table" line above the tiles */}
+							<div className="team-drag-hint">{logic.sideWindowDragHint}</div>
 							<div className="team-palette">
 								{/* "(Leave Empty)" text tile before the toon pictures */}
 								<div
@@ -469,6 +552,8 @@ createRoot(document.getElementById('root')!).render(
 							className={logic.sideWindowClass}
 						>
 							<div className="window-title">Trinkets</div>
+							{/* Small grey "Drag onto the table" line above the tiles */}
+							<div className="team-drag-hint">{logic.sideWindowDragHint}</div>
 							<div className="team-palette">
 								{logic.trinketsWindowTiles.map((trinket) => (
 									<img
@@ -481,82 +566,32 @@ createRoot(document.getElementById('root')!).render(
 								))}
 							</div>
 						</div>
-						{/* Badges window below Trinkets, listing the owned badges that drag into the Badges column,
-						with the Roles window to its right, listing the roles that drag into the Role column */}
+						{/* Badges window in the middle of the screen, with a checkbox for each owned badge */}
+						<ChecklistWindow
+							id="team-badges"
+							title="Badges"
+							checkboxes={logic.badgesWindowCheckboxes}
+							onCloseClick={logic.closeBadgesWindow}
+						/>
+						{/* Roles window in the middle of the screen, with a checkbox for each role */}
+						<ChecklistWindow
+							id="team-roles"
+							title="Roles"
+							checkboxes={logic.rolesWindowCheckboxes}
+							onCloseClick={logic.closeRolesWindow}
+						/>
+						{/* Badge or role name stacked in a table cell. A crossed-out one is grey with a line through
+						it and a "?" cursor, because the row cannot have it. */}
 						<style>{`
-							#team-badges ul,
-							#team-roles ul {
-								max-height: 200px;
-								overflow-y: auto;
-								margin: 0;
-								padding: 4px;
-								list-style: none;
-								background: #fff;
-								border: 2px solid;
-								border-color: #808080 #fff #fff #808080;
-							}
-							#team-badges li,
-							#team-roles li,
-							#team-badges li,
-							#team-roles li,
-							.team-badge-or-role[draggable="true"] {
-								cursor: grab;
-							}
-							#team-badges li,
-							#team-roles li,
 							.team-badge-or-role {
 								white-space: nowrap;
 							}
-							#team-badges li:hover,
-							#team-roles li:hover,
-							.team-badge-or-role[draggable="true"]:hover {
-								background: #e0e0e0;
-							}
-							/* Grey role name with a line through it and a "?" cursor, because the row's toon cannot do it */
 							.team-badge-or-role[data-crossed-out="true"] {
 								color: gray;
 								text-decoration: line-through;
 								cursor: help;
 							}
 						`}</style>
-						<div id="team-badges-and-roles">
-							{logic.isRobloxVerified && (
-								<div
-									id="team-badges"
-									className={logic.sideWindowClass}
-								>
-									<div className="window-title">Badges</div>
-									<ul>
-										{logic.badgesWindowTiles.map((badge) => (
-											<li
-												key={badge.name}
-												draggable
-												onDragStart={badge.dragFromSideWindow}
-											>
-												{badge.name}
-											</li>
-										))}
-									</ul>
-								</div>
-							)}
-							<div
-								id="team-roles"
-								className={logic.sideWindowClass}
-							>
-								<div className="window-title">Roles</div>
-								<ul>
-									{logic.rolesWindowTiles.map((role) => (
-										<li
-											key={role.name}
-											draggable
-											onDragStart={role.dragFromSideWindow}
-										>
-											{role.name}
-										</li>
-									))}
-								</ul>
-							</div>
-						</div>
 						{/* White table with Toon, Trinket A, Trinket B, once verified Badges, then Role and Reserved
 						columns */}
 						<style>{`
@@ -582,8 +617,12 @@ createRoot(document.getElementById('root')!).render(
 								width: auto;
 								color: #a8a8a8;
 							}
-							#team-table td.team-clickable {
+							#team-table td.team-clickable,
+							#team-table td.team-clickable .team-placeholder {
 								cursor: pointer;
+							}
+							#team-table td.team-clickable:hover {
+								background: #f0f0f0;
 							}
 							#team-table th {
 								height: 20px;
@@ -647,12 +686,14 @@ createRoot(document.getElementById('root')!).render(
 										onDrop={row.leaveRowEmpty}
 									>
 										{/* Whole row merged into one cell with "(Leave Empty)" in the middle,
-										which clears when clicked */}
+										which clears when clicked or when a toon or trinket lands on it */}
 										{row.isLeftEmpty && (
 											<td
 												className={row.leaveEmptyCellClass}
 												colSpan={row.leaveEmptyCellColSpan}
 												onClick={row.undoLeaveRowEmpty}
+												onDragOver={row.allowPictureDropOnLeftEmptyRow}
+												onDrop={row.dropPictureOnLeftEmptyRow}
 											>
 												(Leave Empty)
 											</td>
@@ -686,42 +727,44 @@ createRoot(document.getElementById('root')!).render(
 												)}
 											</td>
 										))}
-										{/* Badge names stacked in the cell, each one draggable to another row or out of the table */}
+										{/* Badge names stacked in the cell, or a grey "(none required)", which open the
+										Badges window when clicked */}
 										{!row.isLeftEmpty && logic.isRobloxVerified && (
 											<td
-												onDragOver={row.allowBadgeDropOnBadgesCell}
-												onDrop={row.dropBadgeOnBadgesCell}
+												className={row.badgesAndRoleCellClass}
+												onClick={row.openBadgesWindow}
 											>
+												{row.noBadgesText && (
+													<span className="team-placeholder">{row.noBadgesText}</span>
+												)}
 												{row.badges.map((badge) => (
 													<div
 														key={badge.name}
 														className="team-badge-or-role"
 														data-crossed-out={badge.isCrossedOut}
 														title={badge.crossedOutTooltip}
-														draggable={badge.draggable}
-														onDragStart={badge.dragBadgeFromTable}
-														onDragEnd={badge.endBadgeDragFromTable}
 													>
 														{badge.name}
 													</div>
 												))}
 											</td>
 										)}
-										{/* Role names stacked in the cell, each one draggable to another row or out of the table */}
+										{/* Role names stacked in the cell, or a grey "(none required)", which open the
+										Roles window when clicked */}
 										{!row.isLeftEmpty && (
 											<td
-												onDragOver={row.allowRoleDropOnRoleCell}
-												onDrop={row.dropRoleOnRoleCell}
+												className={row.badgesAndRoleCellClass}
+												onClick={row.openRolesWindow}
 											>
+												{row.noRolesText && (
+													<span className="team-placeholder">{row.noRolesText}</span>
+												)}
 												{row.roles.map((role) => (
 													<div
 														key={role.name}
 														className="team-badge-or-role"
 														data-crossed-out={role.isCrossedOut}
 														title={role.crossedOutTooltip}
-														draggable={role.draggable}
-														onDragStart={role.dragRoleFromTable}
-														onDragEnd={role.endRoleDragFromTable}
 													>
 														{role.name}
 													</div>
@@ -1009,6 +1052,25 @@ createRoot(document.getElementById('root')!).render(
 								</span>
 							</div>
 							<p id="team-form-error">{logic.findPlayersError}</p>
+							{/* Small dark grey line under Find Players that asks for a server link while the
+							search runs without one, and keeps its space while invisible */}
+							<style>{`
+								#team-server-link-hint {
+									max-width: 360px;
+									margin: 0;
+									color: #404040;
+									font-size: 11px;
+								}
+								#team-server-link-hint.team-invisible {
+									visibility: hidden;
+								}
+							`}</style>
+							<p
+								id="team-server-link-hint"
+								className={logic.findingWithoutServerLinkHintClass}
+							>
+								{logic.findingWithoutServerLinkHint}
+							</p>
 						</form>
 						{/* Window on top of Find a Team that says the team is found, with the blue link to its
 						Roblox server below the text, and the picture of everyone at the elevator sitting on top
@@ -1128,8 +1190,8 @@ createRoot(document.getElementById('root')!).render(
 						}
 					`}</style>
 					<div id="counters">
-						<span>{logic.onThisPageCount} online</span>
-						<span>{logic.findingPlayersCount} looking for a team</span>
+						<span>{logic.onlineCounterText}</span>
+						<span>{logic.findingPlayersCounterText}</span>
 					</div>
 				</>
 			)

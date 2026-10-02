@@ -8,10 +8,9 @@ import {
 } from 'react'
 import type { CheckInAnswer, PlayerChoice, TeamTableRow } from '../../shared/teamTypes.ts'
 import { useSyncState } from '../useSyncState.ts'
-import { allowBadgeDropOnBadgesCell } from './allowBadgeDropOnBadgesCell.ts'
 import { allowLeaveEmptyDropOnRow } from './allowLeaveEmptyDropOnRow.ts'
 import { allowPictureDropOnCell } from './allowPictureDropOnCell.ts'
-import { allowRoleDropOnRoleCell } from './allowRoleDropOnRoleCell.ts'
+import { allowPictureDropOnLeftEmptyRow } from './allowPictureDropOnLeftEmptyRow.ts'
 import { checkInWithServer } from './checkInWithServer.ts'
 import { choosePlayerInRow } from './choosePlayerInRow.ts'
 import {
@@ -22,16 +21,11 @@ import { closeTeamFoundWindow } from './closeTeamFoundWindow.ts'
 import { closeWindowFromXButton } from './closeWindowFromXButton.ts'
 import { copyInviteLink } from './copyInviteLink.ts'
 import { copyVerificationEmojiCode } from './copyVerificationEmojiCode.ts'
-import { dragBadgeFromTable } from './dragBadgeFromTable.ts'
 import { dragFromSideWindow } from './dragFromSideWindow.ts'
 import { dragPictureFromTable } from './dragPictureFromTable.ts'
-import { dragRoleFromTable } from './dragRoleFromTable.ts'
-import { dropBadgeOnBadgesCell } from './dropBadgeOnBadgesCell.ts'
 import { dropPictureOnCell } from './dropPictureOnCell.ts'
-import { dropRoleOnRoleCell } from './dropRoleOnRoleCell.ts'
-import { endBadgeDragFromTable } from './endBadgeDragFromTable.ts'
+import { dropPictureOnLeftEmptyRow } from './dropPictureOnLeftEmptyRow.ts'
 import { endPictureDragFromTable } from './endPictureDragFromTable.ts'
-import { endRoleDragFromTable } from './endRoleDragFromTable.ts'
 import { growWindowFromIcon } from './growWindowFromIcon.ts'
 import { leaveInvitingTeam } from './leaveInvitingTeam.ts'
 import { leaveRowEmpty } from './leaveRowEmpty.ts'
@@ -40,6 +34,7 @@ import { loadSideWindowPictures } from './loadSideWindowPictures.ts'
 import { loadVerificationEmojiCode } from './loadVerificationEmojiCode.ts'
 import { loadVerifiedRobloxAccount } from './loadVerifiedRobloxAccount.ts'
 import { logOutOfRoblox } from './logOutOfRoblox.ts'
+import { openBadgesOrRolesWindow } from './openBadgesOrRolesWindow.ts'
 import { openFindATeamFromInviteLink } from './openFindATeamFromInviteLink.ts'
 import { openServerLinkHelpWindow } from './openServerLinkHelpWindow.ts'
 import { openTeamFoundWindow } from './openTeamFoundWindow.ts'
@@ -48,7 +43,9 @@ import { saveServerLinkField } from './saveServerLinkField.ts'
 import { toggleDandyRunOrEarlyDyleCheckbox } from './toggleDandyRunOrEarlyDyleCheckbox.ts'
 import { saveTeamTable } from './saveTeamTable.ts'
 import { shrinkWindowIntoIcon } from './shrinkWindowIntoIcon.ts'
+import { toggleBadgeCheckbox } from './toggleBadgeCheckbox.ts'
 import { toggleFindingPlayers } from './toggleFindingPlayers.ts'
+import { toggleRoleCheckbox } from './toggleRoleCheckbox.ts'
 import { undoLeaveRowEmpty } from './undoLeaveRowEmpty.ts'
 import { updateRobloxBadgeChecklist } from './updateRobloxBadgeChecklist.ts'
 import { verifyRobloxUsername } from './verifyRobloxUsername.ts'
@@ -98,9 +95,12 @@ export function useLogic() {
 		invitingTeam: CheckInAnswer['invitingTeam']
 		shownTeamStatus: CheckInAnswer['shownTeamStatus']
 		copiedInviteLinkRowIndex: number | null
-		onThisPageCount: number
-		findingPlayersCount: number
+		// null until the first check-in answers
+		onThisPageCount: number | null
+		findingPlayersCount: number | null
 		tableDragLandedInAnotherCell: boolean
+		rowIndexInBadgesWindow: number
+		rowIndexInRolesWindow: number
 	} => ({
 		verifiedRobloxAccount: null,
 		verificationEmojiCode: '',
@@ -135,9 +135,11 @@ export function useLogic() {
 		invitingTeam: null,
 		shownTeamStatus: null,
 		copiedInviteLinkRowIndex: null,
-		onThisPageCount: 0,
-		findingPlayersCount: 0,
+		onThisPageCount: null,
+		findingPlayersCount: null,
 		tableDragLandedInAnotherCell: false,
+		rowIndexInBadgesWindow: 0,
+		rowIndexInRolesWindow: 0,
 	}))
 
 	// Fills the Toons and Trinkets side windows with pictures
@@ -273,7 +275,10 @@ export function useLogic() {
 			mark: badge.owned ? '✅' : '⬜',
 		})),
 		badgeChecklistLoadingText: state.robloxVerificationError || 'Loading badges...',
+		// Red line under the badge checklist when Update Badges failed
+		badgeUpdateError: state.robloxBadgeChecklist ? state.robloxVerificationError : '',
 		updateRobloxBadgeChecklist: () => updateRobloxBadgeChecklist({
+			getRobloxBadgeChecklist: () => getSyncState().robloxBadgeChecklist,
 			setRobloxBadgeChecklist: (robloxBadgeChecklist) => setState({ robloxBadgeChecklist }),
 			setRobloxVerificationError: (robloxVerificationError) => setState({
 				robloxVerificationError,
@@ -282,6 +287,9 @@ export function useLogic() {
 		logOutOfRoblox: () => logOutOfRoblox({
 			setVerifiedRobloxAccount: (verifiedRobloxAccount) => setState({ verifiedRobloxAccount }),
 			setRobloxBadgeChecklist: (robloxBadgeChecklist) => setState({ robloxBadgeChecklist }),
+			setRobloxVerificationError: (robloxVerificationError) => setState({
+				robloxVerificationError,
+			}),
 		}),
 
 
@@ -314,6 +322,9 @@ export function useLogic() {
 				event,
 			}),
 			onCancel: (event: SyntheticEvent<HTMLDialogElement>) => {
+				// React passes on the cancel of the Badges and Roles windows inside this one, which
+				// close by themselves
+				if (event.target !== event.currentTarget) return
 				shrinkWindowIntoIcon({
 					id: 'team',
 					event,
@@ -336,8 +347,10 @@ export function useLogic() {
 			return `You are in ${host ? `@${host}'s` : 'your friend\'s'} team. Closing this window takes you out of it.`
 		})(),
 
-		// Greys out the Toons, Trinkets and Badges side windows while the table is locked
+		// Greys out the Toons and Trinkets side windows while the table is locked
 		sideWindowClass: isTableLocked ? 'window team-locked' : 'window',
+		// Line under the titles of the Toons and Trinkets side windows
+		sideWindowDragHint: 'Drag onto the table',
 
 		// "(Leave Empty)" tile, first in the Toons side window to the lower left
 		dragLeaveEmptyTile: (event: DragEvent) => dragFromSideWindow({
@@ -370,20 +383,30 @@ export function useLogic() {
 			}),
 		})),
 
-		// Badge names in the Badges side window below Trinkets, shown only once verified
-		badgesWindowTiles: (state.robloxBadgeChecklist ?? [])
+		// Badges window in the middle of the screen, which a Badges cell opens, with a checkbox for
+		// each owned badge and a × that closes it
+		badgesWindowCheckboxes: (state.robloxBadgeChecklist ?? [])
 			.filter((badge) => badge.owned)
 			.map((badge) => ({
 				name: badge.name,
-				dragFromSideWindow: (event: DragEvent) => dragFromSideWindow({
+				isChecked: state.teamTableRows[state.rowIndexInBadgesWindow].badgeNames
+					.includes(badge.name),
+				toggleCheckbox: (event: ChangeEvent<HTMLInputElement>) => toggleBadgeCheckbox({
+					getBadgeNames: () => (
+						getSyncState().teamTableRows[getSyncState().rowIndexInBadgesWindow].badgeNames
+					),
+					setBadgeNames: (badgeNames) => mutateState((state) => {
+						state.teamTableRows[state.rowIndexInBadgesWindow].badgeNames = badgeNames
+					}),
 					event,
-					kind: 'badge',
 					name: badge.name,
 				}),
 			})),
+		closeBadgesWindow: () => closeWindowFromXButton({ id: 'team-badges' }),
 
-		// Role names in the Roles side window, beside Badges
-		rolesWindowTiles: [
+		// Roles window in the middle of the screen, which a Role cell opens, with a checkbox for each
+		// role and a × that closes it
+		rolesWindowCheckboxes: [
 			'Distracts Pebble',
 			'Distracts grabbers',
 			'Distracts the rest',
@@ -392,12 +415,19 @@ export function useLogic() {
 			'Extractor',
 		].map((name) => ({
 			name,
-			dragFromSideWindow: (event: DragEvent) => dragFromSideWindow({
+			isChecked: state.teamTableRows[state.rowIndexInRolesWindow].roleNames.includes(name),
+			toggleCheckbox: (event: ChangeEvent<HTMLInputElement>) => toggleRoleCheckbox({
+				getRoleNames: () => (
+					getSyncState().teamTableRows[getSyncState().rowIndexInRolesWindow].roleNames
+				),
+				setRoleNames: (roleNames) => mutateState((state) => {
+					state.teamTableRows[state.rowIndexInRolesWindow].roleNames = roleNames
+				}),
 				event,
-				kind: 'role',
 				name,
 			}),
 		})),
+		closeRolesWindow: () => closeWindowFromXButton({ id: 'team-roles' }),
 
 		// Rows of the white table in the middle of Find a Team
 		teamTableRows: shownTeamTableRows.map((row, index) => ({
@@ -430,6 +460,28 @@ export function useLogic() {
 				setIsLeftEmpty: (isLeftEmpty) => mutateState((state) => {
 					state.teamTableRows[index].isLeftEmpty = isLeftEmpty
 				}),
+			}),
+			// Dropping a toon or trinket on the "(Leave Empty)" cell
+			allowPictureDropOnLeftEmptyRow: (event: DragEvent) => allowPictureDropOnLeftEmptyRow({
+				getIsTableLocked: () => (
+					getSyncState().isFindingPlayers || Boolean(getSyncState().inviteFromLink)
+				),
+				event,
+			}),
+			dropPictureOnLeftEmptyRow: (event: DragEvent) => dropPictureOnLeftEmptyRow({
+				getRowPicture: (column) => getSyncState().teamTableRows[index][column],
+				setIsLeftEmpty: (isLeftEmpty) => mutateState((state) => {
+					state.teamTableRows[index].isLeftEmpty = isLeftEmpty
+				}),
+				setPicture: ({
+					column, name,
+				}) => mutateState((state) => {
+					state.teamTableRows[index][column] = name
+				}),
+				setTableDragLandedInAnotherCell: (tableDragLandedInAnotherCell) => setState({
+					tableDragLandedInAnotherCell,
+				}),
+				event,
 			}),
 
 			// Toon, Trinket A and Trinket B cells, the first three columns of the row
@@ -486,105 +538,50 @@ export function useLogic() {
 					} : null,
 				})),
 
-			// Badges cell, the fourth column, shown only once verified
-			allowBadgeDropOnBadgesCell: (event: DragEvent) => allowBadgeDropOnBadgesCell({
+			// Badges and Role cells, which open their window in the middle of the screen when clicked
+			badgesAndRoleCellClass: isTableLocked ? '' : 'team-clickable',
+			openBadgesWindow: () => openBadgesOrRolesWindow({
 				getIsTableLocked: () => (
 					getSyncState().isFindingPlayers || Boolean(getSyncState().inviteFromLink)
 				),
-				event,
+				setRowIndexInWindow: (rowIndexInBadgesWindow) => setState({ rowIndexInBadgesWindow }),
+				id: 'team-badges',
+				index,
 			}),
-			dropBadgeOnBadgesCell: (event: DragEvent) => dropBadgeOnBadgesCell({
-				getBadgeNames: () => getSyncState().teamTableRows[index].badgeNames,
-				setBadgeNames: (badgeNames) => mutateState((state) => {
-					state.teamTableRows[index].badgeNames = badgeNames
-				}),
-				setTableDragLandedInAnotherCell: (tableDragLandedInAnotherCell) => setState({
-					tableDragLandedInAnotherCell,
-				}),
-				event,
+			openRolesWindow: () => openBadgesOrRolesWindow({
+				getIsTableLocked: () => (
+					getSyncState().isFindingPlayers || Boolean(getSyncState().inviteFromLink)
+				),
+				setRowIndexInWindow: (rowIndexInRolesWindow) => setState({ rowIndexInRolesWindow }),
+				id: 'team-roles',
 				index,
 			}),
 
-			// Badge names stacked in that cell, which drag to another row or out of the table.
-			// While the table is locked, they are crossed out in a "Find any player" row.
+			// Grey "(none required)" text in an empty Badges or Role cell
+			noBadgesText: row.badgeNames.length ? '' : '(none required)',
+			noRolesText: row.roleNames.length ? '' : '(none required)',
+
+			// Badge names stacked in the Badges cell, the fourth column, shown only once verified.
+			// They are crossed out in a "Find any player" row.
 			badges: row.badgeNames.map((name) => ({
 				name,
-				isCrossedOut: isTableLocked && row.playerChoice === 'findPlayer',
-				crossedOutTooltip: isTableLocked && row.playerChoice === 'findPlayer'
+				isCrossedOut: row.playerChoice === 'findPlayer',
+				crossedOutTooltip: row.playerChoice === 'findPlayer'
 					? 'Badges cannot be verified for unverified players'
 					: undefined,
-				draggable: !isTableLocked,
-				dragBadgeFromTable: (event: DragEvent) => dragBadgeFromTable({
-					event,
-					index,
-					name,
-				}),
-				endBadgeDragFromTable: (event: DragEvent) => endBadgeDragFromTable({
-					getTableDragLandedInAnotherCell: () => getSyncState().tableDragLandedInAnotherCell,
-					setTableDragLandedInAnotherCell: (tableDragLandedInAnotherCell) => setState({
-						tableDragLandedInAnotherCell,
-					}),
-					getBadgeNames: () => getSyncState().teamTableRows[index].badgeNames,
-					setBadgeNames: (badgeNames) => mutateState((state) => {
-						state.teamTableRows[index].badgeNames = badgeNames
-					}),
-					event,
-					name,
-				}),
 			})),
 
-			// Role cell after Badges
-			allowRoleDropOnRoleCell: (event: DragEvent) => allowRoleDropOnRoleCell({
-				getIsTableLocked: () => (
-					getSyncState().isFindingPlayers || Boolean(getSyncState().inviteFromLink)
-				),
-				event,
-			}),
-			dropRoleOnRoleCell: (event: DragEvent) => dropRoleOnRoleCell({
-				getRoleNames: () => getSyncState().teamTableRows[index].roleNames,
-				setRoleNames: (roleNames) => mutateState((state) => {
-					state.teamTableRows[index].roleNames = roleNames
-				}),
-				setTableDragLandedInAnotherCell: (tableDragLandedInAnotherCell) => setState({
-					tableDragLandedInAnotherCell,
-				}),
-				event,
-				index,
-			}),
-
-			// Role names stacked in that cell, which drag to another row or out of the table.
-			// While the table is locked, Solar Support is crossed out when the toon is not Bobette.
+			// Role names stacked in the Role cell after Badges.
+			// Solar Support is crossed out when the toon is not Bobette.
 			roles: row.roleNames
 				.map((name) => {
-					const isCrossedOut = isTableLocked
-						&& name === 'Solar Support'
-						&& row.toonPicture !== 'bobette.png'
+					const isCrossedOut = name === 'Solar Support' && row.toonPicture !== 'bobette.png'
 					return {
 						name,
 						isCrossedOut,
 						crossedOutTooltip: isCrossedOut
 							? 'Only Bobette can help with Solar Distracting'
 							: undefined,
-						draggable: !isTableLocked,
-						dragRoleFromTable: (event: DragEvent) => dragRoleFromTable({
-							event,
-							index,
-							name,
-						}),
-						endRoleDragFromTable: (event: DragEvent) => endRoleDragFromTable({
-							getTableDragLandedInAnotherCell: () => (
-								getSyncState().tableDragLandedInAnotherCell
-							),
-							setTableDragLandedInAnotherCell: (tableDragLandedInAnotherCell) => setState({
-								tableDragLandedInAnotherCell,
-							}),
-							getRoleNames: () => getSyncState().teamTableRows[index].roleNames,
-							setRoleNames: (roleNames) => mutateState((state) => {
-								state.teamTableRows[index].roleNames = roleNames
-							}),
-							event,
-							name,
-						}),
 					}
 				}),
 
@@ -768,6 +765,7 @@ export function useLogic() {
 			getServerLink: () => getSyncState().serverLink,
 			getIsFindingPlayers: () => getSyncState().isFindingPlayers,
 			setIsFindingPlayers: (isFindingPlayers) => setState({ isFindingPlayers }),
+			setShownTeamStatus: (shownTeamStatus) => setState({ shownTeamStatus }),
 			setFindPlayersError: (findPlayersError) => setState({ findPlayersError }),
 			event,
 		}),
@@ -784,6 +782,14 @@ export function useLogic() {
 				&& !shownTeamStatus?.playersInRows[index]
 			)),
 		findPlayersError: state.findPlayersError,
+		// Line below Find Players, visible while a search without a server link waits for players,
+		// since two searches only match when at least one of them has a server link. It keeps its
+		// space while hidden, so the window does not grow when a search starts.
+		findingWithoutServerLinkHint:
+			'Without a server link, you can only match a team that has one. Adding yours finds a team faster.',
+		findingWithoutServerLinkHintClass: isSearching && !hasJoinedATeam && !state.serverLink.trim()
+			? ''
+			: 'team-invisible',
 
 		// Window on top of Find a Team that opens once players got together, with the server link
 		// of the team and a × that closes it
@@ -803,7 +809,7 @@ export function useLogic() {
 
 
 		// Two counters at the bottom middle of the screen
-		onThisPageCount: state.onThisPageCount,
-		findingPlayersCount: state.findingPlayersCount,
+		onlineCounterText: `${state.onThisPageCount ?? '…'} online`,
+		findingPlayersCounterText: `${state.findingPlayersCount ?? '…'} looking for a team`,
 	}
 }

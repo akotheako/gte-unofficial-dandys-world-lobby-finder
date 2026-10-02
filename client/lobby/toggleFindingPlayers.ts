@@ -8,6 +8,7 @@ export function toggleFindingPlayers({
 	getServerLink,
 	getIsFindingPlayers,
 	setIsFindingPlayers,
+	setShownTeamStatus,
 	setFindPlayersError,
 	event,
 }: {
@@ -15,12 +16,16 @@ export function toggleFindingPlayers({
 	getServerLink: () => string
 	getIsFindingPlayers: () => boolean
 	setIsFindingPlayers: (isFindingPlayers: boolean) => void
+	setShownTeamStatus: (shownTeamStatus: null) => void
 	setFindPlayersError: (findPlayersError: string) => void
 	event: FormEvent<HTMLFormElement>
 }) {
 	event.preventDefault()
 	if (getIsFindingPlayers()) {
 		setIsFindingPlayers(false)
+		// The status of a team that got together stays until it is cleared, so the next search
+		// would show the old team
+		setShownTeamStatus(null)
 		return
 	}
 	const filledRows = getTeamTableRows().filter((row) => !row.isLeftEmpty)

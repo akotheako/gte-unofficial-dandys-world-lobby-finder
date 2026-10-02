@@ -424,7 +424,23 @@ checkIn.post('/', async (c) => {
 					&& other.floor_goal === myTeam.floor_goal
 					&& (other.region === 'Any' || myTeam.region === 'Any' || other.region === myTeam.region)
 					&& Boolean(other.server_link || myTeam.server_link)
+					// Both teams want the same number of players, counting every row that is not
+					// "(Leave Empty)"
+					&& other.team_table_rows.filter((row) => !row.isLeftEmpty).length
+						=== myTeam.team_table_rows.filter((row) => !row.isLeftEmpty).length
 				if (!areSettingsCompatible) continue
+				// A closed tab keeps its search for up to 90 seconds, so the same verified player
+				// can search twice, and must not end up twice in one team
+				const verifiedUsernamesOf = (team: Team) => membersOf({
+					team,
+					invitedFriends,
+				}).flatMap(({ playerInRow }) => (
+					'robloxUsername' in playerInRow && playerInRow.robloxUsername
+						? [playerInRow.robloxUsername]
+						: []
+				))
+				const otherUsernames = verifiedUsernamesOf(other)
+				if (verifiedUsernamesOf(myTeam).some((name) => otherUsernames.includes(name))) continue
 				// The older search hosts when both ways fit, and a team that others already joined
 				// can only host
 				const merge = [[other, myTeam], [myTeam, other]]
@@ -496,6 +512,39 @@ checkIn.post('/', async (c) => {
 		const isTeamFound = Boolean(shownTeam?.is_searching && (
 			shownTeam.joined_team_id || shownTeam.team_table_rows.some((row) => row.joinedPlayer)
 		))
+		// A team that joined a host shows the host's players in its own rows that find a player.
+		// The host's own players always fit those rows, since the merge checked that, while
+		// players who joined the host later only show when all of them fit too.
+		const hostPlayersInRows: (PlayerInRow | undefined)[] = []
+		if (shownTeam && finalHost && finalHost !== shownTeam) {
+			const hostMembers = finalHost.team_table_rows.flatMap((row, rowIndex) => {
+				const member = row.joinedPlayer?.teamId === shownTeam.team_id
+					? null
+					: playerInRowOf({
+						team: finalHost,
+						rowIndex,
+						invitedFriends,
+					})
+				return member
+					? [{
+						...member,
+						isHostsOwnPlayer: !row.joinedPlayer,
+					}]
+					: []
+			})
+			const placedMembers = [hostMembers, hostMembers.filter((member) => member.isHostsOwnPlayer)]
+				.map((members) => ({
+					members,
+					rowIndexes: findOpenRowsForMembers({
+						members,
+						team: shownTeam,
+					}),
+				}))
+				.find(({ rowIndexes }) => rowIndexes)
+			placedMembers?.members.forEach((member, index) => {
+				hostPlayersInRows[placedMembers.rowIndexes![index]] = member.playerInRow
+			})
+		}
 		return c.json({
 			...counts,
 			error,
@@ -518,7 +567,7 @@ checkIn.post('/', async (c) => {
 					team: shownTeam,
 					rowIndex,
 					invitedFriends,
-				})?.playerInRow ?? null),
+				})?.playerInRow ?? hostPlayersInRows[rowIndex] ?? null),
 				isSearching: shownTeam.is_searching,
 				hasJoinedATeam: Boolean(shownTeam.joined_team_id),
 				hostRobloxUsername: finalHost.roblox_username,

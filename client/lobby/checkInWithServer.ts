@@ -85,8 +85,10 @@ export function checkInWithServer({
 		if (answer) {
 			setOnThisPageCount(answer.onThisPageCount)
 			setFindingPlayersCount(answer.findingPlayersCount)
-			// Once the team got together, its status stays as it was until Find a Team is closed
-			if (!getShownTeamStatus()?.teamServerLink) {
+			// Once the team got together, it keeps showing players who join later, and its last
+			// status stays until Find a Team is closed when the team falls apart, such as when the
+			// host closes their page
+			if (!getShownTeamStatus()?.teamServerLink || answer.shownTeamStatus?.teamServerLink) {
 				setInvitingTeam(answer.invitingTeam)
 				setShownTeamStatus(answer.shownTeamStatus)
 			}
