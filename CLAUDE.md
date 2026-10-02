@@ -10,6 +10,9 @@ frontend and the backend can use goes in `shared/`.
 ## Claude rules
 
 - Don't use python or a Node script or anything weird to make edits to files, just use your Edit Tool.
+- Commit only when everything is stable: `npm run lint` and `npm run build` pass, and the changed
+  feature works when you run it. Even when the user asks for a commit, report anything that is
+  still broken first, and fix it or ask before committing.
 - Whenever you change the code, update every piece of documentation that the change affects, such
   as `README.md`, this file and code comments, in the same task. The documentation describes only
   what exists now, so leave out anything that has been removed or replaced, and write no negative

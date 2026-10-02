@@ -162,7 +162,8 @@ createRoot(document.getElementById('root')!).render(
 			const logic = useLogic()
 			return (
 				<>
-					{/* Hidden filter that makes the icon pictures and the Team found! picture blocky and reduces them to a few colors */}
+					{/* Hidden filter that makes the icon pictures and the Team found! picture blocky and
+					reduces them to a few colors */}
 					<svg
 						width="0"
 						height="0"
