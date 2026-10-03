@@ -430,8 +430,9 @@ test('"looking for a team" counts searches that did not join a team', async ({ b
 		rows: meAndOneOpenRow,
 		floorGoal: '10',
 	})
-	// A page of an earlier test can still check in once, so the counts are compared with this one
-	await expect(firstPage.locator('#counters')).toContainText(/\d+ looking for a team/, {
+	// A page of an earlier test can still check in once, so the counts are compared with this one.
+	// "Finding player" comes with the first answer that counts this search.
+	await expect(firstPage.locator('#team-table tbody tr').nth(1)).toContainText('Finding player', {
 		timeout: 20_000,
 	})
 	const startingCount = Number(

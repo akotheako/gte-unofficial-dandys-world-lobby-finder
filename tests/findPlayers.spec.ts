@@ -178,3 +178,51 @@ test('a check-in cannot give the host badges that the cookie does not hold', asy
 	expect(savedTeam.roblox_username).toBe('')
 	expect(savedTeam.roblox_badge_names).toEqual([])
 })
+
+test('quotes and backslashes in a check-in are stored as they are', async ({ request }) => {
+	const trickyText = `it's a \\ "test"'); DROP TABLE teams; --`
+	const pageId = `${crypto.randomUUID()} ${trickyText}`
+	const answer = await request.post('/api/check-in', {
+		data: {
+			pageId,
+			team: {
+				teamTableRows: [{
+					toonPicture: trickyText,
+					trinketAPicture: '',
+					trinketBPicture: '',
+					badgeNames: [],
+					roleNames: [trickyText],
+					isVerifiedPlayerRequired: false,
+					reservedFor: 'me',
+					isLeftEmpty: false,
+				}],
+				removedRobloxUsernames: [trickyText],
+				inviteCode: pageId,
+				serverLink: '',
+				isDandyRun: false,
+				isEarlyDyle: false,
+				region: trickyText,
+				floorGoal: trickyText,
+				isFindingPlayers: false,
+			},
+			invite: null,
+		},
+	})
+	expect(answer.ok()).toBe(true)
+	const testDatabase = connectToTestDatabase()
+	const { rows: [savedTeam] } = await testDatabase.query(
+		'SELECT * FROM teams WHERE team_id = $1',
+		[pageId],
+	)
+	expect(savedTeam.region).toBe(trickyText)
+	expect(savedTeam.removed_roblox_usernames).toEqual([trickyText])
+	expect(savedTeam.team_table_rows[0].toonPicture).toBe(trickyText)
+	expect(savedTeam.team_table_rows[0].roleNames).toEqual([trickyText])
+	expect((await request.post('/api/check-in/leave', { data: { pageId } })).ok()).toBe(true)
+	const { rows: teamsLeft } = await testDatabase.query(
+		'SELECT * FROM teams WHERE team_id = $1',
+		[pageId],
+	)
+	await testDatabase.end()
+	expect(teamsLeft).toEqual([])
+})

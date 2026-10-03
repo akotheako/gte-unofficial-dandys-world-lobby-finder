@@ -174,6 +174,7 @@ These checks need two or three profiles that search at the same time.
 - A changed `roblox` cookie is rejected.
 - A check-in sent by hand cannot give the host badges that the cookie does not hold.
 - Solar Support sent by hand for a row without Bobette never reaches matchmaking.
+- Quotes, backslashes and SQL in any text of a check-in are stored exactly as they were sent.
 - A search keeps working after the browser goes offline and back online.
 - `/api/images/..` and similar paths cannot read files outside `public/toons` and `public/trinkets`.
 

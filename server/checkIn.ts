@@ -1,3 +1,4 @@
+import type { QueryResult } from '@neondatabase/serverless'
 import { Hono } from 'hono'
 import { getSignedCookie } from 'hono/cookie'
 import { badgeCategories } from '../shared/badgeCategories.ts'
@@ -267,107 +268,142 @@ checkIn.post('/', async (c) => {
 	let isVerificationNeededToJoin = false
 
 	const client = await database.connect()
+	// Every round trip to the database waits for the one before, so a check-in makes only two: one
+	// that reads everything, and one that writes every change. A query with several statements
+	// cannot take separate parameters, so the values go into its text through escapeLiteral.
+	const sqlLiteral = (value: unknown) => client.escapeLiteral(
+		typeof value === 'string' ? value : JSON.stringify(value),
+	)
+	const writes: string[] = []
 	try {
-		await client.query('BEGIN')
-		// Check-ins run one at a time across every server, so two searches never take one row
-		await client.query('SELECT pg_advisory_xact_lock(1)')
+		// Check-ins run one at a time across every server, so two searches never take one row.
 		// Browsers run the timers of a hidden tab only once a minute, and players switch to Roblox
-		// while they wait, so a page only counts as gone after 90 silent seconds
-		await client.query(`
-			INSERT INTO open_pages (page_id) VALUES ($1)
-			ON CONFLICT (page_id) DO UPDATE SET last_seen_at = now()
-		`, [pageId])
-		await client.query(`
+		// while they wait, so a page only counts as gone after 90 silent seconds.
+		const readResults = await client.query(`
+			BEGIN;
+			SELECT pg_advisory_xact_lock(1);
+			INSERT INTO open_pages (page_id) VALUES (${sqlLiteral(pageId)})
+			ON CONFLICT (page_id) DO UPDATE SET last_seen_at = now();
 			DELETE FROM open_pages WHERE last_seen_at < now() - interval '90 seconds';
 			DELETE FROM teams WHERE team_id NOT IN (SELECT page_id FROM open_pages);
 			DELETE FROM verified_friends WHERE page_id NOT IN (SELECT page_id FROM open_pages);
-		`)
+			SELECT now() AS "transactionTime", count(*)::int AS "onThisPageCount" FROM open_pages;
+			SELECT * FROM teams ORDER BY started_at;
+			SELECT * FROM verified_friends;
+		`) as unknown as QueryResult[]
+		const [{ rows: [{
+			transactionTime,
+			onThisPageCount,
+		}] }, { rows: teams }, { rows: verifiedFriends }] = readResults.slice(-3) as [
+			QueryResult<{
+				transactionTime: Date
+				onThisPageCount: number
+			}>,
+			QueryResult<Team>,
+			QueryResult<VerifiedFriend>,
+		]
 
 		const sentTeam = body.team
 		const serverLink = String(sentTeam?.serverLink ?? '').trim()
 		if (sentTeam?.isFindingPlayers && serverLink && !robloxServerLinkPattern.test(serverLink)) {
 			error = 'The server link is invalid!'
 		}
+		const savedTeamIndex = teams.findIndex((team) => team.team_id === pageId)
 		if (!sentTeam || error) {
-			await client.query('DELETE FROM teams WHERE team_id = $1', [pageId])
-		} else {
-			const { rows: [savedTeam] } = await client.query<Team>(`
-				SELECT * FROM teams WHERE team_id = $1
-			`, [pageId])
-			// A running search keeps the team that it joined and its place in the queue, since the
-			// table cannot change while it runs
-			if (!savedTeam?.is_searching || !sentTeam.isFindingPlayers) {
-				await client.query(`
-					INSERT INTO teams (
-						team_id,
-						invite_code,
-						roblox_username,
-						roblox_badge_names,
-						removed_roblox_usernames,
-						team_table_rows,
-						server_link,
-						is_dandy_run,
-						is_early_dyle,
-						region,
-						floor_goal,
-						is_searching
-					)
-					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-					ON CONFLICT (team_id) DO UPDATE SET
-						invite_code = excluded.invite_code,
-						roblox_username = excluded.roblox_username,
-						roblox_badge_names = excluded.roblox_badge_names,
-						removed_roblox_usernames = excluded.removed_roblox_usernames,
-						team_table_rows = excluded.team_table_rows,
-						server_link = excluded.server_link,
-						is_dandy_run = excluded.is_dandy_run,
-						is_early_dyle = excluded.is_early_dyle,
-						region = excluded.region,
-						floor_goal = excluded.floor_goal,
-						is_searching = excluded.is_searching,
-						joined_team_id = NULL,
-						started_at = now()
-				`, [
-					pageId,
-					String(sentTeam.inviteCode),
-					robloxAccount?.username ?? '',
-					JSON.stringify(ownedBadgeNames),
-					JSON.stringify(sentTeam.removedRobloxUsernames.slice(0, 100).map(String)),
-					// Only the fields that matching reads are stored, since other players see them
-					JSON.stringify(sentTeam.teamTableRows.slice(0, 8).map((row): TeamTableRow => {
-						const reservedFor = String(row.reservedFor)
-						const isKnownReservation = reservedFor === 'me'
-							|| /^unverifiedFriend:\d+$/.test(reservedFor)
-							|| reservedFor.startsWith('verifiedFriend:')
-						return {
-							toonPicture: String(row.toonPicture),
-							trinketAPicture: String(row.trinketAPicture),
-							trinketBPicture: String(row.trinketBPicture),
-							badgeNames: row.badgeNames.map(String),
-							roleNames: row.roleNames.map(String),
-							isVerifiedPlayerRequired: Boolean(row.isVerifiedPlayerRequired),
-							reservedFor: isKnownReservation ? reservedFor as ReservedFor : '',
-							isLeftEmpty: Boolean(row.isLeftEmpty),
-						}
-					})),
-					serverLink,
-					Boolean(sentTeam.isDandyRun),
-					Boolean(sentTeam.isEarlyDyle),
-					String(sentTeam.region),
-					String(sentTeam.floorGoal),
-					Boolean(sentTeam.isFindingPlayers),
-				])
+			if (savedTeamIndex !== -1) teams.splice(savedTeamIndex, 1)
+			writes.push(`DELETE FROM teams WHERE team_id = ${sqlLiteral(pageId)}`)
+		// A running search keeps the team that it joined and its place in the queue, since the
+		// table cannot change while it runs
+		} else if (!teams[savedTeamIndex]?.is_searching || !sentTeam.isFindingPlayers) {
+			const team: Team = {
+				team_id: pageId,
+				invite_code: String(sentTeam.inviteCode),
+				roblox_username: robloxAccount?.username ?? '',
+				roblox_badge_names: ownedBadgeNames,
+				removed_roblox_usernames: sentTeam.removedRobloxUsernames.slice(0, 100).map(String),
+				// Only the fields that matching reads are stored, since other players see them
+				team_table_rows: sentTeam.teamTableRows.slice(0, 8).map((row): TeamTableRow => {
+					const reservedFor = String(row.reservedFor)
+					const isKnownReservation = reservedFor === 'me'
+						|| /^unverifiedFriend:\d+$/.test(reservedFor)
+						|| reservedFor.startsWith('verifiedFriend:')
+					return {
+						toonPicture: String(row.toonPicture),
+						trinketAPicture: String(row.trinketAPicture),
+						trinketBPicture: String(row.trinketBPicture),
+						badgeNames: row.badgeNames.map(String),
+						roleNames: row.roleNames.map(String),
+						isVerifiedPlayerRequired: Boolean(row.isVerifiedPlayerRequired),
+						reservedFor: isKnownReservation ? reservedFor as ReservedFor : '',
+						isLeftEmpty: Boolean(row.isLeftEmpty),
+					}
+				}),
+				server_link: serverLink,
+				is_dandy_run: Boolean(sentTeam.isDandyRun),
+				is_early_dyle: Boolean(sentTeam.isEarlyDyle),
+				region: String(sentTeam.region),
+				floor_goal: String(sentTeam.floorGoal),
+				is_searching: Boolean(sentTeam.isFindingPlayers),
+				joined_team_id: null,
+				// now() is the time at which the transaction started, in both round trips
+				started_at: transactionTime,
 			}
+			// The list stays ordered by started_at, and this team is the newest
+			if (savedTeamIndex !== -1) teams.splice(savedTeamIndex, 1)
+			teams.push(team)
+			writes.push(`
+				INSERT INTO teams (
+					team_id,
+					invite_code,
+					roblox_username,
+					roblox_badge_names,
+					removed_roblox_usernames,
+					team_table_rows,
+					server_link,
+					is_dandy_run,
+					is_early_dyle,
+					region,
+					floor_goal,
+					is_searching
+				)
+				VALUES (
+					${sqlLiteral(team.team_id)},
+					${sqlLiteral(team.invite_code)},
+					${sqlLiteral(team.roblox_username)},
+					${sqlLiteral(team.roblox_badge_names)},
+					${sqlLiteral(team.removed_roblox_usernames)},
+					${sqlLiteral(team.team_table_rows)},
+					${sqlLiteral(team.server_link)},
+					${team.is_dandy_run},
+					${team.is_early_dyle},
+					${sqlLiteral(team.region)},
+					${sqlLiteral(team.floor_goal)},
+					${team.is_searching}
+				)
+				ON CONFLICT (team_id) DO UPDATE SET
+					invite_code = excluded.invite_code,
+					roblox_username = excluded.roblox_username,
+					roblox_badge_names = excluded.roblox_badge_names,
+					removed_roblox_usernames = excluded.removed_roblox_usernames,
+					team_table_rows = excluded.team_table_rows,
+					server_link = excluded.server_link,
+					is_dandy_run = excluded.is_dandy_run,
+					is_early_dyle = excluded.is_early_dyle,
+					region = excluded.region,
+					floor_goal = excluded.floor_goal,
+					is_searching = excluded.is_searching,
+					joined_team_id = NULL,
+					started_at = now()
+			`)
 		}
 
 		let invitingTeamId: string | null = null
 		if (body.invite) {
-			const { rows: [invitingTeam] } = await client.query<Team>(`
-				SELECT * FROM teams WHERE invite_code = $1
-			`, [String(body.invite.inviteCode)])
-			const { rows: friendsInTeam } = await client.query<VerifiedFriend>(`
-				SELECT * FROM verified_friends WHERE team_id = $1
-			`, [invitingTeam?.team_id ?? ''])
+			const inviteCode = String(body.invite.inviteCode)
+			const invitingTeam = teams.find((team) => team.invite_code === inviteCode)
+			const friendsInTeam = verifiedFriends.filter((friend) => (
+				friend.team_id === invitingTeam?.team_id
+			))
 			const hasJoined = friendsInTeam.some((friend) => friend.page_id === pageId)
 			if (!invitingTeam) {
 				error = 'This invite link expired'
@@ -388,30 +424,37 @@ checkIn.post('/', async (c) => {
 			} else if (!hasJoined && invitingTeam.is_searching) {
 				error = 'The team already started finding players'
 			} else {
-				await client.query(`
+				const friend: VerifiedFriend = {
+					page_id: pageId,
+					team_id: invitingTeam.team_id,
+					roblox_username: robloxAccount.username,
+					badge_names: ownedBadgeNames,
+				}
+				const savedFriendIndex = verifiedFriends.findIndex((other) => other.page_id === pageId)
+				if (savedFriendIndex !== -1) verifiedFriends.splice(savedFriendIndex, 1)
+				verifiedFriends.push(friend)
+				writes.push(`
 					INSERT INTO verified_friends (page_id, team_id, roblox_username, badge_names)
-					VALUES ($1, $2, $3, $4)
+					VALUES (
+						${sqlLiteral(friend.page_id)},
+						${sqlLiteral(friend.team_id)},
+						${sqlLiteral(friend.roblox_username)},
+						${sqlLiteral(friend.badge_names)}
+					)
 					ON CONFLICT (page_id) DO UPDATE SET
 						team_id = excluded.team_id,
 						roblox_username = excluded.roblox_username,
 						badge_names = excluded.badge_names
-				`, [
-					pageId,
-					invitingTeam.team_id,
-					robloxAccount.username,
-					JSON.stringify(ownedBadgeNames),
-				])
+				`)
 				invitingTeamId = invitingTeam.team_id
 			}
 		}
 		if (!invitingTeamId) {
-			await client.query('DELETE FROM verified_friends WHERE page_id = $1', [pageId])
+			const savedFriendIndex = verifiedFriends.findIndex((friend) => friend.page_id === pageId)
+			if (savedFriendIndex !== -1) verifiedFriends.splice(savedFriendIndex, 1)
+			writes.push(`DELETE FROM verified_friends WHERE page_id = ${sqlLiteral(pageId)}`)
 		}
 
-		const { rows: teams } = await client.query<Team>('SELECT * FROM teams ORDER BY started_at')
-		const { rows: verifiedFriends } = await client.query<VerifiedFriend>(`
-			SELECT * FROM verified_friends
-		`)
 		const teamsById = new Map(teams.map((team) => [team.team_id, team]))
 		const changedTeams = new Set<Team>()
 
@@ -490,25 +533,20 @@ checkIn.post('/', async (c) => {
 		}
 
 		for (const team of changedTeams) {
-			await client.query(`
-				UPDATE teams SET joined_team_id = $2, server_link = $3
-				WHERE team_id = $1
-			`, [
-				team.team_id,
-				team.joined_team_id,
-				team.server_link,
-			])
+			writes.push(`
+				UPDATE teams SET
+					joined_team_id = ${team.joined_team_id ? sqlLiteral(team.joined_team_id) : 'NULL'},
+					server_link = ${sqlLiteral(team.server_link)}
+				WHERE team_id = ${sqlLiteral(team.team_id)}
+			`)
 		}
-		const { rows: [counts] } = await client.query<{
-			onThisPageCount: number
-			findingPlayersCount: number
-		}>(`
-			SELECT
-				(SELECT count(*)::int FROM open_pages) AS "onThisPageCount",
-				(SELECT count(*)::int FROM teams WHERE is_searching AND joined_team_id IS NULL)
-					AS "findingPlayersCount"
-		`)
-		await client.query('COMMIT')
+		await client.query([...writes, 'COMMIT'].join(';\n'))
+		const counts = {
+			onThisPageCount,
+			findingPlayersCount: teams.filter((team) => (
+				team.is_searching && !team.joined_team_id
+			)).length,
+		}
 
 		const shownTeam = invitingTeamId ? teamsById.get(invitingTeamId) : myTeam
 		const finalHost = shownTeam?.joined_team_id ? teamsById.get(shownTeam.joined_team_id) : shownTeam
@@ -568,17 +606,15 @@ checkIn.post('/leave', async (c) => {
 	const { pageId } = await c.req.json<{ pageId: string }>()
 	const client = await database.connect()
 	try {
-		await client.query('BEGIN')
-		// The same lock as the check-ins, since deletes that run beside a check-in deadlock with it,
-		// and Postgres then cancels one of them
-		await client.query('SELECT pg_advisory_xact_lock(1)')
-		await client.query('DELETE FROM open_pages WHERE page_id = $1', [String(pageId)])
-		await client.query('DELETE FROM teams WHERE team_id = $1', [String(pageId)])
-		await client.query('DELETE FROM verified_friends WHERE page_id = $1', [String(pageId)])
-		await client.query('COMMIT')
-	} catch (error) {
-		await client.query('ROLLBACK')
-		throw error
+		const pageIdLiteral = client.escapeLiteral(String(pageId))
+		// Several statements in one query run as one transaction, which holds the check-ins' lock
+		// to its end, since deletes that run beside a check-in deadlock with it
+		await client.query(`
+			SELECT pg_advisory_xact_lock(1);
+			DELETE FROM open_pages WHERE page_id = ${pageIdLiteral};
+			DELETE FROM teams WHERE team_id = ${pageIdLiteral};
+			DELETE FROM verified_friends WHERE page_id = ${pageIdLiteral};
+		`)
 	} finally {
 		client.release()
 	}
