@@ -264,6 +264,7 @@ checkIn.post('/', async (c) => {
 		.filter((badge) => badge.owned)
 		.map((badge) => badge.name)
 	let error = ''
+	let isVerificationNeededToJoin = false
 
 	const client = await database.connect()
 	try {
@@ -371,8 +372,12 @@ checkIn.post('/', async (c) => {
 			if (!invitingTeam) {
 				error = 'This invite link expired'
 			} else if (!robloxAccount) {
-				error = 'Verify your Roblox account to join the team that invited you'
-			} else if (invitingTeam.team_id === pageId) {
+				isVerificationNeededToJoin = true
+			} else if (
+				invitingTeam.team_id === pageId
+				// The host's account in another tab
+				|| invitingTeam.roblox_username === robloxAccount.username
+			) {
 				error = 'This invite link is for your friends, send it to them'
 			} else if (invitingTeam.removed_roblox_usernames.includes(robloxAccount.username)) {
 				error = 'The host took you out of the team'
@@ -444,7 +449,10 @@ checkIn.post('/', async (c) => {
 				if (!areSettingsCompatible) continue
 				// The older search hosts when both ways fit, and a search that others already joined
 				// can only host
-				const merge = [[other, myTeam], [myTeam, other]]
+				const [olderTeam, newerTeam] = other.started_at <= myTeam.started_at
+					? [other, myTeam]
+					: [myTeam, other]
+				const merge = [[olderTeam, newerTeam], [newerTeam, olderTeam]]
 					.filter(([, joiner]) => mergedTeamOf(joiner).length === 1)
 					.map(([host, joiner]) => {
 						const mergedTeam = [...mergedTeamOf(host), joiner]
@@ -522,6 +530,7 @@ checkIn.post('/', async (c) => {
 		return c.json({
 			...counts,
 			error,
+			isVerificationNeededToJoin,
 			invitingTeam: invitingTeamId && shownTeam ? {
 				teamTableRows: shownTeam.team_table_rows,
 				isDandyRun: shownTeam.is_dandy_run,
@@ -557,8 +566,21 @@ checkIn.post('/', async (c) => {
 // Closing or reloading the tab ends its search, its team and its invite right away
 checkIn.post('/leave', async (c) => {
 	const { pageId } = await c.req.json<{ pageId: string }>()
-	await database.query('DELETE FROM open_pages WHERE page_id = $1', [String(pageId)])
-	await database.query('DELETE FROM teams WHERE team_id = $1', [String(pageId)])
-	await database.query('DELETE FROM verified_friends WHERE page_id = $1', [String(pageId)])
+	const client = await database.connect()
+	try {
+		await client.query('BEGIN')
+		// The same lock as the check-ins, since deletes that run beside a check-in deadlock with it,
+		// and Postgres then cancels one of them
+		await client.query('SELECT pg_advisory_xact_lock(1)')
+		await client.query('DELETE FROM open_pages WHERE page_id = $1', [String(pageId)])
+		await client.query('DELETE FROM teams WHERE team_id = $1', [String(pageId)])
+		await client.query('DELETE FROM verified_friends WHERE page_id = $1', [String(pageId)])
+		await client.query('COMMIT')
+	} catch (error) {
+		await client.query('ROLLBACK')
+		throw error
+	} finally {
+		client.release()
+	}
 	return c.body(null, 204)
 })

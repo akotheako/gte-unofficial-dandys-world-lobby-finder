@@ -5,13 +5,14 @@ for its logic, so reading it tells you everything that the page can do and every
 show. `server/main.ts` is the wiring file for the backend. Each backend feature lives in its own
 module next to it, such as `server/roblox.ts`, and `server/main.ts` mounts it. Code that both the
 frontend and the backend can use goes in `shared/`.
-`README.md` explains how to run the project and how to recreate it from zero.
+`README.md` explains how to run the project and how to recreate it from zero. `TESTING.md` lists every
+check of the site, and the Playwright tests in `tests/` automate them.
 
 ## Claude rules
 
 - Don't use python or a Node script or anything weird to make edits to files, just use your Edit Tool.
-- Commit only when everything is stable: `npm run lint` and `npm run build` pass, and the changed
-  feature works when you run it. Even when the user asks for a commit, report anything that is
+- Commit only when everything is stable: `npm run lint`, `npm run build` and `npm test` pass, and
+  the changed feature works when you run it. Even when the user asks for a commit, report anything that is
   still broken first, and fix it or ask before committing.
 - Whenever you change the code, update every piece of documentation that the change affects, such
   as `README.md`, this file and code comments, in the same task. The documentation describes only

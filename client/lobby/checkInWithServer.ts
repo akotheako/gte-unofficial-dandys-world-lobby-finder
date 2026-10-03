@@ -18,6 +18,7 @@ export function checkInWithServer({
 	setIsFindingPlayers,
 	setInviteFromLink,
 	setFindPlayersError,
+	setIsVerificationNeededToJoin,
 }: {
 	pageId: string
 	inviteCode: string
@@ -41,6 +42,7 @@ export function checkInWithServer({
 	setIsFindingPlayers: (isFindingPlayers: boolean) => void
 	setInviteFromLink: (inviteFromLink: null) => void
 	setFindPlayersError: (findPlayersError: string) => void
+	setIsVerificationNeededToJoin: (isVerificationNeededToJoin: boolean) => void
 }) {
 	// The ids survive reloads, so a reloaded tab keeps its team and its friend's invite link
 	sessionStorage.setItem('pageId', pageId)
@@ -92,6 +94,7 @@ export function checkInWithServer({
 				setInvitingTeam(answer.invitingTeam)
 				setShownTeamStatus(answer.shownTeamStatus)
 			}
+			setIsVerificationNeededToJoin(answer.isVerificationNeededToJoin)
 			if (answer.error) {
 				setFindPlayersError(answer.error)
 				if (invite) {

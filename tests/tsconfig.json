@@ -1,0 +1,9 @@
+{
+	"extends": "../tsconfig.node.json",
+	"compilerOptions": {
+		"tsBuildInfoFile": "../node_modules/.tmp/tsconfig.tests.tsbuildinfo",
+		// The functions that the tests hand to page.evaluate run in the browser
+		"lib": ["ES2023", "DOM"]
+	},
+	"include": ["."]
+}

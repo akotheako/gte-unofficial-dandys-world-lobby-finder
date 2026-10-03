@@ -26,6 +26,9 @@ export type CheckInAnswer = {
 	findingPlayersCount: number
 	// Reason why the server stopped the search or the invite, or empty
 	error: string
+	// The page opened an invite link without a verified Roblox account, and it joins the team on
+	// its first check-in after the user verifies
+	isVerificationNeededToJoin: boolean
 	// Team that an invite link brought this page into, which the page shows instead of its own
 	invitingTeam: {
 		teamTableRows: TeamTableRow[]

@@ -102,6 +102,7 @@ export function useLogic() {
 		inviteCode: string
 		inviteFromLink: { inviteCode: string } | null
 		invitingTeam: CheckInAnswer['invitingTeam']
+		isVerificationNeededToJoin: boolean
 		shownTeamStatus: CheckInAnswer['shownTeamStatus']
 		// null until the first check-in answers
 		onThisPageCount: number | null
@@ -154,6 +155,7 @@ export function useLogic() {
 			return inviteCode ? { inviteCode } : null
 		})(),
 		invitingTeam: null,
+		isVerificationNeededToJoin: false,
 		shownTeamStatus: null,
 		onThisPageCount: null,
 		findingPlayersCount: null,
@@ -227,6 +229,9 @@ export function useLogic() {
 		setIsFindingPlayers: (isFindingPlayers) => setState({ isFindingPlayers }),
 		setInviteFromLink: (inviteFromLink) => setState({ inviteFromLink }),
 		setFindPlayersError: (findPlayersError) => setState({ findPlayersError }),
+		setIsVerificationNeededToJoin: (isVerificationNeededToJoin) => setState({
+			isVerificationNeededToJoin,
+		}),
 	}), [
 		state.isFindingPlayers,
 		state.inviteFromLink,
@@ -384,6 +389,9 @@ export function useLogic() {
 		// Line at the top of Find a Team for a friend who opened an invite link
 		invitedFriendText: (() => {
 			if (!isInvitedFriend) return ''
+			if (state.isVerificationNeededToJoin) {
+				return 'Verify your Roblox account in Roblox Verification to join the team that invited you.'
+			}
 			if (!invitingTeam) return 'Joining the team that invited you...'
 			const host = invitingTeam.hostRobloxUsername
 			return `You are in ${host ? `@${host}'s` : 'your friend\'s'} team. Closing this window takes you out of it.`
