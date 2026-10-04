@@ -2,6 +2,7 @@ import {
 	expect,
 	test,
 	type Browser,
+	type Page,
 } from '@playwright/test'
 import type { TeamTableRow } from '../shared/teamTypes.ts'
 import { connectToTestDatabase } from './testDatabase.ts'
@@ -28,7 +29,7 @@ test.beforeEach(async ({ request }) => {
 })
 
 // Opens Find a Team in a new browser profile with a table of the given rows, where every row that
-// is not given is "(Leave Empty)", and clicks Find Players
+// is not given is "(Leave Empty)", runs prepareBeforeSearch, and clicks Find Players
 async function startSearch({
 	browser,
 	username,
@@ -38,6 +39,7 @@ async function startSearch({
 	region,
 	floorGoal,
 	isDandyRun,
+	prepareBeforeSearch,
 }: {
 	browser: Browser
 	username?: string
@@ -47,6 +49,7 @@ async function startSearch({
 	region?: string
 	floorGoal?: string
 	isDandyRun?: boolean
+	prepareBeforeSearch?: (page: Page) => Promise<void>
 }) {
 	const context = await browser.newContext()
 	if (username) {
@@ -81,8 +84,11 @@ async function startSearch({
 	const page = await context.newPage()
 	await page.goto('/')
 	await page.locator('#team-icon').click()
+	await prepareBeforeSearch?.(page)
 	await page.locator('#team-find button').click()
-	await expect(page.locator('#team-find button')).toHaveText('Finding Players (Click to Cancel)')
+	// In slow motion, the search can merge before the check, and then the button reads Leave Team
+	await expect(page.locator('#team-find button'))
+		.toHaveText(/^(Finding Players \(Click to Cancel\)|Leave Team)$/)
 	return page
 }
 
@@ -451,4 +457,236 @@ test('"looking for a team" counts searches that did not join a team', async ({ b
 		.toContainText(`${startingCount} looking for a team`, { timeout: 20_000 })
 	await firstPage.context().close()
 	await secondPage.context().close()
+})
+
+test.describe('Upvote Players', () => {
+	// "Team found!" covers the icons, so a player closes it before opening Upvote Players
+	async function closeTeamFoundWindow(page: Page) {
+		await expect(page.locator('#team-found')).toHaveAttribute('open', '', { timeout: 20_000 })
+		await page.locator('#team-found .window-close').click()
+	}
+
+	async function openUpvotePlayers(page: Page) {
+		// An icon does nothing while its window still shrinks into it
+		await page.waitForFunction(() => document.getAnimations().length === 0)
+		await page.locator('#upvote-icon').click()
+		await expect(page.locator('#upvote-intro')).not.toHaveText('Loading your last team...')
+	}
+
+	test('before any found team, the window says so', async ({
+		page,
+		context,
+	}) => {
+		await verifyAsRobloxAccount({
+			context,
+			username: 'NewPlayer',
+			ownedBadgeNames: [],
+		})
+		await page.goto('/')
+		await openUpvotePlayers(page)
+		await expect(page.locator('#upvote-intro'))
+			.toHaveText('You\'ll be able to upvote other players here after you find a team!')
+		await expect(page.locator('#upvote-table')).toHaveCount(0)
+	})
+
+	test('a found team shows as a record, and an upvote can be given and taken back', async ({
+		browser,
+	}) => {
+		const hostPage = await startSearch({
+			browser,
+			username: 'HostPlayer',
+			rows: [
+				{
+					reservedFor: 'me',
+					toonPicture: 'bobette.png',
+				},
+				{},
+			],
+			serverLink: serverLinkA,
+			floorGoal: '70',
+		})
+		const joinerPage = await startSearch({
+			browser,
+			username: 'JoinerPlayer',
+			rows: meAndOneOpenRow,
+			floorGoal: '70',
+		})
+		await closeTeamFoundWindow(hostPage)
+		await openUpvotePlayers(hostPage)
+		await expect(hostPage.locator('#upvote-settings')).toContainText('Floor goal: 70')
+		await expect(hostPage.locator('#upvote-settings a')).toHaveText(serverLinkA)
+		const recordRows = hostPage.locator('#upvote-table tbody tr')
+		await expect(recordRows.nth(0).locator('img')).toHaveAttribute('title', 'bobette')
+		await expect(recordRows.nth(0)).toContainText('(@HostPlayer)')
+		await expect(recordRows.nth(1)).toContainText('(@JoinerPlayer)')
+		await expect(recordRows.nth(2)).toHaveText('(Leave Empty)')
+		const upvoteButton = hostPage.locator('#upvote-players div', { hasText: '@JoinerPlayer' })
+			.getByRole('button')
+		await expect(upvoteButton).toHaveText('Upvote')
+		await upvoteButton.click()
+		await expect(upvoteButton).toHaveText('Upvoted ✓')
+		await hostPage.locator('#upvote .window-close').first().click()
+		await openUpvotePlayers(hostPage)
+		await expect(upvoteButton).toHaveText('Upvoted ✓')
+		await upvoteButton.click()
+		await expect(upvoteButton).toHaveText('Upvote')
+		await hostPage.reload()
+		await openUpvotePlayers(hostPage)
+		await expect(upvoteButton).toHaveText('Upvote')
+		await closeTeamFoundWindow(joinerPage)
+		await openUpvotePlayers(joinerPage)
+		await expect(joinerPage.locator('#upvote-players div', { hasText: '@HostPlayer' })
+			.getByRole('button')).toHaveText('Upvote')
+		await hostPage.context().close()
+		await joinerPage.context().close()
+	})
+
+	test('a host and the friend they invited cannot upvote each other', async ({ browser }) => {
+		let friendPage: Page | undefined
+		const hostPage = await startSearch({
+			browser,
+			username: 'HostPlayer',
+			rows: [
+				{ reservedFor: 'me' },
+				{},
+				{},
+			],
+			serverLink: serverLinkA,
+			prepareBeforeSearch: async (page) => {
+				await page.waitForFunction(() => document.getAnimations().length === 0)
+				await page.context().grantPermissions([
+					'clipboard-read',
+					'clipboard-write',
+				])
+				await page.getByRole('button', { name: 'Copy invite link' }).click()
+				const inviteLink = await page.evaluate(() => navigator.clipboard.readText())
+				const friendContext = await browser.newContext()
+				await verifyAsRobloxAccount({
+					context: friendContext,
+					username: 'FriendPlayer',
+					ownedBadgeNames: [],
+				})
+				friendPage = await friendContext.newPage()
+				await friendPage.goto(new URL(inviteLink).search)
+				const friendChip = page.locator('#team-reserved .team-chip', { hasText: '@FriendPlayer' })
+				await expect(friendChip).toBeVisible({ timeout: 20_000 })
+				// The Player column comes after Badges for a verified host
+				await friendChip.dragTo(page.locator('#team-table tbody tr').nth(1).locator('td').nth(5))
+			},
+		})
+		const otherPage = await startSearch({
+			browser,
+			username: 'OtherPlayer',
+			rows: [
+				{ reservedFor: 'me' },
+				{},
+				{},
+			],
+		})
+		await closeTeamFoundWindow(hostPage)
+		await openUpvotePlayers(hostPage)
+		await expect(hostPage.locator('#upvote-players div', { hasText: '@FriendPlayer' })
+			.getByRole('button')).toHaveCount(0)
+		await expect(hostPage.locator('#upvote-players div', { hasText: '@OtherPlayer' })
+			.getByRole('button')).toHaveCount(1)
+		await closeTeamFoundWindow(friendPage!)
+		await openUpvotePlayers(friendPage!)
+		await expect(friendPage!.locator('#upvote-players div', { hasText: '@HostPlayer' })
+			.getByRole('button')).toHaveCount(0)
+		await expect(friendPage!.locator('#upvote-players div', { hasText: '@OtherPlayer' })
+			.getByRole('button')).toHaveCount(1)
+		await closeTeamFoundWindow(otherPage)
+		await openUpvotePlayers(otherPage)
+		await expect(otherPage.locator('#upvote-players button')).toHaveCount(2)
+		await hostPage.context().close()
+		await friendPage!.context().close()
+		await otherPage.context().close()
+	})
+
+	test('a player who did not verify only sees how to verify', async ({ browser }) => {
+		const hostPage = await startSearch({
+			browser,
+			username: 'HostPlayer',
+			rows: meAndOneOpenRow,
+			serverLink: serverLinkA,
+		})
+		const unverifiedPage = await startSearch({
+			browser,
+			rows: meAndOneOpenRow,
+		})
+		await closeTeamFoundWindow(unverifiedPage)
+		await openUpvotePlayers(unverifiedPage)
+		await expect(unverifiedPage.locator('#upvote-intro'))
+			.toContainText('Only players with a verified Roblox account can upvote')
+		await expect(unverifiedPage.locator('#upvote-table')).toHaveCount(0)
+		await expect(unverifiedPage.locator('#upvote-players')).toHaveCount(0)
+		await closeTeamFoundWindow(hostPage)
+		await openUpvotePlayers(hostPage)
+		await expect(hostPage.locator('#upvote-players'))
+			.toContainText('Nobody else in this team verified their Roblox account.')
+		await hostPage.context().close()
+		await unverifiedPage.context().close()
+	})
+
+	test('the server refuses upvotes that the window would not offer', async ({ browser }) => {
+		const hostPage = await startSearch({
+			browser,
+			username: 'HostPlayer',
+			rows: meAndOneOpenRow,
+			serverLink: serverLinkA,
+		})
+		const joinerPage = await startSearch({
+			browser,
+			username: 'JoinerPlayer',
+			rows: meAndOneOpenRow,
+		})
+		await closeTeamFoundWindow(hostPage)
+		await openUpvotePlayers(hostPage)
+		const joinerUserId = await hostPage.evaluate(async () => {
+			const lastFoundTeam = await (await fetch('/api/upvotes/last-team')).json()
+			return lastFoundTeam.verifiedPlayers[0].robloxUserId as string
+		})
+		const upvoteAs = ({
+			page,
+			robloxUserId,
+		}: {
+			page: Page
+			robloxUserId: string
+		}) => page.request.post('/api/upvotes', { data: { robloxUserId } })
+		expect((await upvoteAs({
+			page: hostPage,
+			robloxUserId: 'someone-from-another-team',
+		})).status()).toBe(403)
+		const strangerContext = await browser.newContext()
+		const strangerPage = await strangerContext.newPage()
+		expect((await upvoteAs({
+			page: strangerPage,
+			robloxUserId: joinerUserId,
+		})).status()).toBe(401)
+		await verifyAsRobloxAccount({
+			context: strangerContext,
+			username: 'StrangerPlayer',
+			ownedBadgeNames: [],
+		})
+		expect((await upvoteAs({
+			page: strangerPage,
+			robloxUserId: joinerUserId,
+		})).status()).toBe(403)
+		for (const attempt of [1, 2]) {
+			expect((await upvoteAs({
+				page: hostPage,
+				robloxUserId: joinerUserId,
+			})).status(), `upvote ${attempt}`).toBe(204)
+		}
+		const testDatabase = connectToTestDatabase()
+		const { rows: upvoteRows } = await testDatabase.query(
+			'SELECT * FROM upvotes WHERE receiver_roblox_user_id = $1',
+			[joinerUserId],
+		)
+		await testDatabase.end()
+		expect(upvoteRows).toHaveLength(1)
+		await hostPage.context().close()
+		await joinerPage.context().close()
+		await strangerContext.close()
+	})
 })

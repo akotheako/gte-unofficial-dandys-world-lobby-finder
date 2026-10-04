@@ -39,6 +39,28 @@ export default defineConfig({
 		// npx playwright show-trace opens
 		trace: 'retain-on-failure',
 	},
+	// "fast" runs without a window, and the npm scripts that show the tests use "visible"
+	projects: [
+		{ name: 'fast' },
+		{
+			name: 'visible',
+			// Slow motion makes the longest tests take minutes
+			timeout: 600_000,
+			use: {
+				headless: false,
+				launchOptions: {
+					// Every step waits this long, so a person can follow the page
+					slowMo: 700,
+					// An English browser with translation off, since Edge in another language offers to
+					// translate every page, and a fresh browser forgets the answer
+					args: [
+						'--lang=en-US',
+						'--disable-features=Translate,TranslateUI',
+					],
+				},
+			},
+		},
+	],
 	// The server writes its output into server.log, and the run fails when that log holds an error,
 	// since a failed check-in can go unnoticed by the test that caused it
 	webServer: {

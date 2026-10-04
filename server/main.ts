@@ -4,6 +4,7 @@ import { Hono } from 'hono'
 import { checkIn } from './checkIn.ts'
 import { images } from './images.ts'
 import { roblox } from './roblox.ts'
+import { upvotes } from './upvotes.ts'
 
 // Instantiate app:
 export const app = new Hono()
@@ -12,6 +13,7 @@ export const app = new Hono()
 app.route('/api/roblox', roblox)
 app.route('/api/check-in', checkIn)
 app.route('/api/images', images)
+app.route('/api/upvotes', upvotes)
 
 // Set frontend route:
 app.use('/*', serveStatic({ root: './dist' }))

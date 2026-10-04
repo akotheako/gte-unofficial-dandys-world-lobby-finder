@@ -17,6 +17,8 @@ if (!cookieSecret) throw new Error('COOKIE_SECRET is not set, see README.md')
 type Team = {
 	team_id: string
 	invite_code: string
+	// Empty for a host who did not verify. Upvotes go by the id, since a username can change.
+	roblox_user_id: string
 	roblox_username: string
 	roblox_badge_names: string[]
 	// Verified friends whom the host removed, whom the invite link no longer lets in
@@ -35,8 +37,32 @@ type Team = {
 type VerifiedFriend = {
 	page_id: string
 	team_id: string
+	roblox_user_id: string
 	roblox_username: string
 	badge_names: string[]
+}
+
+// Record of a team that got together, as the found_teams table stores it
+export type FoundTeam = {
+	serverLink: string
+	isDandyRun: boolean
+	isEarlyDyle: boolean
+	region: string
+	floorGoal: string
+	// One table for each search of the merged team, with its players in its rows
+	tables: {
+		teamId: string
+		teamTableRows: TeamTableRow[]
+		playersInRows: (PlayerInRow | null)[]
+	}[]
+	// The team that brought each verified player, and the host who invited them, which is empty
+	// for a host
+	verifiedPlayers: {
+		robloxUserId: string
+		robloxUsername: string
+		invitedByRobloxUserId: string
+		teamId: string
+	}[]
 }
 
 // Verified friends who opened the team's invite link and whom the host did not remove
@@ -58,7 +84,12 @@ function verifiedFriendsOf({
 type TeamPlayer = {
 	teamId: string
 	playerInRow: PlayerInRow
+	// Both empty for an unverified player, and the second one also for a host
+	robloxUserId: string
+	invitedByRobloxUserId: string
 	isVerified: boolean
+	// The player on the team's "Me" rows
+	isHost: boolean
 	badgeNames: string[]
 	reservedRowIndexes: number[]
 }
@@ -79,14 +110,20 @@ function playersOf({
 			if (reservedFor === 'me') {
 				return {
 					playerInRow: { robloxUsername: team.roblox_username },
+					robloxUserId: team.roblox_user_id,
+					invitedByRobloxUserId: '',
 					isVerified: Boolean(team.roblox_username),
+					isHost: true,
 					badgeNames: team.roblox_badge_names,
 				}
 			}
 			if (reservedFor.startsWith('unverifiedFriend:')) {
 				return {
 					playerInRow: { unverifiedFriendOf: team.roblox_username },
+					robloxUserId: '',
+					invitedByRobloxUserId: '',
 					isVerified: false,
+					isHost: false,
 					badgeNames: [],
 				}
 			}
@@ -99,7 +136,10 @@ function playersOf({
 			return friend
 				? {
 					playerInRow: { robloxUsername: friend.roblox_username },
+					robloxUserId: friend.roblox_user_id,
+					invitedByRobloxUserId: team.roblox_user_id,
 					isVerified: true,
+					isHost: false,
 					badgeNames: friend.badge_names,
 				}
 				: null
@@ -220,6 +260,16 @@ checkIn.use(async (_c, next) => {
 			badge_names jsonb NOT NULL
 		);
 		ALTER TABLE verified_friends DROP COLUMN IF EXISTS friend_id;
+		ALTER TABLE teams ADD COLUMN IF NOT EXISTS roblox_user_id text NOT NULL DEFAULT '';
+		ALTER TABLE verified_friends ADD COLUMN IF NOT EXISTS roblox_user_id text NOT NULL DEFAULT '';
+		-- Record of every team that got together, which Upvote Players shows
+		CREATE TABLE IF NOT EXISTS found_teams (
+			found_team_id text PRIMARY KEY,
+			found_at timestamptz NOT NULL DEFAULT now(),
+			roblox_user_ids jsonb NOT NULL,
+			found_team jsonb NOT NULL
+		);
+		ALTER TABLE found_teams DROP COLUMN IF EXISTS page_ids;
 		DROP TABLE IF EXISTS invited_friends;
 		DROP TABLE IF EXISTS searching_teams;
 	`).catch((error) => {
@@ -252,6 +302,7 @@ checkIn.post('/', async (c) => {
 	const cookie = await getSignedCookie(c, cookieSecret, 'roblox')
 	const robloxAccount = cookie
 		? JSON.parse(cookie) as {
+			id: number
 			username: string
 			badges?: {
 				name: string
@@ -318,6 +369,7 @@ checkIn.post('/', async (c) => {
 			const team: Team = {
 				team_id: pageId,
 				invite_code: String(sentTeam.inviteCode),
+				roblox_user_id: robloxAccount ? String(robloxAccount.id) : '',
 				roblox_username: robloxAccount?.username ?? '',
 				roblox_badge_names: ownedBadgeNames,
 				removed_roblox_usernames: sentTeam.removedRobloxUsernames.slice(0, 100).map(String),
@@ -355,6 +407,7 @@ checkIn.post('/', async (c) => {
 				INSERT INTO teams (
 					team_id,
 					invite_code,
+					roblox_user_id,
 					roblox_username,
 					roblox_badge_names,
 					removed_roblox_usernames,
@@ -369,6 +422,7 @@ checkIn.post('/', async (c) => {
 				VALUES (
 					${sqlLiteral(team.team_id)},
 					${sqlLiteral(team.invite_code)},
+					${sqlLiteral(team.roblox_user_id)},
 					${sqlLiteral(team.roblox_username)},
 					${sqlLiteral(team.roblox_badge_names)},
 					${sqlLiteral(team.removed_roblox_usernames)},
@@ -382,6 +436,7 @@ checkIn.post('/', async (c) => {
 				)
 				ON CONFLICT (team_id) DO UPDATE SET
 					invite_code = excluded.invite_code,
+					roblox_user_id = excluded.roblox_user_id,
 					roblox_username = excluded.roblox_username,
 					roblox_badge_names = excluded.roblox_badge_names,
 					removed_roblox_usernames = excluded.removed_roblox_usernames,
@@ -427,6 +482,7 @@ checkIn.post('/', async (c) => {
 				const friend: VerifiedFriend = {
 					page_id: pageId,
 					team_id: invitingTeam.team_id,
+					roblox_user_id: String(robloxAccount.id),
 					roblox_username: robloxAccount.username,
 					badge_names: ownedBadgeNames,
 				}
@@ -434,15 +490,23 @@ checkIn.post('/', async (c) => {
 				if (savedFriendIndex !== -1) verifiedFriends.splice(savedFriendIndex, 1)
 				verifiedFriends.push(friend)
 				writes.push(`
-					INSERT INTO verified_friends (page_id, team_id, roblox_username, badge_names)
+					INSERT INTO verified_friends (
+						page_id,
+						team_id,
+						roblox_user_id,
+						roblox_username,
+						badge_names
+					)
 					VALUES (
 						${sqlLiteral(friend.page_id)},
 						${sqlLiteral(friend.team_id)},
+						${sqlLiteral(friend.roblox_user_id)},
 						${sqlLiteral(friend.roblox_username)},
 						${sqlLiteral(friend.badge_names)}
 					)
 					ON CONFLICT (page_id) DO UPDATE SET
 						team_id = excluded.team_id,
+						roblox_user_id = excluded.roblox_user_id,
 						roblox_username = excluded.roblox_username,
 						badge_names = excluded.badge_names
 				`)
@@ -528,6 +592,46 @@ checkIn.post('/', async (c) => {
 				merge.host.server_link ||= merge.joiner.server_link
 				changedTeams.add(merge.host)
 				changedTeams.add(merge.joiner)
+
+				// Every merge into the same search of the host updates one record
+				const mergedTeam = mergedTeamOf(merge.host)
+				const players = allPlayersOf(mergedTeam)
+				const verifiedPlayers = players.flatMap((player) => (
+					player.robloxUserId && 'robloxUsername' in player.playerInRow ? [{
+						robloxUserId: player.robloxUserId,
+						robloxUsername: player.playerInRow.robloxUsername,
+						invitedByRobloxUserId: player.invitedByRobloxUserId,
+						teamId: player.teamId,
+					}] : []
+				))
+				const foundTeam: FoundTeam = {
+					serverLink: merge.host.server_link,
+					isDandyRun: merge.host.is_dandy_run,
+					isEarlyDyle: merge.host.is_early_dyle,
+					region: merge.host.region,
+					floorGoal: merge.host.floor_goal,
+					tables: mergedTeam.map((team) => ({
+						teamId: team.team_id,
+						teamTableRows: team.team_table_rows,
+						playersInRows: (placePlayersInRows({
+							players,
+							team,
+							teamsById,
+						}) ?? []).map((player) => player?.playerInRow ?? null),
+					})),
+					verifiedPlayers,
+				}
+				writes.push(`
+					INSERT INTO found_teams (found_team_id, roblox_user_ids, found_team)
+					VALUES (
+						${sqlLiteral(`${merge.host.team_id} ${merge.host.started_at.toISOString()}`)},
+						${sqlLiteral(verifiedPlayers.map((player) => player.robloxUserId))},
+						${sqlLiteral(foundTeam)}
+					)
+					ON CONFLICT (found_team_id) DO UPDATE SET
+						roblox_user_ids = excluded.roblox_user_ids,
+						found_team = excluded.found_team
+				`)
 				break
 			}
 		}
@@ -581,6 +685,9 @@ checkIn.post('/', async (c) => {
 				playersInRows: shownTeam.team_table_rows.map((_row, rowIndex) => (
 					playersInShownRows?.[rowIndex]?.playerInRow ?? null
 				)),
+				hostRowIndex: playersInShownRows?.findIndex((player) => (
+					player?.isHost && player.teamId === shownTeam.team_id
+				)) ?? -1,
 				verifiedFriendRobloxUsernames: verifiedFriendsOf({
 					team: shownTeam,
 					verifiedFriends,

@@ -6,7 +6,13 @@ import {
 	type MouseEvent,
 	type SyntheticEvent,
 } from 'react'
-import type { CheckInAnswer, ReservedFor, TeamTableRow } from '../../shared/teamTypes.ts'
+import type {
+	CheckInAnswer,
+	LastFoundTeam,
+	PlayerInRow,
+	ReservedFor,
+	TeamTableRow,
+} from '../../shared/teamTypes.ts'
 import { useSyncState } from '../useSyncState.ts'
 import { allowLeaveEmptyDropOnRow } from './allowLeaveEmptyDropOnRow.ts'
 import { allowPictureDropOnCell } from './allowPictureDropOnCell.ts'
@@ -34,6 +40,7 @@ import { endReservationDragFromTable } from './endReservationDragFromTable.ts'
 import { growWindowFromIcon } from './growWindowFromIcon.ts'
 import { leaveInvitingTeam } from './leaveInvitingTeam.ts'
 import { leaveRowEmpty } from './leaveRowEmpty.ts'
+import { loadLastFoundTeam } from './loadLastFoundTeam.ts'
 import { loadRobloxBadgeChecklist } from './loadRobloxBadgeChecklist.ts'
 import { loadSideWindowPictures } from './loadSideWindowPictures.ts'
 import { loadVerificationEmojiCode } from './loadVerificationEmojiCode.ts'
@@ -53,6 +60,7 @@ import { shrinkWindowIntoIcon } from './shrinkWindowIntoIcon.ts'
 import { toggleBadgeCheckbox } from './toggleBadgeCheckbox.ts'
 import { toggleFindingPlayers } from './toggleFindingPlayers.ts'
 import { toggleRoleCheckbox } from './toggleRoleCheckbox.ts'
+import { toggleUpvote } from './toggleUpvote.ts'
 import { toggleVerifiedOnlyCheckbox } from './toggleVerifiedOnlyCheckbox.ts'
 import { undoLeaveRowEmpty } from './undoLeaveRowEmpty.ts'
 import { updateRobloxBadgeChecklist } from './updateRobloxBadgeChecklist.ts'
@@ -69,6 +77,17 @@ export type RobloxBadge = {
 }
 
 export type PictureColumn = 'toonPicture' | 'trinketAPicture' | 'trinketBPicture'
+
+// Name of the player in a row of Find a Team or Upvote Players, or '' for an empty row
+function playerNameOf(playerInRow: PlayerInRow | null) {
+	if (!playerInRow) return ''
+	if ('robloxUsername' in playerInRow) {
+		return playerInRow.robloxUsername ? `@${playerInRow.robloxUsername}` : 'Unverified player'
+	}
+	return playerInRow.unverifiedFriendOf
+		? `Friend of @${playerInRow.unverifiedFriendOf}`
+		: 'Unverified friend'
+}
 
 export function useLogic() {
 	const {
@@ -116,6 +135,9 @@ export function useLogic() {
 		// Button of that window that reads "Copied!" or "Pasted!" for 3 seconds after its click
 		badgesWindowConfirmedButton: 'Copy' | 'Paste' | null
 		rolesWindowConfirmedButton: 'Copy' | 'Paste' | null
+		// null when no search of this player found a team yet
+		lastFoundTeam: LastFoundTeam | null
+		isLastFoundTeamLoaded: boolean
 	} => ({
 		verifiedRobloxAccount: null,
 		verificationEmojiCode: '',
@@ -166,6 +188,8 @@ export function useLogic() {
 		copiedRoleNames: null,
 		badgesWindowConfirmedButton: null,
 		rolesWindowConfirmedButton: null,
+		lastFoundTeam: null,
+		isLastFoundTeamLoaded: false,
 	}))
 
 	// Fills the Toons and Trinkets side windows with pictures
@@ -778,17 +802,12 @@ export function useLogic() {
 			// the player in the row
 			...(() => {
 				const playerInRow = shownTeamStatus?.playersInRows[index] ?? null
-				const playerInRowName = (() => {
-					if (!playerInRow) return ''
-					if ('robloxUsername' in playerInRow) {
-						return playerInRow.robloxUsername
-							? `@${playerInRow.robloxUsername}`
-							: 'Unverified player'
-					}
-					return playerInRow.unverifiedFriendOf
-						? `Friend of @${playerInRow.unverifiedFriendOf}`
-						: 'Unverified friend'
-				})()
+				// A host without a Roblox account would otherwise read "Unverified player" in their
+				// own row
+				const isOwnUnverifiedRow = !isInvitedFriend
+					&& !isRobloxVerified
+					&& shownTeamStatus?.hostRowIndex === index
+				const playerInRowName = isOwnUnverifiedRow ? 'Me' : playerNameOf(playerInRow)
 				// A searching row without a player shows "Finding player..." once the server told
 				// which rows the team's own players are in, since a chip on several rows takes
 				// only one of them
@@ -1026,6 +1045,96 @@ That is a row without a chip, or an extra row that shares a chip.`
 				: 'Players joined the team! Everyone meets in this server:'
 		})(),
 		teamServerLink,
+
+
+		// Upvote Players icon, third in the row at the top of the screen, and its window, which
+		// loads the last found team whenever it opens for a verified user
+		upvotePlayersWindow: {
+			onIconClick: (event: MouseEvent<HTMLButtonElement>) => {
+				growWindowFromIcon({
+					id: 'upvote',
+					event,
+				})
+				if (!getSyncState().verifiedRobloxAccount) return
+				loadLastFoundTeam({
+					setLastFoundTeam: (lastFoundTeam) => setState({ lastFoundTeam }),
+					setIsLastFoundTeamLoaded: (isLastFoundTeamLoaded) => setState({
+						isLastFoundTeamLoaded,
+					}),
+				})
+			},
+			onCancel: (event: SyntheticEvent<HTMLDialogElement>) => shrinkWindowIntoIcon({
+				id: 'upvote',
+				event,
+			}),
+			onCloseClick: () => closeWindowFromXButton({ id: 'upvote' }),
+		},
+		// Line at the top of Upvote Players
+		upvotePlayersIntroText: (() => {
+			if (!isRobloxVerified) {
+				return `Only players with a verified Roblox account can upvote, so that every player can only upvote someone once.
+Verify your account in Roblox Verification, and the players of the last team that you find show up here.`
+			}
+			if (!state.isLastFoundTeamLoaded) return 'Loading your last team...'
+			if (!state.lastFoundTeam) {
+				return 'You\'ll be able to upvote other players here after you find a team!'
+			}
+			return 'Your last team. Upvote the players who kept to the plan, played well and were nice!'
+		})(),
+		showLastFoundTeam: isRobloxVerified && Boolean(state.lastFoundTeam),
+		// TEAM SETTINGS and server link of the last found team, below the line at the top
+		lastFoundTeamSettingsText: state.lastFoundTeam ? [
+			`Region: ${state.lastFoundTeam.region}`,
+			`Floor goal: ${state.lastFoundTeam.floorGoal}`,
+			...state.lastFoundTeam.isDandyRun ? ['Dandy Run'] : [],
+			...state.lastFoundTeam.isEarlyDyle ? ['Early Dyle'] : [],
+		].join(' · ') : '',
+		lastFoundTeamServerLink: state.lastFoundTeam?.serverLink ?? '',
+		// Rows of the read-only table, with the same columns as Find a Team once verified
+		lastFoundTeamRows: (state.lastFoundTeam?.teamTableRows ?? []).map((row, index) => ({
+			key: index,
+			isLeftEmpty: row.isLeftEmpty,
+			pictureCells: (['toonPicture', 'trinketAPicture', 'trinketBPicture'] as const)
+				.map((column) => ({
+					key: column,
+					anyText: row[column] ? '' : '(Any)',
+					picture: row[column] ? {
+						src: `/${column === 'toonPicture' ? 'toons' : 'trinkets'}/${row[column]}`,
+						title: row[column].replace('.png', ''),
+					} : null,
+				})),
+			noBadgesText: row.badgeNames.length ? '' : '(none required)',
+			badgeNames: row.badgeNames,
+			noRolesText: row.roleNames.length ? '' : '(none required)',
+			// Solar Support only counts for Bobette, as in Find a Team
+			roleNames: row.roleNames.filter((role) => (
+				role !== 'Solar Support' || row.toonPicture === 'bobette.png'
+			)),
+			playerName: `(${playerNameOf(state.lastFoundTeam!.playersInRows[index] ?? null)
+				|| 'Nobody'})`,
+		})),
+		// Every other verified player of the team, each with an Upvote button unless they are the
+		// host who invited the user or a friend whom the user invited
+		noOtherVerifiedPlayersText: state.lastFoundTeam?.verifiedPlayers.length === 0
+			? 'Nobody else in this team verified their Roblox account.'
+			: '',
+		upvoteEntries: (state.lastFoundTeam?.verifiedPlayers ?? []).map((player) => ({
+			key: player.robloxUserId,
+			text: `@${player.robloxUsername}`,
+			showUpvoteButton: isRobloxVerified && player.canBeUpvoted,
+			upvoteButtonText: player.isUpvoted ? 'Upvoted ✓' : 'Upvote',
+			upvoteButtonTitle: player.isUpvoted ? 'Click to take the upvote back' : '',
+			toggleUpvote: () => toggleUpvote({
+				robloxUserId: player.robloxUserId,
+				isUpvoted: player.isUpvoted,
+				setIsUpvoted: (isUpvoted) => mutateState((state) => {
+					const upvotedPlayer = state.lastFoundTeam?.verifiedPlayers.find((other) => (
+						other.robloxUserId === player.robloxUserId
+					))
+					if (upvotedPlayer) upvotedPlayer.isUpvoted = isUpvoted
+				}),
+			}),
+		})),
 
 
 		// Two counters at the bottom middle of the screen

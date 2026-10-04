@@ -169,7 +169,23 @@ These checks need two or three profiles that search at the same time.
 - "looking for a team" drops when searches merge, and "online" drops about 90 seconds after a tab
   closes.
 
-## 10. Security
+## 10. Upvote Players
+
+- Before any found team, the window says "You'll be able to upvote other players here after you
+  find a team!"
+- After a merge, the window shows the TEAM SETTINGS, the server link, and the user's own table
+  with the pictures, badges, roles and players of its rows.
+- Upvote turns into "Upvoted ✓", stays that way after reopening the window, and a second click
+  takes the upvote back.
+- A host and a friend they invited get no Upvote button for each other, and a player from the
+  other search gets one for both of them.
+- A player who did not verify only sees the explanation that upvoting needs a verified Roblox
+  account, without the record.
+- The server answers 401 to an upvote without a verified account, and 403 to an upvote for a
+  player outside the voter's found teams.
+- A second upvote for the same player stores no second upvote.
+
+## 11. Security
 
 - A changed `roblox` cookie is rejected.
 - A check-in sent by hand cannot give the host badges that the cookie does not hold.
@@ -178,7 +194,7 @@ These checks need two or three profiles that search at the same time.
 - A search keeps working after the browser goes offline and back online.
 - `/api/images/..` and similar paths cannot read files outside `public/toons` and `public/trinkets`.
 
-## 11. Build
+## 12. Build
 
 - `npm run lint` and `npm run build` pass.
 - `npm start` serves the site and the API on port 3000.

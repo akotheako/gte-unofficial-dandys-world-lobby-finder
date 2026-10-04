@@ -71,8 +71,9 @@ test.describe('with "Me" on the first row', () => {
 		await expect(page.locator('#team-server-link-row input')).toHaveAttribute('readonly')
 		await expect(page.locator('#team-settings select').first()).toBeDisabled()
 		await expect(page.locator('#team-settings input[type="checkbox"]').first()).toBeDisabled()
-		await expect(rows.nth(0)).toContainText('(Me)', { timeout: 20_000 })
+		// "Finding player" comes with the server's first answer, which names the player in each row
 		await expect(rows.nth(1)).toContainText('Finding player', { timeout: 20_000 })
+		await expect(rows.nth(0)).toContainText('(Me)')
 		await page.locator('#team-toons img[title="vee"]')
 			.dragTo(rows.nth(1).locator('td').first(), { force: true })
 		await expect(rows.nth(1).locator('td').first()).toHaveText('(Any)')
@@ -89,8 +90,8 @@ test.describe('with "Me" on the first row', () => {
 		await page.locator('#team-reserved .team-chip', { hasText: 'Me' })
 			.dragTo(rows.nth(1).locator('td').nth(4))
 		await page.locator('#team-find button').click()
-		await expect(rows.nth(0)).toContainText('(Me)', { timeout: 20_000 })
 		await expect(rows.nth(1)).toContainText('Finding player', { timeout: 20_000 })
+		await expect(rows.nth(0)).toContainText('(Me)')
 		await page.locator('#team-find button').click()
 	})
 

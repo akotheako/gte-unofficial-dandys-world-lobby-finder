@@ -8,7 +8,10 @@
 		"build": "tsc -b && vite build",
 		"lint": "eslint .",
 		"start": "node --env-file-if-exists=.env server/main.ts",
-		"test": "playwright test"
+		"test": "playwright test --project=fast",
+		"test:ui": "playwright test --project=visible --ui",
+		"test:step": "playwright test --project=visible --debug",
+		"test:watch": "playwright test --project=visible"
 	},
 	"dependencies": {
 		"@hono/node-server": "^2.1.2",

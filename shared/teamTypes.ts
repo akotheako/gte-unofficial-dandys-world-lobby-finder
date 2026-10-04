@@ -20,6 +20,25 @@ export type TeamTableRow = {
 // or as an unverified friend of a player
 export type PlayerInRow = { robloxUsername: string } | { unverifiedFriendOf: string }
 
+// Last team that the user's search found, which Upvote Players shows as a record: the user's own
+// table with the players in its rows, the TEAM SETTINGS, and every other verified player
+export type LastFoundTeam = {
+	teamTableRows: TeamTableRow[]
+	playersInRows: (PlayerInRow | null)[]
+	serverLink: string
+	isDandyRun: boolean
+	isEarlyDyle: boolean
+	region: string
+	floorGoal: string
+	verifiedPlayers: {
+		robloxUserId: string
+		robloxUsername: string
+		// False for a player who did not verify, and between a host and a friend they invited
+		canBeUpvoted: boolean
+		isUpvoted: boolean
+	}[]
+}
+
 // What the server answers to the check-in that every page sends every few seconds
 export type CheckInAnswer = {
 	onThisPageCount: number
@@ -41,6 +60,9 @@ export type CheckInAnswer = {
 	// Who is in each row of the team that the page shows, and whether the team was found
 	shownTeamStatus: {
 		playersInRows: (PlayerInRow | null)[]
+		// Row of the shown team's host, who is the page's own player unless an invite link brought
+		// the page in, or -1
+		hostRowIndex: number
 		// Verified friends who opened the invite link of the shown team
 		verifiedFriendRobloxUsernames: string[]
 		isSearching: boolean
