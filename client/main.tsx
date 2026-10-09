@@ -147,6 +147,45 @@ function DesktopWindow({
 					margin: auto;
 				}
 			`}</style>
+			{/* Old-style grey scrollbar with arrow buttons, on everything that scrolls in a window */}
+			<style>{`
+				.window::-webkit-scrollbar,
+				.window ::-webkit-scrollbar {
+					width: 16px;
+				}
+				.window::-webkit-scrollbar-track,
+				.window ::-webkit-scrollbar-track {
+					background: repeating-conic-gradient(#c0c0c0 0 25%, #fff 0 50%) 0 0 / 2px 2px;
+				}
+				.window::-webkit-scrollbar-thumb,
+				.window ::-webkit-scrollbar-thumb,
+				.window::-webkit-scrollbar-button,
+				.window ::-webkit-scrollbar-button {
+					background: #c0c0c0;
+					border: 2px solid;
+					border-color: #fff #000 #000 #fff;
+					box-shadow: inset -1px -1px #808080;
+				}
+				.window::-webkit-scrollbar-button:single-button,
+				.window ::-webkit-scrollbar-button:single-button {
+					height: 16px;
+					background-repeat: no-repeat;
+					background-position: center;
+				}
+				.window::-webkit-scrollbar-button:single-button:vertical:decrement,
+				.window ::-webkit-scrollbar-button:single-button:vertical:decrement {
+					background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='7' height='4'><path d='M3 0L7 4H0z' fill='black'/></svg>");
+				}
+				.window::-webkit-scrollbar-button:single-button:vertical:increment,
+				.window ::-webkit-scrollbar-button:single-button:vertical:increment {
+					background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='7' height='4'><path d='M0 0H7L3.5 4z' fill='black'/></svg>");
+				}
+				.window::-webkit-scrollbar-button:active,
+				.window ::-webkit-scrollbar-button:active {
+					border-color: #808080;
+					box-shadow: none;
+				}
+			`}</style>
 			<dialog
 				ref={dialogRef}
 				id={id}
@@ -667,34 +706,6 @@ createRoot(document.getElementById('root')!).render(
 								background: #fff;
 								border: 2px solid;
 								border-color: #808080 #fff #fff #808080;
-							}
-							.team-palette::-webkit-scrollbar {
-								width: 16px;
-							}
-							.team-palette::-webkit-scrollbar-track {
-								background: repeating-conic-gradient(#c0c0c0 0 25%, #fff 0 50%) 0 0 / 2px 2px;
-							}
-							.team-palette::-webkit-scrollbar-thumb,
-							.team-palette::-webkit-scrollbar-button {
-								background: #c0c0c0;
-								border: 2px solid;
-								border-color: #fff #000 #000 #fff;
-								box-shadow: inset -1px -1px #808080;
-							}
-							.team-palette::-webkit-scrollbar-button:single-button {
-								height: 16px;
-								background-repeat: no-repeat;
-								background-position: center;
-							}
-							.team-palette::-webkit-scrollbar-button:single-button:vertical:decrement {
-								background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='7' height='4'><path d='M3 0L7 4H0z' fill='black'/></svg>");
-							}
-							.team-palette::-webkit-scrollbar-button:single-button:vertical:increment {
-								background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='7' height='4'><path d='M0 0H7L3.5 4z' fill='black'/></svg>");
-							}
-							.team-palette::-webkit-scrollbar-button:active {
-								border-color: #808080;
-								box-shadow: none;
 							}
 							.team-palette img,
 							.team-palette .team-text {
@@ -1491,13 +1502,14 @@ createRoot(document.getElementById('root')!).render(
 						</ModalWindow>
 						{/* Window on top of Find a Team with two screenshots that explain how to get a server link */}
 						<style>{`
-							#team-howto {
+							#team-howto[open] {
 								max-height: 90vh;
-								overflow: auto;
+								display: flex;
+								flex-direction: column;
 							}
-							#team-howto .window-title {
-								position: sticky;
-								top: -3px;
+							#team-howto-screenshots {
+								min-height: 0;
+								overflow-y: auto;
 							}
 							#team-howto img {
 								display: block;
@@ -1521,14 +1533,17 @@ createRoot(document.getElementById('root')!).render(
 									×
 								</button>
 							</div>
-							<img
-								src="/howtomakeprivateserver1.webp"
-								alt="Dandy's World page: open Servers, then Create Private Server, or Configure on an existing one"
-							/>
-							<img
-								src="/howtomakeprivateserver2.webp"
-								alt="Configure Private Server page: turn on Allow Joining, then copy the Private Server Link"
-							/>
+							{/* Two screenshots, which scroll below the title bar when they are taller than the screen */}
+							<div id="team-howto-screenshots">
+								<img
+									src="/howtomakeprivateserver1.webp"
+									alt="Dandy's World page: open Servers, then Create Private Server, or Configure on an existing one"
+								/>
+								<img
+									src="/howtomakeprivateserver2.webp"
+									alt="Configure Private Server page: turn on Allow Joining, then copy the Private Server Link"
+								/>
+							</div>
 						</ModalWindow>
 					</DesktopWindow>
 					{/* Upvote Players icon, third in the row */}
@@ -1546,164 +1561,167 @@ createRoot(document.getElementById('root')!).render(
 					>
 						{/* Window that scrolls below its title bar when it is taller than the screen */}
 						<style>{`
-							#upvote {
+							#upvote[open] {
 								max-height: 90vh;
-								overflow: auto;
+								display: flex;
+								flex-direction: column;
 							}
-							#upvote .window-title {
-								position: sticky;
-								top: -3px;
-							}
-						`}</style>
-						{/* Line at the top, which explains how to verify to a user who did not */}
-						<style>{`
-							#upvote-intro {
-								max-width: 600px;
-								white-space: pre-line;
+							#upvote-contents {
+								min-height: 0;
+								overflow-y: auto;
 							}
 						`}</style>
-						<p id="upvote-intro">{logic.upvotePlayersIntroText}</p>
-						{logic.showLastFoundTeam && (
-							<>
-								{/* TEAM SETTINGS of the team in one line, then its server link */}
-								<style>{`
-									#upvote-settings a {
-										color: #00e;
-									}
-								`}</style>
-								<p id="upvote-settings">
-									{logic.lastFoundTeamSettingsText}
-									<br />
-									<a
-										href={logic.lastFoundTeamServerLink}
-										target="_blank"
-										rel="noreferrer"
-									>
-										{logic.lastFoundTeamServerLink}
-									</a>
-								</p>
-								{/* White read-only table of the team, with Toon, Trinket A, Trinket B, Badges, Role
-								and Player columns and grey placeholders */}
-								<style>{`
-									#upvote-table {
-										border-collapse: collapse;
-										background: #fff;
-									}
-									#upvote-table th,
-									#upvote-table td {
-										min-width: 60px;
-										height: 44px;
-										padding: 2px 6px;
-										border: 1px solid #808080;
-										text-align: center;
-									}
-									#upvote-table th {
-										height: 20px;
-										background: #c0c0c0;
-									}
-									#upvote-table td.upvote-left-empty {
-										color: #a8a8a8;
-									}
-									#upvote-table img {
-										width: 40px;
-										height: 40px;
-										vertical-align: middle;
-									}
-								`}</style>
-								<table id="upvote-table">
-									<thead>
-										<tr>
-											<th>Toon</th>
-											<th>Trinket A</th>
-											<th>Trinket B</th>
-											<th>Badges</th>
-											<th>Role</th>
-											<th>Player</th>
-										</tr>
-									</thead>
-									<tbody>
-										{logic.lastFoundTeamRows.map((row) => (
-											<tr key={row.key}>
-												{/* Whole row merged into one grey "(Leave Empty)" cell */}
-												{row.isLeftEmpty && (
-													<td
-														className="upvote-left-empty"
-														colSpan={6}
-													>
-														(Leave Empty)
-													</td>
-												)}
-												{/* Toon or trinket picture, or a grey "(Any)" */}
-												{!row.isLeftEmpty && row.pictureCells.map((cell) => (
-													<td key={cell.key}>
-														{cell.anyText && <span className="team-placeholder">{cell.anyText}</span>}
-														{cell.picture && (
-															<img
-																src={cell.picture.src}
-																title={cell.picture.title}
-															/>
-														)}
-													</td>
-												))}
-												{/* Badge names stacked in the cell, or a grey "(none required)" */}
-												{!row.isLeftEmpty && (
-													<td>
-														{row.noBadgesText && (
-															<span className="team-placeholder">{row.noBadgesText}</span>
-														)}
-														{row.badgeNames.map((name) => <div key={name}>{name}</div>)}
-													</td>
-												)}
-												{/* Role names stacked in the cell, or a grey "(none required)" */}
-												{!row.isLeftEmpty && (
-													<td>
-														{row.noRolesText && (
-															<span className="team-placeholder">{row.noRolesText}</span>
-														)}
-														{row.roleNames.map((name) => <div key={name}>{name}</div>)}
-													</td>
-												)}
-												{/* Grey name of the player who took the row */}
-												{!row.isLeftEmpty && (
-													<td className="team-placeholder">{row.playerName}</td>
-												)}
+						<div id="upvote-contents">
+							{/* Line at the top, which explains how to verify to a user who did not */}
+							<style>{`
+								#upvote-intro {
+									max-width: 600px;
+									white-space: pre-line;
+								}
+							`}</style>
+							<p id="upvote-intro">{logic.upvotePlayersIntroText}</p>
+							{logic.showLastFoundTeam && (
+								<>
+									{/* TEAM SETTINGS of the team in one line, then its server link */}
+									<style>{`
+										#upvote-settings a {
+											color: #00e;
+										}
+									`}</style>
+									<p id="upvote-settings">
+										{logic.lastFoundTeamSettingsText}
+										<br />
+										<a
+											href={logic.lastFoundTeamServerLink}
+											target="_blank"
+											rel="noreferrer"
+										>
+											{logic.lastFoundTeamServerLink}
+										</a>
+									</p>
+									{/* White read-only table of the team, with Toon, Trinket A, Trinket B, Badges, Role
+									and Player columns and grey placeholders */}
+									<style>{`
+										#upvote-table {
+											border-collapse: collapse;
+											background: #fff;
+										}
+										#upvote-table th,
+										#upvote-table td {
+											min-width: 60px;
+											height: 44px;
+											padding: 2px 6px;
+											border: 1px solid #808080;
+											text-align: center;
+										}
+										#upvote-table th {
+											height: 20px;
+											background: #c0c0c0;
+										}
+										#upvote-table td.upvote-left-empty {
+											color: #a8a8a8;
+										}
+										#upvote-table img {
+											width: 40px;
+											height: 40px;
+											vertical-align: middle;
+										}
+									`}</style>
+									<table id="upvote-table">
+										<thead>
+											<tr>
+												<th>Toon</th>
+												<th>Trinket A</th>
+												<th>Trinket B</th>
+												<th>Badges</th>
+												<th>Role</th>
+												<th>Player</th>
 											</tr>
+										</thead>
+										<tbody>
+											{logic.lastFoundTeamRows.map((row) => (
+												<tr key={row.key}>
+													{/* Whole row merged into one grey "(Leave Empty)" cell */}
+													{row.isLeftEmpty && (
+														<td
+															className="upvote-left-empty"
+															colSpan={6}
+														>
+															(Leave Empty)
+														</td>
+													)}
+													{/* Toon or trinket picture, or a grey "(Any)" */}
+													{!row.isLeftEmpty && row.pictureCells.map((cell) => (
+														<td key={cell.key}>
+															{cell.anyText && <span className="team-placeholder">{cell.anyText}</span>}
+															{cell.picture && (
+																<img
+																	src={cell.picture.src}
+																	title={cell.picture.title}
+																/>
+															)}
+														</td>
+													))}
+													{/* Badge names stacked in the cell, or a grey "(none required)" */}
+													{!row.isLeftEmpty && (
+														<td>
+															{row.noBadgesText && (
+																<span className="team-placeholder">{row.noBadgesText}</span>
+															)}
+															{row.badgeNames.map((name) => <div key={name}>{name}</div>)}
+														</td>
+													)}
+													{/* Role names stacked in the cell, or a grey "(none required)" */}
+													{!row.isLeftEmpty && (
+														<td>
+															{row.noRolesText && (
+																<span className="team-placeholder">{row.noRolesText}</span>
+															)}
+															{row.roleNames.map((name) => <div key={name}>{name}</div>)}
+														</td>
+													)}
+													{/* Grey name of the player who took the row */}
+													{!row.isLeftEmpty && (
+														<td className="team-placeholder">{row.playerName}</td>
+													)}
+												</tr>
+											))}
+										</tbody>
+									</table>
+									{/* Old-style etched group box titled "VERIFIED PLAYERS", with one line per verified
+									player: their name, then an Upvote button that reads "Upvoted ✓" once clicked */}
+									<style>{`
+										#upvote-players {
+											margin-top: 12px;
+										}
+										#upvote-players div {
+											display: flex;
+											justify-content: space-between;
+											align-items: center;
+											gap: 12px;
+											padding: 2px 0;
+										}
+									`}</style>
+									<fieldset id="upvote-players">
+										<legend>VERIFIED PLAYERS</legend>
+										{logic.noOtherVerifiedPlayersText && <p>{logic.noOtherVerifiedPlayersText}</p>}
+										{logic.upvoteEntries.map((entry) => (
+											<div key={entry.key}>
+												{entry.text}
+												{entry.showUpvoteButton && (
+													<button
+														title={entry.upvoteButtonTitle}
+														onClick={entry.toggleUpvote}
+													>
+														{entry.upvoteButtonText}
+													</button>
+												)}
+											</div>
 										))}
-									</tbody>
-								</table>
-								{/* Old-style etched group box titled "VERIFIED PLAYERS", with one line per verified
-								player: their name, then an Upvote button that reads "Upvoted ✓" once clicked */}
-								<style>{`
-									#upvote-players {
-										margin-top: 12px;
-									}
-									#upvote-players div {
-										display: flex;
-										justify-content: space-between;
-										align-items: center;
-										gap: 12px;
-										padding: 2px 0;
-									}
-								`}</style>
-								<fieldset id="upvote-players">
-									<legend>VERIFIED PLAYERS</legend>
-									{logic.noOtherVerifiedPlayersText && <p>{logic.noOtherVerifiedPlayersText}</p>}
-									{logic.upvoteEntries.map((entry) => (
-										<div key={entry.key}>
-											{entry.text}
-											{entry.showUpvoteButton && (
-												<button
-													title={entry.upvoteButtonTitle}
-													onClick={entry.toggleUpvote}
-												>
-													{entry.upvoteButtonText}
-												</button>
-											)}
-										</div>
-									))}
-								</fieldset>
-							</>
-						)}
+									</fieldset>
+								</>
+							)}
+						</div>
 					</DesktopWindow>
 					{/* Two white-on-black counters side by side at the bottom middle of the screen */}
 					<style>{`
