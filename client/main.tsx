@@ -1967,8 +1967,9 @@ createRoot(document.getElementById('root')!).render(
 												{logic.lastFoundTeamServerLink}
 											</a>
 										</p>
-										{/* White read-only table of the team, with Toon, Trinket A, Trinket B, Badges, Role
-									and Player columns and grey placeholders */}
+										{/* White read-only table of the team without its "(Leave Empty)" rows, with Toon,
+									Trinket A, Trinket B, Badges, Role, Player and Upvote columns and grey
+									placeholders */}
 										<style>{`
 										#upvote-table {
 											border-collapse: collapse;
@@ -1986,117 +1987,163 @@ createRoot(document.getElementById('root')!).render(
 											height: 20px;
 											background: var(--window-face);
 										}
-										#upvote-table td.upvote-left-empty {
-											color: var(--faded-text);
-										}
 										#upvote-table img {
 											width: 40px;
 											height: 40px;
 											vertical-align: middle;
 										}
-										@media (max-width: 640px) {
-											#upvote-table-scroll {
-												overflow-x: auto;
+										@media (max-width: 1180px) {
+											#upvote-table {
+												display: none;
 											}
 										}
 									`}</style>
-										{/* Strip around the table that scrolls sideways when the table is wider than a
-									phone */}
-										<div id="upvote-table-scroll">
-											<table id="upvote-table">
-												<thead>
-													<tr>
-														<th>Toon</th>
-														<th>Trinket A</th>
-														<th>Trinket B</th>
-														<th>Badges</th>
-														<th>Role</th>
-														<th>Player</th>
-													</tr>
-												</thead>
-												<tbody>
-													{logic.lastFoundTeamRows.map((row) => (
-														<tr key={row.key}>
-															{/* Whole row merged into one grey "(Leave Empty)" cell */}
-															{row.isLeftEmpty && (
-																<td
-																	className="upvote-left-empty"
-																	colSpan={6}
+										<table id="upvote-table">
+											<thead>
+												<tr>
+													<th>Toon</th>
+													<th>Trinket A</th>
+													<th>Trinket B</th>
+													<th>Badges</th>
+													<th>Role</th>
+													<th>Player</th>
+													<th>Upvote</th>
+												</tr>
+											</thead>
+											<tbody>
+												{logic.lastFoundTeamRows.map((row) => (
+													<tr key={row.key}>
+														{/* Toon or trinket picture, or a grey "(Any)" */}
+														{row.pictureCells.map((cell) => (
+															<td key={cell.key}>
+																{cell.anyText && <span className="team-placeholder">{cell.anyText}</span>}
+																{cell.picture && (
+																	<img
+																		className="toon-or-trinket-picture"
+																		src={cell.picture.src}
+																		title={cell.picture.title}
+																	/>
+																)}
+															</td>
+														))}
+														{/* Badge names stacked in the cell, or a grey "(none required)" */}
+														<td>
+															{row.noBadgesText && (
+																<span className="team-placeholder">{row.noBadgesText}</span>
+															)}
+															{row.badgeNames.map((name) => <div key={name}>{name}</div>)}
+														</td>
+														{/* Role names stacked in the cell, or a grey "(none required)" */}
+														<td>
+															{row.noRolesText && (
+																<span className="team-placeholder">{row.noRolesText}</span>
+															)}
+															{row.roleNames.map((name) => <div key={name}>{name}</div>)}
+														</td>
+														{/* Grey name of the player who took the row */}
+														<td className="team-placeholder">{row.playerName}</td>
+														{/* Upvote button for the row's player, which reads "Upvoted ✓" once
+														clicked, or a grey line such as "(You cannot upvote yourself)" */}
+														<td>
+															{row.cannotUpvoteText && (
+																<span className="team-placeholder">{row.cannotUpvoteText}</span>
+															)}
+															{row.upvoteButton && (
+																<button
+																	title={row.upvoteButton.title}
+																	onClick={row.upvoteButton.toggleUpvote}
 																>
-																	(Leave Empty)
-																</td>
+																	{row.upvoteButton.text}
+																</button>
 															)}
-															{/* Toon or trinket picture, or a grey "(Any)" */}
-															{!row.isLeftEmpty && row.pictureCells.map((cell) => (
-																<td key={cell.key}>
-																	{cell.anyText && <span className="team-placeholder">{cell.anyText}</span>}
-																	{cell.picture && (
-																		<img
-																			className="toon-or-trinket-picture"
-																			src={cell.picture.src}
-																			title={cell.picture.title}
-																		/>
-																	)}
-																</td>
-															))}
-															{/* Badge names stacked in the cell, or a grey "(none required)" */}
-															{!row.isLeftEmpty && (
-																<td>
-																	{row.noBadgesText && (
-																		<span className="team-placeholder">{row.noBadgesText}</span>
-																	)}
-																	{row.badgeNames.map((name) => <div key={name}>{name}</div>)}
-																</td>
-															)}
-															{/* Role names stacked in the cell, or a grey "(none required)" */}
-															{!row.isLeftEmpty && (
-																<td>
-																	{row.noRolesText && (
-																		<span className="team-placeholder">{row.noRolesText}</span>
-																	)}
-																	{row.roleNames.map((name) => <div key={name}>{name}</div>)}
-																</td>
-															)}
-															{/* Grey name of the player who took the row */}
-															{!row.isLeftEmpty && (
-																<td className="team-placeholder">{row.playerName}</td>
-															)}
-														</tr>
-													))}
-												</tbody>
-											</table>
-										</div>
-										{/* Old-style etched group box titled "VERIFIED PLAYERS", with one line per verified
-									player: their name, then an Upvote button that reads "Upvoted ✓" once clicked */}
+														</td>
+													</tr>
+												))}
+											</tbody>
+										</table>
+										{/* Column of read-only white cards that replaces the table on a narrow screen, one
+										per row with "Player Slot #N" above it, in the look of the Find a Team cards */}
 										<style>{`
-										#upvote-players {
-											margin-top: 12px;
-										}
-										#upvote-players div {
-											display: flex;
-											justify-content: space-between;
-											align-items: center;
-											gap: 12px;
-											padding: 2px 0;
-										}
-									`}</style>
-										<fieldset id="upvote-players">
-											<legend>VERIFIED PLAYERS</legend>
-											{logic.noOtherVerifiedPlayersText && <p>{logic.noOtherVerifiedPlayersText}</p>}
-											{logic.upvoteEntries.map((entry) => (
-												<div key={entry.key}>
-													{entry.text}
-													{entry.showUpvoteButton && (
-														<button
-															title={entry.upvoteButtonTitle}
-															onClick={entry.toggleUpvote}
-														>
-															{entry.upvoteButtonText}
-														</button>
-													)}
+											#upvote-cards {
+												display: none;
+											}
+											@media (max-width: 1180px) {
+												#upvote-cards {
+													display: flex;
+													flex-direction: column;
+													gap: 6px;
+												}
+											}
+										`}</style>
+										<div id="upvote-cards">
+											{logic.lastFoundTeamRows.map((row) => (
+												<div key={row.key}>
+													{/* Bold "Player Slot #N" line above the card */}
+													<div className="team-card-title">{row.cardTitle}</div>
+													<div className="team-card">
+														{/* Toon, Trinket A and Trinket B boxes with their label above the
+														picture or a grey "(Any)" */}
+														{row.pictureCells.map((cell) => (
+															<div
+																key={cell.key}
+																className="team-card-box team-card-picture-box"
+															>
+																<span className="team-card-label">{cell.cardBoxLabel}</span>
+																{cell.anyText && (
+																	<span className="team-placeholder">{cell.anyText}</span>
+																)}
+																{cell.picture && (
+																	<img
+																		className="toon-or-trinket-picture"
+																		src={cell.picture.src}
+																		title={cell.picture.title}
+																	/>
+																)}
+															</div>
+														))}
+														{/* Badges box with the badge names stacked, or a grey "(none
+														required)" */}
+														<div className="team-card-box">
+															<span className="team-card-label">Badges</span>
+															{row.noBadgesText && (
+																<span className="team-placeholder">{row.noBadgesText}</span>
+															)}
+															{row.badgeNames.map((name) => <div key={name}>{name}</div>)}
+														</div>
+														{/* Role box with the role names stacked, or a grey "(none required)" */}
+														<div className="team-card-box">
+															<span className="team-card-label">Role</span>
+															{row.noRolesText && (
+																<span className="team-placeholder">{row.noRolesText}</span>
+															)}
+															{row.roleNames.map((name) => <div key={name}>{name}</div>)}
+														</div>
+														{/* Player box with the grey name of the player who took the row */}
+														<div className="team-card-box">
+															<span className="team-card-label">Player</span>
+															<span className="team-placeholder">{row.playerName}</span>
+														</div>
+														{/* Upvote box with the Upvote button for the row's player, which reads
+														"Upvoted ✓" once clicked, or a grey line such as "(You cannot upvote
+														yourself)" */}
+														<div className="team-card-box">
+															<span className="team-card-label">Upvote</span>
+															{row.cannotUpvoteText && (
+																<span className="team-placeholder">{row.cannotUpvoteText}</span>
+															)}
+															{row.upvoteButton && (
+																<button
+																	title={row.upvoteButton.title}
+																	onClick={row.upvoteButton.toggleUpvote}
+																>
+																	{row.upvoteButton.text}
+																</button>
+															)}
+														</div>
+													</div>
 												</div>
 											))}
-										</fieldset>
+										</div>
 									</>
 								)}
 							</div>

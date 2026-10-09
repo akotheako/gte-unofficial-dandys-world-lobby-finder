@@ -8,7 +8,8 @@ const cookieSecret = process.env.COOKIE_SECRET
 if (!cookieSecret) throw new Error('COOKIE_SECRET is not set, see README.md')
 
 // A verified player can upvote every other verified player whom they played with in a found team,
-// except a host and a friend they invited, once per pair of accounts, and can take it back
+// except between a player and a friend who opened their invite link, once per pair of accounts, and
+// can take it back
 export const upvotes = new Hono()
 
 // The tables are created on the first request, so a new database needs no setup step
@@ -29,7 +30,8 @@ upvotes.use(async (_c, next) => {
 	await next()
 })
 
-// A host and a friend they invited know each other, so they cannot upvote each other
+// A player and a friend who opened their invite link know each other, so they cannot upvote each
+// other
 function canUpvote({
 	foundTeam,
 	voterRobloxUserId,
@@ -89,6 +91,14 @@ upvotes.get('/last-team', async (c) => {
 					voterRobloxUserId: robloxUserId,
 					receiverRobloxUserId: player.robloxUserId,
 				}),
+				inviteLinkSide: (() => {
+					if (player.invitedByRobloxUserId === robloxUserId) return 'friend whom the user invited'
+					const user = foundTeam.verifiedPlayers.find((other) => (
+						other.robloxUserId === robloxUserId
+					))!
+					if (user.invitedByRobloxUserId === player.robloxUserId) return 'friend who invited the user'
+					return null
+				})(),
 				isUpvoted: upvoted.some((upvote) => (
 					upvote.receiver_roblox_user_id === player.robloxUserId
 				)),

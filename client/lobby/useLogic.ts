@@ -1267,13 +1267,27 @@ Verify your account in Roblox Verification, and the players of the last team tha
 			...state.lastFoundTeam.isEarlyDyle ? ['Early Dyle'] : [],
 		].join(' · ') : '',
 		lastFoundTeamServerLink: state.lastFoundTeam?.serverLink ?? '',
-		// Rows of the read-only table, with the same columns as Find a Team once verified
-		lastFoundTeamRows: (state.lastFoundTeam?.teamTableRows ?? []).map((row, index) => ({
+		// Rows of the read-only table, with the same columns as Find a Team once verified and an
+		// Upvote column at the end. "(Leave Empty)" rows are left out.
+		lastFoundTeamRows: (state.lastFoundTeam?.teamTableRows ?? []).flatMap((row, index) => (
+			row.isLeftEmpty ? [] : [{
+				row,
+				index,
+			}]
+		)).map(({
+			row, index,
+		}) => ({
 			key: index,
-			isLeftEmpty: row.isLeftEmpty,
+			// Title above the row's card on a narrow screen
+			cardTitle: `Player Slot #${index + 1}`,
 			pictureCells: (['toonPicture', 'trinketAPicture', 'trinketBPicture'] as const)
 				.map((column) => ({
 					key: column,
+					cardBoxLabel: {
+						toonPicture: 'Toon',
+						trinketAPicture: 'Trinket A',
+						trinketBPicture: 'Trinket B',
+					}[column],
 					anyText: row[column] ? '' : '(Any)',
 					picture: row[column] ? {
 						src: `/pixelated/${column === 'toonPicture' ? 'toons' : 'trinkets'}/${row[column]}`,
@@ -1289,28 +1303,53 @@ Verify your account in Roblox Verification, and the players of the last team tha
 			)),
 			playerName: `(${playerNameOf(state.lastFoundTeam!.playersInRows[index] ?? null)
 				|| 'Nobody'})`,
-		})),
-		// Every other verified player of the team, each with an Upvote button unless they are the
-		// host who invited the user or a friend whom the user invited
-		noOtherVerifiedPlayersText: state.lastFoundTeam?.verifiedPlayers.length === 0
-			? 'Nobody else in this team verified their Roblox account.'
-			: '',
-		upvoteEntries: (state.lastFoundTeam?.verifiedPlayers ?? []).map((player) => ({
-			key: player.robloxUserId,
-			text: `@${player.robloxUsername}`,
-			showUpvoteButton: isRobloxVerified && player.canBeUpvoted,
-			upvoteButtonText: player.isUpvoted ? 'Upvoted ✓' : 'Upvote',
-			upvoteButtonTitle: player.isUpvoted ? 'Click to take the upvote back' : '',
-			toggleUpvote: () => toggleUpvote({
-				robloxUserId: player.robloxUserId,
-				isUpvoted: player.isUpvoted,
-				setIsUpvoted: (isUpvoted) => mutateState((state) => {
-					const upvotedPlayer = state.lastFoundTeam?.verifiedPlayers.find((other) => (
-						other.robloxUserId === player.robloxUserId
-					))
-					if (upvotedPlayer) upvotedPlayer.isUpvoted = isUpvoted
-				}),
-			}),
+			// Grey text in the Upvote cell that says why the row's player cannot be upvoted, which
+			// is empty for a row that nobody took and for a player who can be upvoted
+			cannotUpvoteText: (() => {
+				const playerInRow = state.lastFoundTeam!.playersInRows[index]
+				if (!playerInRow) return ''
+				if (!('robloxUsername' in playerInRow) || !playerInRow.robloxUsername) {
+					return '(You cannot upvote unverified players)'
+				}
+				if (playerInRow.robloxUsername === state.verifiedRobloxAccount?.username) {
+					return '(You cannot upvote yourself)'
+				}
+				const player = state.lastFoundTeam!.verifiedPlayers.find((verifiedPlayer) => (
+					verifiedPlayer.robloxUsername === playerInRow.robloxUsername
+				))
+				if (player?.inviteLinkSide === 'friend whom the user invited') {
+					return '(You cannot upvote your invited friends)'
+				}
+				if (player?.inviteLinkSide === 'friend who invited the user') {
+					return '(You cannot upvote the friend who invited you)'
+				}
+				return ''
+			})(),
+			// Upvote button of the row's player, for every other verified player except the friend
+			// who invited the user and a friend whom the user invited
+			upvoteButton: (() => {
+				const playerInRow = state.lastFoundTeam!.playersInRows[index]
+				const player = state.lastFoundTeam!.verifiedPlayers.find((verifiedPlayer) => (
+					playerInRow
+					&& 'robloxUsername' in playerInRow
+					&& verifiedPlayer.robloxUsername === playerInRow.robloxUsername
+				))
+				if (!player || !player.canBeUpvoted) return null
+				return {
+					text: player.isUpvoted ? 'Upvoted ✓' : 'Upvote',
+					title: player.isUpvoted ? 'Click to take the upvote back' : '',
+					toggleUpvote: () => toggleUpvote({
+						robloxUserId: player.robloxUserId,
+						isUpvoted: player.isUpvoted,
+						setIsUpvoted: (isUpvoted) => mutateState((state) => {
+							const upvotedPlayer = state.lastFoundTeam?.verifiedPlayers.find((other) => (
+								other.robloxUserId === player.robloxUserId
+							))
+							if (upvotedPlayer) upvotedPlayer.isUpvoted = isUpvoted
+						}),
+					}),
+				}
+			})(),
 		})),
 
 

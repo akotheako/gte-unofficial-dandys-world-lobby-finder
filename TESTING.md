@@ -39,8 +39,9 @@ and what should happen.
   the ones of the Reserved window.
 - Tapping "Verified only" in a card toggles it without opening the pick window.
 - While Find Players searches, the boxes of the cards open nothing.
-- At 640px of width or less, the Upvote Players table scrolls sideways, TEAM SETTINGS is one
-  column, and the counters stack in the bottom left corner, clear of the "Dark mode" checkbox.
+- At 1180px of width or less, Upvote Players shows the last found team as read-only cards, each
+  with "Player Slot #N" above it, instead of the table.
+- At 640px of width or less, TEAM SETTINGS is one column, and the counters stack in the bottom left corner, clear of the "Dark mode" checkbox.
 
 ## 2. Roblox Verification
 
@@ -193,10 +194,15 @@ These checks need two or three profiles that search at the same time.
 - Before any found team, the window says "You'll be able to upvote other players here after you
   find a team!"
 - After a merge, the window shows the TEAM SETTINGS, the server link, and the user's own table
-  with the pictures, badges, roles and players of its rows.
+  with the pictures, badges, roles and players of its rows, without its "(Leave Empty)" rows.
+- The Upvote column, the last one, holds the Upvote button of each other verified player. The
+  cell of the user's own row reads "(You cannot upvote yourself)", the cell of an unverified
+  player reads "(You cannot upvote unverified players)", the host's cell of a friend whom the
+  host invited reads "(You cannot upvote your invited friends)", and that friend's cell of the
+  host reads "(You cannot upvote the friend who invited you)".
 - Upvote turns into "Upvoted ✓", stays that way after reopening the window, and a second click
   takes the upvote back.
-- A host and a friend they invited get no Upvote button for each other, and a player from the
+- A player and a friend who opened their invite link get no Upvote button for each other, and a player from the
   other search gets one for both of them.
 - A player who did not verify only sees the explanation that upvoting needs a verified Roblox
   account, without the record.

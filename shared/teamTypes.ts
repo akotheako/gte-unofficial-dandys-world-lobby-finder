@@ -33,8 +33,12 @@ export type LastFoundTeam = {
 	verifiedPlayers: {
 		robloxUserId: string
 		robloxUsername: string
-		// False for a player who did not verify, and between a host and a friend they invited
+		// False for a player who did not verify, and between a player and a friend who opened their
+		// invite link
 		canBeUpvoted: boolean
+		// How the player and the user are linked by an invite link, which is why they cannot upvote
+		// each other
+		inviteLinkSide: 'friend whom the user invited' | 'friend who invited the user' | null
 		isUpvoted: boolean
 	}[]
 }
