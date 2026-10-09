@@ -34,12 +34,14 @@ import { logOutOfRoblox } from './logOutOfRoblox.ts'
 import { openBadgesOrRolesWindow } from './openBadgesOrRolesWindow.ts'
 import { openWindowFromIcon } from './openWindowFromIcon.ts'
 import { pasteChecklistNames } from './pasteChecklistNames.ts'
+import { pickInPickWindow } from './pickInPickWindow.ts'
 import { readSavedTeamTable } from './readSavedTeamTable.ts'
 import { removeFriendFromReservedWindow } from './removeFriendFromReservedWindow.ts'
 import { saveServerLinkField } from './saveServerLinkField.ts'
 import { toggleDandyRunOrEarlyDyleCheckbox } from './toggleDandyRunOrEarlyDyleCheckbox.ts'
 import { toggleDarkModeCheckbox } from './toggleDarkModeCheckbox.ts'
 import { saveTeamTable } from './saveTeamTable.ts'
+import { tapFindATeamCardBox } from './tapFindATeamCardBox.ts'
 import { toggleBadgeCheckbox } from './toggleBadgeCheckbox.ts'
 import { toggleFindingPlayers } from './toggleFindingPlayers.ts'
 import { toggleRoleCheckbox } from './toggleRoleCheckbox.ts'
@@ -61,7 +63,13 @@ export type RobloxBadge = {
 
 export type PictureColumn = 'toonPicture' | 'trinketAPicture' | 'trinketBPicture'
 
-export type DesktopWindowName = 'Roblox Verification' | 'Find a Team' | 'Upvote Players'
+// Box of a Find a Team card on a narrow screen whose pick window is open
+export type CardBoxInPickWindow = {
+	index: number
+	column: PictureColumn | 'reservedFor'
+}
+
+export type DesktopWindowName ='Roblox Verification' | 'Find a Team' | 'Upvote Players'
 
 // Tile, picture or chip that is being dragged. fromTableCell is '' for a side window, and otherwise
 // names the cell that the drag started in, like "2 trinketAPicture" or "2 reservedFor".
@@ -130,6 +138,8 @@ export function useLogic() {
 		tableDragLandedOnTable: boolean
 		rowIndexInBadgesWindow: number
 		rowIndexInRolesWindow: number
+		// null while no pick window is open
+		cardBoxInPickWindow: CardBoxInPickWindow | null
 		// null until Copy is clicked in that window
 		copiedBadgeNames: string[] | null
 		copiedRoleNames: string[] | null
@@ -196,6 +206,7 @@ export function useLogic() {
 		tableDragLandedOnTable: false,
 		rowIndexInBadgesWindow: 0,
 		rowIndexInRolesWindow: 0,
+		cardBoxInPickWindow: null,
 		copiedBadgeNames: null,
 		copiedRoleNames: null,
 		badgesWindowConfirmedButton: null,
@@ -338,6 +349,36 @@ export function useLogic() {
 			setInvitingTeam: (invitingTeam) => setState({ invitingTeam }),
 		})
 	}
+
+	// A tap on a tile or a name of the pick window that a Find a Team card box opened
+	const pick = (pick: {
+		kind: 'picture' | 'leave-empty' | 'reserved-for'
+		name: string
+	}) => pickInPickWindow({
+		getCardBoxInPickWindow: () => getSyncState().cardBoxInPickWindow,
+		getRowPicture: ({
+			index,
+			column,
+		}) => getSyncState().teamTableRows[index][column],
+		setPicture: ({
+			index,
+			column,
+			picture,
+		}) => mutateState((state) => {
+			state.teamTableRows[index][column] = picture
+		}),
+		setIsLeftEmpty: (index) => mutateState((state) => {
+			state.teamTableRows[index].isLeftEmpty = true
+		}),
+		setReservedFor: ({
+			index,
+			reservedFor,
+		}) => mutateState((state) => {
+			state.teamTableRows[index].reservedFor = reservedFor
+		}),
+		setCardBoxInPickWindow: (cardBoxInPickWindow) => setState({ cardBoxInPickWindow }),
+		pick,
+	})
 
 	return {
 
@@ -490,6 +531,10 @@ export function useLogic() {
 					endDragFromSideWindow: () => setState({
 						draggedItem: null,
 						tableDragLandedOnTable: false,
+					}),
+					pickForPlayerCardBox: () => pick({
+						kind: 'reserved-for',
+						name: reservedFor,
 					}),
 					showRemoveFriendButton: reservedFor !== 'me',
 					removeFriend: () => removeFriendFromReservedWindow({
@@ -662,6 +707,68 @@ export function useLogic() {
 			}),
 		}),
 
+		// Pick window in the middle of a narrow screen, which a box of a Find a Team card opens: Toons
+		// or Trinkets with a tile for each picture, or Reserved Slots with the names of the Reserved
+		// window. Its ×, Esc, a click outside it and every pick close it.
+		...(() => {
+			const cardBox = state.cardBoxInPickWindow
+			const chosenName = cardBox ? state.teamTableRows[cardBox.index][cardBox.column] : ''
+			const isToonBox = cardBox?.column === 'toonPicture'
+			const pictureFolder = isToonBox ? 'toons' : 'trinkets'
+			return {
+				isPickWindowOpen: Boolean(cardBox),
+				closePickWindow: () => setState({ cardBoxInPickWindow: null }),
+				pickWindowTitle: (() => {
+					if (cardBox?.column === 'reservedFor') return 'Reserved Slots'
+					return isToonBox ? 'Toons' : 'Trinkets'
+				})(),
+				showPickWindowTiles: cardBox?.column !== 'reservedFor',
+				// "(Any)" and, for a Toon box, "(Leave Empty)" come before the pictures. The tile that
+				// the box holds has a navy frame.
+				pickWindowTiles: [
+					{
+						key: '(Any)',
+						text: '(Any)',
+						src: '',
+						title: 'Empty the box',
+						isChosen: !chosenName,
+						pick: () => pick({
+							kind: 'picture',
+							name: '',
+						}),
+					},
+					...isToonBox ? [{
+						key: '(Leave Empty)',
+						text: '(Leave Empty)',
+						src: '',
+						title: 'Leave the whole card empty',
+						isChosen: false,
+						pick: () => pick({
+							kind: 'leave-empty',
+							name: '',
+						}),
+					}] : [],
+					...(isToonBox ? state.toonsWindowPictures : state.trinketsWindowPictures)
+						.map((name) => ({
+							key: name,
+							text: '',
+							src: `/pixelated/${pictureFolder}/${name}`,
+							title: name.replace('.png', ''),
+							isChosen: name === chosenName,
+							pick: () => pick({
+								kind: 'picture',
+								name,
+							}),
+						})),
+				],
+				pickWindowFindAPlayerButtonText: '(Find a player)',
+				pickFindAPlayer: () => pick({
+					kind: 'reserved-for',
+					name: '',
+				}),
+			}
+		})(),
+
 		// A drag from the table that ends anywhere else empties its cell
 		landDragOnTable: () => setState({ tableDragLandedOnTable: true }),
 
@@ -731,6 +838,27 @@ export function useLogic() {
 						column,
 					}),
 
+					// Toon or Trinket box of the row's card on a narrow screen, which opens the Toons or
+					// Trinkets pick window when tapped
+					cardBoxLabel: {
+						toonPicture: 'Toon',
+						trinketAPicture: 'Trinket A',
+						trinketBPicture: 'Trinket B',
+					}[column],
+					cardBoxClass: isTableLocked
+						? 'team-card-box team-card-picture-box'
+						: 'team-card-box team-card-picture-box team-clickable',
+					tapCardBox: () => tapFindATeamCardBox({
+						getIsTableLocked: () => (
+							getSyncState().isFindingPlayers || Boolean(getSyncState().inviteFromLink)
+						),
+						setCardBoxInPickWindow: (cardBoxInPickWindow) => setState({ cardBoxInPickWindow }),
+						cardBox: {
+							index,
+							column,
+						},
+					}),
+
 					// Grey "(Any)" text in an empty Toon or Trinket cell
 					anyText: row[column] ? '' : '(Any)',
 
@@ -767,6 +895,14 @@ export function useLogic() {
 
 			// Badges and Role cells, which open their window in the middle of the screen when clicked
 			badgesAndRoleCellClass: isTableLocked ? '' : 'team-clickable',
+			// Every box of the row's card on a narrow screen, which reacts to a tap while the table
+			// is unlocked
+			cardBoxClass: isTableLocked ? 'team-card-box' : 'team-card-box team-clickable',
+			// Title above the row's card
+			cardTitle: `Player Slot #${index + 1}`,
+			leftEmptyCardBoxClass: isTableLocked
+				? 'team-card-box team-card-left-empty'
+				: 'team-card-box team-card-left-empty team-clickable',
 			openBadgesWindow: () => openBadgesOrRolesWindow({
 				getIsTableLocked: () => (
 					getSyncState().isFindingPlayers || Boolean(getSyncState().inviteFromLink)
@@ -831,6 +967,19 @@ export function useLogic() {
 					&& Boolean(shownTeamStatus)
 					&& !playerInRow
 				return {
+					// Player box of the row's card on a narrow screen, which opens the Reserved Slots
+					// pick window when tapped, and reads "(Find a player)" while it holds no name
+					tapPlayerCardBox: () => tapFindATeamCardBox({
+						getIsTableLocked: () => (
+							getSyncState().isFindingPlayers || Boolean(getSyncState().inviteFromLink)
+						),
+						setCardBoxInPickWindow: (cardBoxInPickWindow) => setState({ cardBoxInPickWindow }),
+						cardBox: {
+							index,
+							column: 'reservedFor',
+						},
+					}),
+					findAPlayerText: !isTableLocked && !row.reservedFor ? '(Find a player)' : '',
 					showFindingPlayerText,
 					showPlayerName: isTableLocked && !showFindingPlayerText,
 					playerName: `(${playerInRowName || (() => {

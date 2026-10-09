@@ -339,7 +339,7 @@ test.describe('after verifying', () => {
 			'Role',
 			'Player',
 		])
-		await expect(page.locator('.team-verified-only')).toHaveCount(8)
+		await expect(page.locator('#team-table .team-verified-only')).toHaveCount(8)
 		await expect(page.locator('#team-reserved legend')).toHaveText([
 			'ME',
 			'VERIFIED FRIENDS',

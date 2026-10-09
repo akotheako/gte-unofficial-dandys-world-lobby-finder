@@ -1,7 +1,7 @@
 # Testing dwlobby
 
-This is the list of everything that the site does on a desktop browser, written as checks. Each
-check says what to do and what should happen. Mobile layouts are out of scope.
+This is the list of everything that the site does, written as checks. Each check says what to do
+and what should happen.
 
 ## Setup
 
@@ -24,6 +24,23 @@ check says what to do and what should happen. Mobile layouts are out of scope.
 - Both counters at the bottom show "…" until the first check-in answers, and numbers afterwards.
 - The "Dark mode" checkbox at the bottom right swaps the Gardenview wallpaper for the Astro one
   and turns the windows dark purple, and it stays checked after a reload.
+- At 1920x1080, a tablet size such as 1024x768, and a phone size such as 390x844, every window
+  and every side window of Find a Team fits on the screen, and the page never scrolls sideways.
+- At 1180px of width or less, the open window covers the desktop icons, and Find a Team shows one
+  card per row instead of the table and its side windows.
+- Tapping a Toon or Trinket box of a card opens the Toons or Trinkets pick window, and tapping a
+  tile puts it in the box and closes the window. "(Any)" empties the box, and the tile that the box
+  holds has a navy frame.
+- "(Leave Empty)" in the Toons pick window turns the whole card into a grey "(Leave Empty)" box,
+  and tapping that box brings the card back.
+- Picking for Trinket B the trinket that Trinket A holds moves it out of Trinket A.
+- Tapping a Player box opens the Reserved Slots pick window, where tapping a name puts it in the
+  box and "(Find a player)" empties it. Its × buttons and its buttons below the names work like
+  the ones of the Reserved window.
+- Tapping "Verified only" in a card toggles it without opening the pick window.
+- While Find Players searches, the boxes of the cards open nothing.
+- At 640px of width or less, the Upvote Players table scrolls sideways, TEAM SETTINGS is one
+  column, and the counters stack in the bottom left corner, clear of the "Dark mode" checkbox.
 
 ## 2. Roblox Verification
 

@@ -3,6 +3,7 @@ import {
 	createElement,
 	useEffect,
 	useRef,
+	type ComponentProps,
 	type ReactNode,
 } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -77,11 +78,10 @@ function DesktopWindow({
 	}, [isOpen])
 	return (
 		<>
-			{/* Desktop icon picture with a white label, in a row along the top of the screen */}
+			{/* Desktop icon picture with a white label, in the row of icons along the top of the
+			screen */}
 			<style>{`
 				.window-icon {
-					position: fixed;
-					top: 12px;
 					width: 112px;
 					padding: 4px;
 					display: flex;
@@ -145,6 +145,15 @@ function DesktopWindow({
 					width: fit-content;
 					height: fit-content;
 					margin: auto;
+				}
+				@media (max-width: 1180px) {
+					dialog.window {
+						max-width: calc(100vw - 16px);
+						max-height: calc(100dvh - 16px);
+						overflow: auto;
+						box-sizing: border-box;
+						z-index: 1;
+					}
 				}
 			`}</style>
 			{/* Old-style grey scrollbar with arrow buttons, on everything that scrolls in a window */}
@@ -404,15 +413,18 @@ function ChecklistWindow({
 
 // Plain black name of whom a row is reserved for, like a badge or role name in its cell, which the
 // Reserved window lists and the Player column of the Find a Team table holds. It turns light grey
-// with an open hand cursor on hover.
+// with an open hand cursor on hover. In the Reserved Slots pick window of a narrow screen, a tap on
+// it fills the Player box of the card.
 function ReservationChip({
 	text,
 	onDragStart,
 	onDragEnd,
+	onClick,
 }: {
 	text: string
 	onDragStart: () => void
 	onDragEnd: () => void
+	onClick?: () => void
 }) {
 	return (
 		<>
@@ -430,6 +442,7 @@ function ReservationChip({
 				draggable
 				onDragStart={onDragStart}
 				onDragEnd={onDragEnd}
+				onClick={onClick}
 			>
 				{text}
 			</div>
@@ -446,6 +459,7 @@ function ReservedWindowEntry({ chip }: {
 		endDragFromSideWindow: () => void
 		showRemoveFriendButton: boolean
 		removeFriend: () => void
+		pickForPlayerCardBox: () => void
 	}
 }) {
 	return (
@@ -454,6 +468,7 @@ function ReservedWindowEntry({ chip }: {
 				text={chip.text}
 				onDragStart={chip.dragFromSideWindow}
 				onDragEnd={chip.endDragFromSideWindow}
+				onClick={chip.pickForPlayerCardBox}
 			/>
 			{/* Grey × button that removes the friend */}
 			{chip.showRemoveFriendButton && (
@@ -469,6 +484,96 @@ function ReservedWindowEntry({ chip }: {
 	)
 }
 
+// Old-style etched group boxes of the Reserved window and of the Reserved Slots pick window, "ME",
+// "VERIFIED FRIENDS" once verified, and "UNVERIFIED FRIENDS", with one chip per line, and in the
+// friend boxes a button below the chips
+function ReservedSlotsGroupBoxes({
+	meChip,
+	showVerifiedFriends,
+	verifiedFriendChips,
+	unverifiedFriendChips,
+	copyInviteLinkButtonText,
+	copyInviteLink,
+	addUnverifiedFriend,
+}: {
+	meChip: ComponentProps<typeof ReservedWindowEntry>['chip']
+	showVerifiedFriends: boolean
+	verifiedFriendChips: (ComponentProps<typeof ReservedWindowEntry>['chip'] & { key: string })[]
+	unverifiedFriendChips: (ComponentProps<typeof ReservedWindowEntry>['chip'] & { key: string })[]
+	copyInviteLinkButtonText: string
+	copyInviteLink: () => void
+	addUnverifiedFriend: () => void
+}) {
+	return (
+		<div className="team-reserved-boxes">
+			<style>{`
+				.team-reserved-boxes fieldset {
+					display: flex;
+					flex-direction: column;
+					align-items: stretch;
+					gap: 4px;
+					width: 256px;
+					margin: 0 0 8px;
+					padding: 4px 8px 8px;
+					border: 2px groove var(--bevel-light);
+				}
+				.team-reserved-boxes fieldset:last-child {
+					margin-bottom: 0;
+				}
+				.team-reserved-boxes legend {
+					padding: 0 4px;
+					font-weight: bold;
+				}
+				.team-locked fieldset {
+					opacity: 0.5;
+					pointer-events: none;
+				}
+				.team-reserved-friend {
+					display: flex;
+					align-items: center;
+					gap: 4px;
+				}
+				.team-reserved-friend .team-chip {
+					flex: 1;
+				}
+				.team-reserved-friend .window-close {
+					flex: none;
+				}
+				.team-reserved-boxes button {
+					font-size: 11px;
+				}
+			`}</style>
+			<fieldset>
+				<legend>ME</legend>
+				<ReservedWindowEntry chip={meChip} />
+			</fieldset>
+			{showVerifiedFriends && (
+				<fieldset>
+					<legend>VERIFIED FRIENDS</legend>
+					{verifiedFriendChips.map((chip) => (
+						<ReservedWindowEntry
+							key={chip.key}
+							chip={chip}
+						/>
+					))}
+					{/* Button that copies the one invite link for every verified friend */}
+					<button onClick={copyInviteLink}>{copyInviteLinkButtonText}</button>
+				</fieldset>
+			)}
+			<fieldset>
+				<legend>UNVERIFIED FRIENDS</legend>
+				{unverifiedFriendChips.map((chip) => (
+					<ReservedWindowEntry
+						key={chip.key}
+						chip={chip}
+					/>
+				))}
+				<button onClick={addUnverifiedFriend}>+ Add unverified friend</button>
+			</fieldset>
+		</div>
+	)
+}
+
 createRoot(document.getElementById('root')!).render(
 	<StrictMode>
 		{/* Desktop with the Roblox Verification and Find a Team icons and their windows */}
@@ -476,25 +581,37 @@ createRoot(document.getElementById('root')!).render(
 			const logic = useLogic()
 			return (
 				<>
-					{/* Roblox Verification icon, first in the row */}
+					{/* Row of desktop icons along the top of the screen, which wraps onto a second line
+					when the screen is too narrow for it. Their windows sit in the middle of the
+					screen. */}
 					<style>{`
-						#account-icon {
-							left: 12px;
+						#desktop-icons {
+							position: fixed;
+							top: 0;
+							left: 0;
+							right: 0;
+							display: flex;
+							flex-wrap: wrap;
+							align-items: flex-start;
+							gap: 8px;
+							padding: 12px;
 						}
 					`}</style>
-					<DesktopWindow
-						id="account"
-						iconId="account-icon"
-						title="Roblox Verification"
-						image="/pixelated/Gossip_Bud.webp"
-						{...logic.robloxVerificationWindow}
-					>
-						{logic.isRobloxVerified ? (
+					<div id="desktop-icons">
+						{/* Roblox Verification icon, first in the row */}
+						<DesktopWindow
+							id="account"
+							iconId="account-icon"
+							title="Roblox Verification"
+							image="/pixelated/Gossip_Bud.webp"
+							{...logic.robloxVerificationWindow}
+						>
+							{logic.isRobloxVerified ? (
 							// "Verified as <name>", the badge checklist, and Update Badges and Log out buttons
-							<>
-								<p>Verified as {logic.verifiedRobloxUsername}</p>
-								{/* Dandy's World badge checklist, "Loading badges...", or an error */}
-								<style>{`
+								<>
+									<p>Verified as {logic.verifiedRobloxUsername}</p>
+									{/* Dandy's World badge checklist, "Loading badges...", or an error */}
+									<style>{`
 									#account-badges {
 										width: fit-content;
 										margin: 1em auto;
@@ -502,60 +619,60 @@ createRoot(document.getElementById('root')!).render(
 										list-style: none;
 									}
 								`}</style>
-								{logic.showBadgeChecklist ? (
-									<ul id="account-badges">
-										{logic.badgeChecklist.map((badge) => (
-											<li key={badge.name}>
-												{badge.mark} {badge.name}
-											</li>
-										))}
-									</ul>
-								) : (
-									<p>{logic.badgeChecklistLoadingText}</p>
-								)}
-								{/* Red line under the badges when Update Badges failed */}
-								<style>{`
+									{logic.showBadgeChecklist ? (
+										<ul id="account-badges">
+											{logic.badgeChecklist.map((badge) => (
+												<li key={badge.name}>
+													{badge.mark} {badge.name}
+												</li>
+											))}
+										</ul>
+									) : (
+										<p>{logic.badgeChecklistLoadingText}</p>
+									)}
+									{/* Red line under the badges when Update Badges failed */}
+									<style>{`
 									#account-badge-update-error {
 										margin: 0 0 1em;
 										color: var(--error);
 										text-align: center;
 									}
 								`}</style>
-								{logic.badgeUpdateError && (
-									<p id="account-badge-update-error">{logic.badgeUpdateError}</p>
-								)}
-								{/* Update Badges button on the left and Log out on the right, away from the × button */}
-								<style>{`
+									{logic.badgeUpdateError && (
+										<p id="account-badge-update-error">{logic.badgeUpdateError}</p>
+									)}
+									{/* Update Badges button on the left and Log out on the right, away from the × button */}
+									<style>{`
 									#account-actions {
 										display: flex;
 										justify-content: space-between;
 									}
 								`}</style>
-								<div id="account-actions">
-									<button onClick={logic.updateRobloxBadgeChecklist}>Update Badges</button>
-									<button onClick={logic.logOutOfRoblox}>Log out</button>
-								</div>
-							</>
-						) : (
+									<div id="account-actions">
+										<button onClick={logic.updateRobloxBadgeChecklist}>Update Badges</button>
+										<button onClick={logic.logOutOfRoblox}>Log out</button>
+									</div>
+								</>
+							) : (
 							// Instructions, the code with Copy, and a username field with Check
-							<>
-								<p>
-									Verify your Roblox account to get access to all the features!
-									<br />
-									<br />
-									First, go to your{' '}
-									<a
-										href="https://www.roblox.com/users/profile/edit"
-										target="_blank"
-									>
-										Roblox profile
-									</a>
-									,
-									<br />
-									then click on About to change your bio and paste this emoji-code:
-								</p>
-								{/* Emoji code with a Copy button next to it */}
-								<style>{`
+								<>
+									<p>
+										Verify your Roblox account to get access to all the features!
+										<br />
+										<br />
+										First, go to your{' '}
+										<a
+											href="https://www.roblox.com/users/profile/edit"
+											target="_blank"
+										>
+											Roblox profile
+										</a>
+										,
+										<br />
+										then click on About to change your bio and paste this emoji-code:
+									</p>
+									{/* Emoji code with a Copy button next to it */}
+									<style>{`
 									#account-code {
 										display: flex;
 										align-items: center;
@@ -567,65 +684,97 @@ createRoot(document.getElementById('root')!).render(
 									#account-code button {
 										width: 72px;
 									}
+									@media (max-width: 1180px) {
+										#account-code input {
+											flex: 1;
+											width: auto;
+											min-width: 0;
+										}
+										#account-code button {
+											flex: none;
+										}
+									}
 								`}</style>
-								<div id="account-code">
-									<input
-										value={logic.verificationEmojiCode}
-										readOnly
-										tabIndex={-1}
-									/>
-									<button onClick={logic.copyVerificationEmojiCode}>
-										{logic.copyButtonText}
-									</button>
-								</div>
-								<p>Then enter your username below and click [Check]:</p>
-								{/* Roblox username field with Check, and any error below */}
-								<style>{`
+									<div id="account-code">
+										<input
+											value={logic.verificationEmojiCode}
+											readOnly
+											tabIndex={-1}
+										/>
+										<button onClick={logic.copyVerificationEmojiCode}>
+											{logic.copyButtonText}
+										</button>
+									</div>
+									<p>Then enter your username below and click [Check]:</p>
+									{/* Roblox username field with Check, and any error below */}
+									<style>{`
 									#account-username input {
 										width: 420px;
 									}
 									#account-username button {
 										width: 72px;
 									}
+									@media (max-width: 1180px) {
+										#account-username {
+											display: flex;
+											flex-wrap: wrap;
+										}
+										#account-username input {
+											flex: 1;
+											width: auto;
+											min-width: 0;
+										}
+										#account-username p {
+											width: 100%;
+										}
+									}
 								`}</style>
-								<form
-									id="account-username"
-									onSubmit={(event) => {
-										event.preventDefault()
-										logic.verifyRobloxUsername(
-											new FormData(event.currentTarget).get('username') as string,
-										)
-									}}
-								>
-									<input
-										name="username"
-										defaultValue={logic.usernameFieldStartValue}
-										placeholder="Roblox username"
-										required
-									/>
-									<button>Check</button>
-									<p>{logic.robloxVerificationError}</p>
-								</form>
-							</>
-						)}
-					</DesktopWindow>
-					{/* Find a Team icon, second in the row */}
-					<style>{`
-						#team-icon {
-							left: 132px;
-						}
-					`}</style>
-					<DesktopWindow
-						id="team"
-						iconId="team-icon"
-						title="Find a Team"
-						image="/pixelated/All_Together.webp"
-						{...logic.findATeamWindow}
-					>
-						{/* Side windows that hang outside this window's edges */}
-						<style>{`
+									<form
+										id="account-username"
+										onSubmit={(event) => {
+											event.preventDefault()
+											logic.verifyRobloxUsername(
+												new FormData(event.currentTarget).get('username') as string,
+											)
+										}}
+									>
+										<input
+											name="username"
+											defaultValue={logic.usernameFieldStartValue}
+											placeholder="Roblox username"
+											required
+										/>
+										<button>Check</button>
+										<p>{logic.robloxVerificationError}</p>
+									</form>
+								</>
+							)}
+						</DesktopWindow>
+						{/* Find a Team icon, second in the row */}
+						<DesktopWindow
+							id="team"
+							iconId="team-icon"
+							title="Find a Team"
+							image="/pixelated/All_Together.webp"
+							{...logic.findATeamWindow}
+						>
+							{/* Side windows that hang outside this window's edges. A screen too narrow for them
+						shows the Find a Team cards instead, whose boxes open the same windows in the middle of
+						the screen. */}
+							<style>{`
 							#team {
 								overflow: visible;
+							}
+							#team-side-windows {
+								display: contents;
+							}
+							@media (max-width: 1180px) {
+								#team {
+									overflow: auto;
+								}
+								#team-side-windows {
+									display: none;
+								}
 							}
 							#team-toons,
 							#team-trinkets-and-reserved {
@@ -687,174 +836,117 @@ createRoot(document.getElementById('root')!).render(
 								font-size: 11px;
 							}
 						`}</style>
-						{/* Toons window to the lower left, whose toons drag into the Toon column */}
-						<div
-							id="team-toons"
-							className={logic.sideWindowClass}
-						>
-							<div className="window-title">Toons</div>
-							{/* Small grey "Drag onto the table" line above the tiles */}
-							<div className="team-drag-hint">{logic.sideWindowDragHint}</div>
-							<div className="team-palette">
-								{/* "(Leave Empty)" text tile before the toon pictures */}
+							{/* Toons, Trinkets and Reserved Slots windows around this window */}
+							<div id="team-side-windows">
+								{/* Toons window to the lower left, whose toons drag into the Toon column */}
 								<div
-									className="team-text"
-									draggable
-									onDragStart={logic.dragLeaveEmptyTile}
-									onDragEnd={logic.endDragFromSideWindow}
+									id="team-toons"
+									className={logic.sideWindowClass}
 								>
-									(Leave Empty)
+									<div className="window-title">Toons</div>
+									{/* Small grey "Drag onto the table" line above the tiles */}
+									<div className="team-drag-hint">{logic.sideWindowDragHint}</div>
+									<div className="team-palette">
+										{/* "(Leave Empty)" text tile before the toon pictures */}
+										<div
+											className="team-text"
+											draggable
+											onDragStart={logic.dragLeaveEmptyTile}
+											onDragEnd={logic.endDragFromSideWindow}
+										>
+											(Leave Empty)
+										</div>
+										{logic.toonsWindowTiles.map((toon) => (
+											<img
+												key={toon.name}
+												className="toon-or-trinket-picture"
+												src={toon.src}
+												title={toon.title}
+												draggable
+												onDragStart={toon.dragFromSideWindow}
+												onDragEnd={logic.endDragFromSideWindow}
+											/>
+										))}
+									</div>
 								</div>
-								{logic.toonsWindowTiles.map((toon) => (
-									<img
-										key={toon.name}
-										className="toon-or-trinket-picture"
-										src={toon.src}
-										title={toon.title}
-										draggable
-										onDragStart={toon.dragFromSideWindow}
-										onDragEnd={logic.endDragFromSideWindow}
-									/>
-								))}
-							</div>
-						</div>
-						{/* Column to the right with the Trinkets window above the Reserved window */}
-						<div id="team-trinkets-and-reserved">
-							{/* Trinkets window, whose trinkets drag into the Trinket columns */}
-							<style>{`
+								{/* Column to the right with the Trinkets window above the Reserved window */}
+								<div id="team-trinkets-and-reserved">
+									{/* Trinkets window, whose trinkets drag into the Trinket columns */}
+									<style>{`
 								#team-trinkets .team-palette {
 									max-height: 240px;
 								}
 							`}</style>
-							<div
-								id="team-trinkets"
-								className={logic.sideWindowClass}
-							>
-								<div className="window-title">Trinkets</div>
-								{/* Small grey "Drag onto the table" line above the tiles */}
-								<div className="team-drag-hint">{logic.sideWindowDragHint}</div>
-								<div className="team-palette">
-									{logic.trinketsWindowTiles.map((trinket) => (
-										<img
-											key={trinket.name}
-											className="toon-or-trinket-picture"
-											src={trinket.src}
-											title={trinket.title}
-											draggable
-											onDragStart={trinket.dragFromSideWindow}
-											onDragEnd={logic.endDragFromSideWindow}
+									<div
+										id="team-trinkets"
+										className={logic.sideWindowClass}
+									>
+										<div className="window-title">Trinkets</div>
+										{/* Small grey "Drag onto the table" line above the tiles */}
+										<div className="team-drag-hint">{logic.sideWindowDragHint}</div>
+										<div className="team-palette">
+											{logic.trinketsWindowTiles.map((trinket) => (
+												<img
+													key={trinket.name}
+													className="toon-or-trinket-picture"
+													src={trinket.src}
+													title={trinket.title}
+													draggable
+													onDragStart={trinket.dragFromSideWindow}
+													onDragEnd={logic.endDragFromSideWindow}
+												/>
+											))}
+										</div>
+									</div>
+									{/* Reserved window, whose chips drag into the Player column */}
+									{logic.showReservedWindow && <div
+										id="team-reserved"
+										className={logic.sideWindowClass}
+									>
+										<div className="window-title">Reserved Slots</div>
+										{/* Small grey "Drag onto the Player column" line above the chips */}
+										<div className="team-drag-hint">{logic.reservedWindowDragHint}</div>
+										<ReservedSlotsGroupBoxes
+											meChip={logic.reservedWindowMeChip}
+											showVerifiedFriends={logic.showReservedWindowVerifiedFriends}
+											verifiedFriendChips={logic.reservedWindowVerifiedFriendChips}
+											unverifiedFriendChips={logic.reservedWindowUnverifiedFriendChips}
+											copyInviteLinkButtonText={logic.copyInviteLinkButtonText}
+											copyInviteLink={logic.copyInviteLink}
+											addUnverifiedFriend={logic.addUnverifiedFriend}
 										/>
-									))}
+									</div>}
 								</div>
 							</div>
-							{/* Reserved window, whose chips drag into the Player column */}
-							{logic.showReservedWindow && <div
-								id="team-reserved"
-								className={logic.sideWindowClass}
-							>
-								<div className="window-title">Reserved Slots</div>
-								{/* Small grey "Drag onto the Player column" line above the chips */}
-								<div className="team-drag-hint">{logic.reservedWindowDragHint}</div>
-								{/* Old-style etched group boxes, "ME", "VERIFIED FRIENDS" once verified, and
-								"UNVERIFIED FRIENDS", with one chip per line, and in the friend boxes a button below
-								the chips */}
-								<style>{`
-									#team-reserved fieldset {
-										display: flex;
-										flex-direction: column;
-										align-items: stretch;
-										gap: 4px;
-										width: 256px;
-										margin: 0 0 8px;
-										padding: 4px 8px 8px;
-										border: 2px groove var(--bevel-light);
-									}
-									#team-reserved fieldset:last-child {
-										margin-bottom: 0;
-									}
-									#team-reserved legend {
-										padding: 0 4px;
-										font-weight: bold;
-									}
-									.team-locked fieldset {
-										opacity: 0.5;
-										pointer-events: none;
-									}
-									.team-reserved-friend {
-										display: flex;
-										align-items: center;
-										gap: 4px;
-									}
-									.team-reserved-friend .team-chip {
-										flex: 1;
-									}
-									.team-reserved-friend .window-close {
-										flex: none;
-									}
-									#team-reserved button {
-										font-size: 11px;
-									}
-								`}</style>
-								<fieldset>
-									<legend>ME</legend>
-									<ReservedWindowEntry chip={logic.reservedWindowMeChip} />
-								</fieldset>
-								{logic.showReservedWindowVerifiedFriends && (
-									<fieldset>
-										<legend>VERIFIED FRIENDS</legend>
-										{logic.reservedWindowVerifiedFriendChips.map((chip) => (
-											<ReservedWindowEntry
-												key={chip.key}
-												chip={chip}
-											/>
-										))}
-										{/* Button that copies the one invite link for every verified friend */}
-										<button onClick={logic.copyInviteLink}>
-											{logic.copyInviteLinkButtonText}
-										</button>
-									</fieldset>
-								)}
-								<fieldset>
-									<legend>UNVERIFIED FRIENDS</legend>
-									{logic.reservedWindowUnverifiedFriendChips.map((chip) => (
-										<ReservedWindowEntry
-											key={chip.key}
-											chip={chip}
-										/>
-									))}
-									<button onClick={logic.addUnverifiedFriend}>+ Add unverified friend</button>
-								</fieldset>
-							</div>}
-						</div>
-						{/* Badges window in the middle of the screen, with a checkbox for each owned badge */}
-						<ChecklistWindow
-							id="team-badges"
-							title="Badges"
-							checkboxes={logic.badgesWindowCheckboxes}
-							isOpen={logic.isBadgesWindowOpen}
-							close={logic.closeBadgesWindow}
-							copyButtonText={logic.badgesWindowCopyButtonText}
-							pasteButtonText={logic.badgesWindowPasteButtonText}
-							isPasteDisabled={logic.isBadgesWindowPasteDisabled}
-							onCopyClick={logic.copyBadgesWindowNames}
-							onPasteClick={logic.pasteBadgesWindowNames}
-						/>
-						{/* Roles window in the middle of the screen, with a checkbox for each role */}
-						<ChecklistWindow
-							id="team-roles"
-							title="Roles"
-							checkboxes={logic.rolesWindowCheckboxes}
-							isOpen={logic.isRolesWindowOpen}
-							close={logic.closeRolesWindow}
-							copyButtonText={logic.rolesWindowCopyButtonText}
-							pasteButtonText={logic.rolesWindowPasteButtonText}
-							isPasteDisabled={logic.isRolesWindowPasteDisabled}
-							onCopyClick={logic.copyRolesWindowNames}
-							onPasteClick={logic.pasteRolesWindowNames}
-						/>
-						{/* Badge or role name stacked in a table cell. A crossed-out one is grey with a line through
+							{/* Badges window in the middle of the screen, with a checkbox for each owned badge */}
+							<ChecklistWindow
+								id="team-badges"
+								title="Badges"
+								checkboxes={logic.badgesWindowCheckboxes}
+								isOpen={logic.isBadgesWindowOpen}
+								close={logic.closeBadgesWindow}
+								copyButtonText={logic.badgesWindowCopyButtonText}
+								pasteButtonText={logic.badgesWindowPasteButtonText}
+								isPasteDisabled={logic.isBadgesWindowPasteDisabled}
+								onCopyClick={logic.copyBadgesWindowNames}
+								onPasteClick={logic.pasteBadgesWindowNames}
+							/>
+							{/* Roles window in the middle of the screen, with a checkbox for each role */}
+							<ChecklistWindow
+								id="team-roles"
+								title="Roles"
+								checkboxes={logic.rolesWindowCheckboxes}
+								isOpen={logic.isRolesWindowOpen}
+								close={logic.closeRolesWindow}
+								copyButtonText={logic.rolesWindowCopyButtonText}
+								pasteButtonText={logic.rolesWindowPasteButtonText}
+								isPasteDisabled={logic.isRolesWindowPasteDisabled}
+								onCopyClick={logic.copyRolesWindowNames}
+								onPasteClick={logic.pasteRolesWindowNames}
+							/>
+							{/* Badge or role name stacked in a table cell. A crossed-out one is grey with a line through
 						it and a "?" cursor, because the row cannot have it. */}
-						<style>{`
+							<style>{`
 							.team-badge-or-role {
 								white-space: nowrap;
 							}
@@ -864,9 +956,9 @@ createRoot(document.getElementById('root')!).render(
 								cursor: help;
 							}
 						`}</style>
-						{/* White table with Toon, Trinket A, Trinket B, once verified Badges, then Role and Reserved
+							{/* White table with Toon, Trinket A, Trinket B, once verified Badges, then Role and Reserved
 						columns */}
-						<style>{`
+							<style>{`
 							#team-table {
 								width: 100%;
 								border-collapse: collapse;
@@ -946,174 +1038,447 @@ createRoot(document.getElementById('root')!).render(
 									width: 4ch;
 								}
 							}
+							@media (max-width: 1180px) {
+								#team-table {
+									display: none;
+								}
+							}
 						`}</style>
-						<table
-							id="team-table"
-							onDrop={logic.landDragOnTable}
-						>
-							<thead>
-								<tr>
-									<th>Toon</th>
-									<th>Trinket A</th>
-									<th>Trinket B</th>
-									{logic.isRobloxVerified && <th>Badges</th>}
-									<th>Role</th>
-									{/* Player header that explains on hover which rows are left for players to find */}
-									<th title={logic.playerColumnHeaderTooltip}>Player</th>
-								</tr>
-							</thead>
-							<tbody>
-								{logic.teamTableRows.map((row) => (
-									<tr
-										key={row.key}
-										// The browser only lets a drop land where its dragover was prevented
-										onDragOver={(event) => {
-											if (row.canDropLeaveEmptyOnRow) event.preventDefault()
-										}}
-										onDrop={row.leaveRowEmpty}
-									>
-										{/* Whole row merged into one cell with "(Leave Empty)" in the middle,
+							<table
+								id="team-table"
+								onDrop={logic.landDragOnTable}
+							>
+								<thead>
+									<tr>
+										<th>Toon</th>
+										<th>Trinket A</th>
+										<th>Trinket B</th>
+										{logic.isRobloxVerified && <th>Badges</th>}
+										<th>Role</th>
+										{/* Player header that explains on hover which rows are left for players to find */}
+										<th title={logic.playerColumnHeaderTooltip}>Player</th>
+									</tr>
+								</thead>
+								<tbody>
+									{logic.teamTableRows.map((row) => (
+										<tr
+											key={row.key}
+											// The browser only lets a drop land where its dragover was prevented
+											onDragOver={(event) => {
+												if (row.canDropLeaveEmptyOnRow) event.preventDefault()
+											}}
+											onDrop={row.leaveRowEmpty}
+										>
+											{/* Whole row merged into one cell with "(Leave Empty)" in the middle,
 										which clears when clicked or when a toon or trinket lands on it */}
-										{row.isLeftEmpty && (
-											<td
-												className={row.leaveEmptyCellClass}
-												colSpan={row.leaveEmptyCellColSpan}
-												onClick={row.undoLeaveRowEmpty}
-												onDragOver={(event) => {
-													if (row.canDropPictureOnLeftEmptyRow) event.preventDefault()
-												}}
-												onDrop={row.dropPictureOnLeftEmptyRow}
-											>
-												(Leave Empty)
-											</td>
-										)}
-										{!row.isLeftEmpty && row.pictureCells.map((cell) => (
-											<td
-												key={cell.column}
-												onDragOver={(event) => {
-													if (cell.canDropPictureOnCell) event.preventDefault()
-												}}
-												onDrop={cell.dropPictureOnCell}
-											>
-												{/* Grey "(Any)" text in an empty Toon or Trinket cell, which cannot be dragged */}
-												{cell.anyText && (
-													<div className="team-text team-placeholder">
-														{cell.anyText}
-													</div>
-												)}
-												{/* Toon or trinket picture */}
-												{cell.picture && (
-													<div
-														className="team-text"
-														draggable={cell.picture.draggable}
-														onDragStart={cell.picture.dragPictureFromTable}
-														onDragEnd={cell.picture.endPictureDragFromTable}
-													>
+											{row.isLeftEmpty && (
+												<td
+													className={row.leaveEmptyCellClass}
+													colSpan={row.leaveEmptyCellColSpan}
+													onClick={row.undoLeaveRowEmpty}
+													onDragOver={(event) => {
+														if (row.canDropPictureOnLeftEmptyRow) event.preventDefault()
+													}}
+													onDrop={row.dropPictureOnLeftEmptyRow}
+												>
+													(Leave Empty)
+												</td>
+											)}
+											{!row.isLeftEmpty && row.pictureCells.map((cell) => (
+												<td
+													key={cell.column}
+													onDragOver={(event) => {
+														if (cell.canDropPictureOnCell) event.preventDefault()
+													}}
+													onDrop={cell.dropPictureOnCell}
+												>
+													{/* Grey "(Any)" text in an empty Toon or Trinket cell, which cannot be dragged */}
+													{cell.anyText && (
+														<div className="team-text team-placeholder">
+															{cell.anyText}
+														</div>
+													)}
+													{/* Toon or trinket picture */}
+													{cell.picture && (
+														<div
+															className="team-text"
+															draggable={cell.picture.draggable}
+															onDragStart={cell.picture.dragPictureFromTable}
+															onDragEnd={cell.picture.endPictureDragFromTable}
+														>
+															<img
+																className="toon-or-trinket-picture"
+																src={cell.picture.src}
+																title={cell.picture.title}
+																draggable={false}
+															/>
+														</div>
+													)}
+												</td>
+											))}
+											{/* Badge names stacked in the cell, or a grey "(none required)", which open the
+										Badges window when clicked */}
+											{!row.isLeftEmpty && logic.isRobloxVerified && (
+												<td
+													className={row.badgesAndRoleCellClass}
+													onClick={row.openBadgesWindow}
+													title={row.badgesCellTooltip}
+												>
+													{row.noBadgesText && (
+														<span className="team-placeholder">{row.noBadgesText}</span>
+													)}
+													{row.badges.map((badge) => (
+														<div
+															key={badge.name}
+															className="team-badge-or-role"
+															data-crossed-out={badge.isCrossedOut}
+														>
+															{badge.name}
+														</div>
+													))}
+												</td>
+											)}
+											{/* Role names stacked in the cell, or a grey "(none required)", which open the
+										Roles window when clicked */}
+											{!row.isLeftEmpty && (
+												<td
+													className={row.badgesAndRoleCellClass}
+													onClick={row.openRolesWindow}
+												>
+													{row.noRolesText && (
+														<span className="team-placeholder">{row.noRolesText}</span>
+													)}
+													{row.roles.map((role) => (
+														<div
+															key={role.name}
+															className="team-badge-or-role"
+															data-crossed-out={role.isCrossedOut}
+															title={role.crossedOutTooltip}
+														>
+															{role.name}
+														</div>
+													))}
+												</td>
+											)}
+											{/* Chip from the Reserved window above a "Verified only" checkbox, or while the
+										table is locked either "Finding player..." with blinking dots or the grey name of
+										the player in the row */}
+											{!row.isLeftEmpty && (
+												<td
+													onDragOver={(event) => {
+														if (row.canDropReservationOnPlayerCell) event.preventDefault()
+													}}
+													onDrop={row.dropReservationOnPlayerCell}
+												>
+													{row.showFindingPlayerText && (
+														<span className="team-finding">
+															Finding player<span>...</span>
+														</span>
+													)}
+													{row.showPlayerName && (
+														<span className="team-finding team-placeholder">
+															{row.playerName}
+														</span>
+													)}
+													{row.reservationChip && (
+														<ReservationChip
+															text={row.reservationChip.text}
+															onDragStart={row.reservationChip.dragReservationFromTable}
+															onDragEnd={row.reservationChip.endReservationDragFromTable}
+														/>
+													)}
+													{/* Small "Verified only" checkbox below the chip */}
+													{row.showVerifiedOnlyCheckbox && (
+														<label
+															className="team-verified-only"
+															title={row.verifiedOnlyCheckboxTooltip}
+														>
+															<input
+																type="checkbox"
+																checked={row.isVerifiedOnlyCheckboxChecked}
+																onChange={(event) => row.toggleVerifiedOnlyCheckbox(
+																	event.target.checked,
+																)}
+															/>
+															Verified only
+														</label>
+													)}
+												</td>
+											)}
+										</tr>
+									))}
+								</tbody>
+							</table>
+							{/* Column of white cards that replaces the table on a narrow screen, one card per row,
+						with labeled Toon, Trinket A, Trinket B, Badges once verified, Role and Player boxes that
+						wrap onto the next line when the card is too narrow for them */}
+							<style>{`
+							#team-cards {
+								display: none;
+							}
+							@media (max-width: 1180px) {
+								#team-cards {
+									display: flex;
+									flex-direction: column;
+									gap: 6px;
+								}
+							}
+							.team-card {
+								display: flex;
+								flex-wrap: wrap;
+								gap: 4px;
+								padding: 4px;
+								background: var(--field);
+								border: 2px solid;
+								border-color: var(--bevel-shadow) var(--bevel-light) var(--bevel-light)
+									var(--bevel-shadow);
+							}
+							.team-card-box {
+								flex: 1 1 110px;
+								display: flex;
+								flex-direction: column;
+								align-items: center;
+								justify-content: center;
+								gap: 2px;
+								min-height: 64px;
+								padding: 2px 4px;
+								border: 1px solid var(--table-line);
+								text-align: center;
+							}
+							.team-card-box.team-card-picture-box {
+								flex: 0 0 64px;
+							}
+							.team-card-box.team-clickable {
+								cursor: pointer;
+							}
+							.team-card-box.team-clickable:hover {
+								background: var(--field-hover);
+							}
+							.team-card-left-empty {
+								color: var(--faded-text);
+							}
+							.team-card-box img {
+								width: 40px;
+								height: 40px;
+							}
+							.team-card-label {
+								color: var(--hint-text);
+								font-size: 11px;
+								font-weight: bold;
+							}
+							.team-card-title {
+								margin-bottom: 2px;
+								font-weight: bold;
+							}
+						`}</style>
+							<div id="team-cards">
+								{logic.teamTableRows.map((row) => (
+									<div key={row.key}>
+										{/* Bold "Player Slot #N" line above the card */}
+										<div className="team-card-title">{row.cardTitle}</div>
+										<div className="team-card">
+											{/* Grey "(Leave Empty)" box across the whole card, which brings the card back
+									when tapped */}
+											{row.isLeftEmpty && (
+												<div
+													className={row.leftEmptyCardBoxClass}
+													onClick={row.undoLeaveRowEmpty}
+												>
+													(Leave Empty)
+												</div>
+											)}
+											{/* Toon, Trinket A and Trinket B boxes with their label above the picture or a
+									grey "(Any)", which open the Toons or Trinkets pick window when tapped */}
+											{!row.isLeftEmpty && row.pictureCells.map((cell) => (
+												<div
+													key={cell.column}
+													className={cell.cardBoxClass}
+													onClick={cell.tapCardBox}
+												>
+													<span className="team-card-label">{cell.cardBoxLabel}</span>
+													{cell.anyText && <span className="team-placeholder">{cell.anyText}</span>}
+													{cell.picture && (
 														<img
 															className="toon-or-trinket-picture"
 															src={cell.picture.src}
 															title={cell.picture.title}
-															draggable={false}
 														/>
-													</div>
-												)}
-											</td>
-										))}
-										{/* Badge names stacked in the cell, or a grey "(none required)", which open the
-										Badges window when clicked */}
-										{!row.isLeftEmpty && logic.isRobloxVerified && (
-											<td
-												className={row.badgesAndRoleCellClass}
-												onClick={row.openBadgesWindow}
-												title={row.badgesCellTooltip}
-											>
-												{row.noBadgesText && (
-													<span className="team-placeholder">{row.noBadgesText}</span>
-												)}
-												{row.badges.map((badge) => (
-													<div
-														key={badge.name}
-														className="team-badge-or-role"
-														data-crossed-out={badge.isCrossedOut}
-													>
-														{badge.name}
-													</div>
-												))}
-											</td>
-										)}
-										{/* Role names stacked in the cell, or a grey "(none required)", which open the
-										Roles window when clicked */}
-										{!row.isLeftEmpty && (
-											<td
-												className={row.badgesAndRoleCellClass}
-												onClick={row.openRolesWindow}
-											>
-												{row.noRolesText && (
-													<span className="team-placeholder">{row.noRolesText}</span>
-												)}
-												{row.roles.map((role) => (
-													<div
-														key={role.name}
-														className="team-badge-or-role"
-														data-crossed-out={role.isCrossedOut}
-														title={role.crossedOutTooltip}
-													>
-														{role.name}
-													</div>
-												))}
-											</td>
-										)}
-										{/* Chip from the Reserved window above a "Verified only" checkbox, or while the
-										table is locked either "Finding player..." with blinking dots or the grey name of
-										the player in the row */}
-										{!row.isLeftEmpty && (
-											<td
-												onDragOver={(event) => {
-													if (row.canDropReservationOnPlayerCell) event.preventDefault()
-												}}
-												onDrop={row.dropReservationOnPlayerCell}
-											>
-												{row.showFindingPlayerText && (
-													<span className="team-finding">
-														Finding player<span>...</span>
-													</span>
-												)}
-												{row.showPlayerName && (
-													<span className="team-finding team-placeholder">
-														{row.playerName}
-													</span>
-												)}
-												{row.reservationChip && (
-													<ReservationChip
-														text={row.reservationChip.text}
-														onDragStart={row.reservationChip.dragReservationFromTable}
-														onDragEnd={row.reservationChip.endReservationDragFromTable}
-													/>
-												)}
-												{/* Small "Verified only" checkbox below the chip */}
-												{row.showVerifiedOnlyCheckbox && (
-													<label
-														className="team-verified-only"
-														title={row.verifiedOnlyCheckboxTooltip}
-													>
-														<input
-															type="checkbox"
-															checked={row.isVerifiedOnlyCheckboxChecked}
-															onChange={(event) => row.toggleVerifiedOnlyCheckbox(
-																event.target.checked,
-															)}
-														/>
-														Verified only
-													</label>
-												)}
-											</td>
-										)}
-									</tr>
+													)}
+												</div>
+											))}
+											{/* Badges box with the badge names stacked, or a grey "(none required)", which
+									opens the Badges window when tapped */}
+											{!row.isLeftEmpty && logic.isRobloxVerified && (
+												<div
+													className={row.cardBoxClass}
+													onClick={row.openBadgesWindow}
+													title={row.badgesCellTooltip}
+												>
+													<span className="team-card-label">Badges</span>
+													{row.noBadgesText && (
+														<span className="team-placeholder">{row.noBadgesText}</span>
+													)}
+													{row.badges.map((badge) => (
+														<div
+															key={badge.name}
+															className="team-badge-or-role"
+															data-crossed-out={badge.isCrossedOut}
+														>
+															{badge.name}
+														</div>
+													))}
+												</div>
+											)}
+											{/* Role box with the role names stacked, or a grey "(none required)", which opens
+									the Roles window when tapped */}
+											{!row.isLeftEmpty && (
+												<div
+													className={row.cardBoxClass}
+													onClick={row.openRolesWindow}
+												>
+													<span className="team-card-label">Role</span>
+													{row.noRolesText && (
+														<span className="team-placeholder">{row.noRolesText}</span>
+													)}
+													{row.roles.map((role) => (
+														<div
+															key={role.name}
+															className="team-badge-or-role"
+															data-crossed-out={role.isCrossedOut}
+															title={role.crossedOutTooltip}
+														>
+															{role.name}
+														</div>
+													))}
+												</div>
+											)}
+											{/* Player box with the name from the Reserved Slots pick window or a grey
+									"(Find a player)", above a "Verified only" checkbox, or while the table is
+									locked either "Finding player..." with blinking dots or the grey name of the
+									player in the row. It opens the Reserved Slots pick window when tapped. */}
+											{!row.isLeftEmpty && (
+												<div
+													className={row.cardBoxClass}
+													onClick={row.tapPlayerCardBox}
+												>
+													<span className="team-card-label">Player</span>
+													{row.findAPlayerText && (
+														<span className="team-placeholder">{row.findAPlayerText}</span>
+													)}
+													{row.showFindingPlayerText && (
+														<span className="team-finding">
+															Finding player<span>...</span>
+														</span>
+													)}
+													{row.showPlayerName && (
+														<span className="team-placeholder">{row.playerName}</span>
+													)}
+													{row.reservationChip && <span>{row.reservationChip.text}</span>}
+													{/* Small "Verified only" checkbox below the name, whose tap stays out of
+											the box */}
+													{row.showVerifiedOnlyCheckbox && (
+														<label
+															className="team-verified-only"
+															title={row.verifiedOnlyCheckboxTooltip}
+															onClick={(event) => event.stopPropagation()}
+														>
+															<input
+																type="checkbox"
+																checked={row.isVerifiedOnlyCheckboxChecked}
+																onChange={(event) => row.toggleVerifiedOnlyCheckbox(
+																	event.target.checked,
+																)}
+															/>
+															Verified only
+														</label>
+													)}
+												</div>
+											)}
+										</div>
+									</div>
 								))}
-							</tbody>
-						</table>
-						{/* "Server link:" field with a "?", TEAM SETTINGS and Find Players, each on its own row */}
-						<style>{`
+							</div>
+							{/* Pick window in the middle of the screen, which a box of a card opens: Toons or
+						Trinkets with a grid of picture tiles, where the tile that the box holds has a navy
+						frame, or Reserved Slots with "(Find a player)" above the group boxes of the Reserved
+						window */}
+							<style>{`
+							#team-pick .team-palette {
+								max-height: 60dvh;
+							}
+							#team-pick .team-palette > * {
+								cursor: pointer;
+							}
+							#team-pick .team-palette [data-chosen="true"] {
+								outline: 2px solid var(--title-bar);
+								outline-offset: -2px;
+							}
+							#team-pick-find-a-player {
+								width: 100%;
+								margin-bottom: 8px;
+							}
+						`}</style>
+							<ModalWindow
+								id="team-pick"
+								closedby="any"
+								isOpen={logic.isPickWindowOpen}
+								close={logic.closePickWindow}
+							>
+								<div className="window-title">
+									{logic.pickWindowTitle}
+									<button
+										className="window-close"
+										aria-label="Close"
+										onClick={logic.closePickWindow}
+									>
+										×
+									</button>
+								</div>
+								{logic.showPickWindowTiles ? (
+									<div className="team-palette">
+										{logic.pickWindowTiles.map((tile) => tile.src ? (
+											<img
+												key={tile.key}
+												className="toon-or-trinket-picture"
+												src={tile.src}
+												title={tile.title}
+												data-chosen={tile.isChosen}
+												onClick={tile.pick}
+											/>
+										) : (
+											<div
+												key={tile.key}
+												className="team-text"
+												title={tile.title}
+												data-chosen={tile.isChosen}
+												onClick={tile.pick}
+											>
+												{tile.text}
+											</div>
+										))}
+									</div>
+								) : (
+									<>
+										<button
+											id="team-pick-find-a-player"
+											onClick={logic.pickFindAPlayer}
+										>
+											{logic.pickWindowFindAPlayerButtonText}
+										</button>
+										<ReservedSlotsGroupBoxes
+											meChip={logic.reservedWindowMeChip}
+											showVerifiedFriends={logic.showReservedWindowVerifiedFriends}
+											verifiedFriendChips={logic.reservedWindowVerifiedFriendChips}
+											unverifiedFriendChips={logic.reservedWindowUnverifiedFriendChips}
+											copyInviteLinkButtonText={logic.copyInviteLinkButtonText}
+											copyInviteLink={logic.copyInviteLink}
+											addUnverifiedFriend={logic.addUnverifiedFriend}
+										/>
+									</>
+								)}
+							</ModalWindow>
+							{/* "Server link:" field with a "?", TEAM SETTINGS and Find Players, each on its own row */}
+							<style>{`
 							#team-form {
 								display: flex;
 								flex-direction: column;
@@ -1138,17 +1503,17 @@ createRoot(document.getElementById('root')!).render(
 								margin: 0;
 							}
 						`}</style>
-						<form
-							id="team-form"
-							onSubmit={(event) => {
-								event.preventDefault()
-								logic.toggleFindingPlayers()
-							}}
-						>
-							{/* Line for a friend who opened an invite link, saying whose team they are in */}
-							{logic.invitedFriendText && <p id="team-invited-friend">{logic.invitedFriendText}</p>}
-							{/* Row with the "Server link:" field and a "?" on its right */}
-							<style>{`
+							<form
+								id="team-form"
+								onSubmit={(event) => {
+									event.preventDefault()
+									logic.toggleFindingPlayers()
+								}}
+							>
+								{/* Line for a friend who opened an invite link, saying whose team they are in */}
+								{logic.invitedFriendText && <p id="team-invited-friend">{logic.invitedFriendText}</p>}
+								{/* Row with the "Server link:" field and a "?" on its right */}
+								<style>{`
 								#team-server-link-row {
 									display: flex;
 									align-items: center;
@@ -1158,33 +1523,33 @@ createRoot(document.getElementById('root')!).render(
 									min-width: 0;
 								}
 							`}</style>
-							{logic.showServerLinkField && (
-								<div id="team-server-link-row">
-									<label>
-										Server link{" "}
-										{/* "(recommended)" text that explains itself on hover */}
-										<style>{`
+								{logic.showServerLinkField && (
+									<div id="team-server-link-row">
+										<label>
+											Server link{" "}
+											{/* "(recommended)" text that explains itself on hover */}
+											<style>{`
 										#team-server-link-recommended {
 											cursor: help;
 										}
 									`}</style>
-										<span
-											id="team-server-link-recommended"
-											title={`A match needs at least one server link, so if you share yours, it's more probable to find a team faster`}
-										>
-											(recommended)
-										</span>
-										:
-										<input
-											name="serverLink"
-											type="password"
-											defaultValue={logic.serverLinkFieldStartValue}
-											readOnly={logic.isServerLinkFieldLocked}
-											onChange={(event) => logic.saveServerLinkField(event.target.value)}
-										/>
-									</label>
-									{/* Blue underlined "?" right of the field that opens the server link help window */}
-									<style>{`
+											<span
+												id="team-server-link-recommended"
+												title={`A match needs at least one server link, so if you share yours, it's more probable to find a team faster`}
+											>
+												(recommended)
+											</span>
+											:
+											<input
+												name="serverLink"
+												type="password"
+												defaultValue={logic.serverLinkFieldStartValue}
+												readOnly={logic.isServerLinkFieldLocked}
+												onChange={(event) => logic.saveServerLinkField(event.target.value)}
+											/>
+										</label>
+										{/* Blue underlined "?" right of the field that opens the server link help window */}
+										<style>{`
 									#team-server-link-help {
 										margin: 0 8px;
 										color: var(--link);
@@ -1192,18 +1557,18 @@ createRoot(document.getElementById('root')!).render(
 										cursor: pointer;
 									}
 								`}</style>
-									<a
-										id="team-server-link-help"
-										title="How do I get a server link?"
-										onClick={logic.openServerLinkHelpWindow}
-									>
-										?
-									</a>
-								</div>
-							)}
-							{/* Old-style etched group box titled "TEAM SETTINGS", with checkboxes on the left and
+										<a
+											id="team-server-link-help"
+											title="How do I get a server link?"
+											onClick={logic.openServerLinkHelpWindow}
+										>
+											?
+										</a>
+									</div>
+								)}
+								{/* Old-style etched group box titled "TEAM SETTINGS", with checkboxes on the left and
 							dropdowns on the right */}
-							<style>{`
+								<style>{`
 								#team-settings {
 									display: grid;
 									grid-template-rows: auto auto;
@@ -1218,12 +1583,19 @@ createRoot(document.getElementById('root')!).render(
 									padding: 0 4px;
 									font-weight: bold;
 								}
+								@media (max-width: 640px) {
+									#team-settings {
+										grid-template-rows: none;
+										grid-auto-flow: row;
+										justify-content: stretch;
+									}
+								}
 							`}</style>
-							<fieldset id="team-settings">
-								<legend>TEAM SETTINGS</legend>
-								{/* Column of two checkboxes, Dandy Run and Early Dyle, that explain themselves on
+								<fieldset id="team-settings">
+									<legend>TEAM SETTINGS</legend>
+									{/* Column of two checkboxes, Dandy Run and Early Dyle, that explain themselves on
 								hover */}
-								<style>{`
+									<style>{`
 									#team-dandy-run-and-early-dyle {
 										display: contents;
 									}
@@ -1235,29 +1607,29 @@ createRoot(document.getElementById('root')!).render(
 										margin: 0;
 									}
 								`}</style>
-								<div id="team-dandy-run-and-early-dyle">
-									<label title="Don't buy anything in Dandy's shop!!">
-										<input
-											type="checkbox"
-											checked={logic.isDandyRunCheckboxChecked}
-											disabled={logic.areDandyRunAndEarlyDyleCheckboxesLocked}
-											onChange={(event) => logic.toggleDandyRunCheckbox(event.target.checked)}
-										/>
-										Dandy Run
-									</label>
-									<label title={`Vote the special "TIME'S UP" card as soon as it appears`}>
-										<input
-											type="checkbox"
-											checked={logic.isEarlyDyleCheckboxChecked}
-											disabled={logic.areDandyRunAndEarlyDyleCheckboxesLocked}
-											onChange={(event) => logic.toggleEarlyDyleCheckbox(event.target.checked)}
-										/>
-										Early Dyle
-									</label>
-								</div>
-								{/* Column of two labeled dropdowns, Region and Floor goal, with the dropdowns lined
+									<div id="team-dandy-run-and-early-dyle">
+										<label title="Don't buy anything in Dandy's shop!!">
+											<input
+												type="checkbox"
+												checked={logic.isDandyRunCheckboxChecked}
+												disabled={logic.areDandyRunAndEarlyDyleCheckboxesLocked}
+												onChange={(event) => logic.toggleDandyRunCheckbox(event.target.checked)}
+											/>
+											Dandy Run
+										</label>
+										<label title={`Vote the special "TIME'S UP" card as soon as it appears`}>
+											<input
+												type="checkbox"
+												checked={logic.isEarlyDyleCheckboxChecked}
+												disabled={logic.areDandyRunAndEarlyDyleCheckboxesLocked}
+												onChange={(event) => logic.toggleEarlyDyleCheckbox(event.target.checked)}
+											/>
+											Early Dyle
+										</label>
+									</div>
+									{/* Column of two labeled dropdowns, Region and Floor goal, with the dropdowns lined
 								up on the right */}
-								<style>{`
+									<style>{`
 									#team-region-and-floor-goal {
 										display: contents;
 									}
@@ -1266,37 +1638,37 @@ createRoot(document.getElementById('root')!).render(
 										gap: 8px;
 									}
 								`}</style>
-								<div id="team-region-and-floor-goal">
-									<label>
-										Region:
-										<select
-											value={logic.chosenRegionDropdownOption}
-											disabled={logic.areRegionAndFloorGoalDropdownsLocked}
-											onChange={(event) => logic.chooseRegionDropdownOption(event.target.value)}
-										>
-											{logic.regionDropdownOptions.map((option) => (
-												<option key={option}>{option}</option>
-											))}
-										</select>
-									</label>
-									<label>
-										Floor goal:
-										<select
-											value={logic.chosenFloorGoalDropdownOption}
-											disabled={logic.areRegionAndFloorGoalDropdownsLocked}
-											onChange={(event) => logic.chooseFloorGoalDropdownOption(event.target.value)}
-										>
-											{logic.floorGoalDropdownOptions.map((option) => (
-												<option key={option}>{option}</option>
-											))}
-										</select>
-									</label>
-								</div>
-							</fieldset>
-							<div>
-								{/* Find Players button, greyed out with a tooltip while the team cannot search, followed
+									<div id="team-region-and-floor-goal">
+										<label>
+											Region:
+											<select
+												value={logic.chosenRegionDropdownOption}
+												disabled={logic.areRegionAndFloorGoalDropdownsLocked}
+												onChange={(event) => logic.chooseRegionDropdownOption(event.target.value)}
+											>
+												{logic.regionDropdownOptions.map((option) => (
+													<option key={option}>{option}</option>
+												))}
+											</select>
+										</label>
+										<label>
+											Floor goal:
+											<select
+												value={logic.chosenFloorGoalDropdownOption}
+												disabled={logic.areRegionAndFloorGoalDropdownsLocked}
+												onChange={(event) => logic.chooseFloorGoalDropdownOption(event.target.value)}
+											>
+												{logic.floorGoalDropdownOptions.map((option) => (
+													<option key={option}>{option}</option>
+												))}
+											</select>
+										</label>
+									</div>
+								</fieldset>
+								<div>
+									{/* Find Players button, greyed out with a tooltip while the team cannot search, followed
 									while searching by a spinner */}
-								<style>{`
+									<style>{`
 									#team-find {
 										display: flex;
 										justify-content: flex-end;
@@ -1304,17 +1676,17 @@ createRoot(document.getElementById('root')!).render(
 										gap: 6px;
 									}
 								`}</style>
-								<span
-									id="team-find"
-									title={logic.findPlayersButtonDisabledTooltip}
-								>
-									{logic.showFindPlayersButton && (
-										<button disabled={logic.isFindPlayersButtonDisabled}>
-											{logic.findPlayersButtonText}
-										</button>
-									)}
-									{/* Ring of eight black spokes that darken one after another around the circle */}
-									<style>{`
+									<span
+										id="team-find"
+										title={logic.findPlayersButtonDisabledTooltip}
+									>
+										{logic.showFindPlayersButton && (
+											<button disabled={logic.isFindPlayersButtonDisabled}>
+												{logic.findPlayersButtonText}
+											</button>
+										)}
+										{/* Ring of eight black spokes that darken one after another around the circle */}
+										<style>{`
 										#team-spinner {
 											position: relative;
 											width: 18px;
@@ -1353,24 +1725,24 @@ createRoot(document.getElementById('root')!).render(
 										#team-spinner span:nth-child(7) { transform: rotate(270deg); animation-delay: -0.1s; }
 										#team-spinner span:nth-child(8) { transform: rotate(315deg); animation-delay: 0s; }
 									`}</style>
-									{logic.showFindingPlayersSpinner && (
-										<span id="team-spinner">
-											<span />
-											<span />
-											<span />
-											<span />
-											<span />
-											<span />
-											<span />
-											<span />
-										</span>
-									)}
-								</span>
-							</div>
-							<p id="team-form-error">{logic.findPlayersError}</p>
-							{/* Small dark grey line under Find Players with a warning sign on its left, that asks
+										{logic.showFindingPlayersSpinner && (
+											<span id="team-spinner">
+												<span />
+												<span />
+												<span />
+												<span />
+												<span />
+												<span />
+												<span />
+												<span />
+											</span>
+										)}
+									</span>
+								</div>
+								<p id="team-form-error">{logic.findPlayersError}</p>
+								{/* Small dark grey line under Find Players with a warning sign on its left, that asks
 							for a server link while the search runs without one */}
-							<style>{`
+								<style>{`
 								#team-server-link-hint {
 									max-width: 360px;
 									margin: 0;
@@ -1387,23 +1759,28 @@ createRoot(document.getElementById('root')!).render(
 									font-size: 16px;
 								}
 							`}</style>
-							<p
-								id="team-server-link-hint"
-								className={logic.findingWithoutServerLinkHintClass}
-							>
-								{/* Warning sign left of the text */}
-								<span aria-hidden="true">⚠</span>
-								{logic.findingWithoutServerLinkHint}
-							</p>
-						</form>
-						{/* Window on top of Find a Team that says the team is found, with a Click to join server button
+								<p
+									id="team-server-link-hint"
+									className={logic.findingWithoutServerLinkHintClass}
+								>
+									{/* Warning sign left of the text */}
+									<span aria-hidden="true">⚠</span>
+									{logic.findingWithoutServerLinkHint}
+								</p>
+							</form>
+							{/* Window on top of Find a Team that says the team is found, with a Click to join server button
 						below the text, and the picture of everyone at the elevator sitting on
 						top of the window */}
-						<style>{`
+							<style>{`
 							#team-found {
 								max-width: 520px;
 								overflow: visible;
 								overflow-wrap: anywhere;
+							}
+							@media (max-width: 640px) {
+								#team-found {
+									max-width: calc(100vw - 16px);
+								}
 							}
 							#team-found img {
 								position: absolute;
@@ -1444,55 +1821,55 @@ createRoot(document.getElementById('root')!).render(
 								translate: 1px 1px;
 							}
 						`}</style>
-						<ModalWindow
-							id="team-found"
-							closedby="closerequest"
-							isOpen={logic.isTeamFoundWindowOpen}
-							close={logic.closeTeamFoundWindow}
-						>
-							{/* Picture of all of the toons waiting together at the elevator, above the window */}
-							<img
-								src="/pixelated/Everyone_at_elevator.webp"
-								alt="All of the toons waiting together at the elevator"
-							/>
-							{/* Title bar with Team found! and a grey × button that closes the window */}
-							<div className="window-title">
-								Team found!
-								<button
-									className="window-close"
-									aria-label="Close"
-									onClick={logic.closeTeamFoundWindow}
-								>
-									×
-								</button>
-							</div>
-							{/* Centered text that says who joined whose team, with the host's username as a
-							blue link to their Roblox profile */}
-							<p>
-								{logic.teamFoundText.beforeHost}
-								{logic.teamFoundText.host && (
-									<a
-										href={logic.teamFoundText.hostProfileLink}
-										target="_blank"
-										rel="noreferrer"
-									>
-										{logic.teamFoundText.host}
-									</a>
-								)}
-								{logic.teamFoundText.afterHost}
-							</p>
-							{/* Raised grey Click to join server button that opens the server in Roblox */}
-							<a
-								id="team-found-join"
-								href={logic.teamServerLink}
-								target="_blank"
-								rel="noreferrer"
+							<ModalWindow
+								id="team-found"
+								closedby="closerequest"
+								isOpen={logic.isTeamFoundWindowOpen}
+								close={logic.closeTeamFoundWindow}
 							>
-								Click to join server
-							</a>
-						</ModalWindow>
-						{/* Window on top of Find a Team with two screenshots that explain how to get a server link */}
-						<style>{`
+								{/* Picture of all of the toons waiting together at the elevator, above the window */}
+								<img
+									src="/pixelated/Everyone_at_elevator.webp"
+									alt="All of the toons waiting together at the elevator"
+								/>
+								{/* Title bar with Team found! and a grey × button that closes the window */}
+								<div className="window-title">
+									Team found!
+									<button
+										className="window-close"
+										aria-label="Close"
+										onClick={logic.closeTeamFoundWindow}
+									>
+										×
+									</button>
+								</div>
+								{/* Centered text that says who joined whose team, with the host's username as a
+							blue link to their Roblox profile */}
+								<p>
+									{logic.teamFoundText.beforeHost}
+									{logic.teamFoundText.host && (
+										<a
+											href={logic.teamFoundText.hostProfileLink}
+											target="_blank"
+											rel="noreferrer"
+										>
+											{logic.teamFoundText.host}
+										</a>
+									)}
+									{logic.teamFoundText.afterHost}
+								</p>
+								{/* Raised grey Click to join server button that opens the server in Roblox */}
+								<a
+									id="team-found-join"
+									href={logic.teamServerLink}
+									target="_blank"
+									rel="noreferrer"
+								>
+									Click to join server
+								</a>
+							</ModalWindow>
+							{/* Window on top of Find a Team with two screenshots that explain how to get a server link */}
+							<style>{`
 							#team-howto[open] {
 								max-height: 90vh;
 								display: flex;
@@ -1507,51 +1884,51 @@ createRoot(document.getElementById('root')!).render(
 								width: 520px;
 								margin-bottom: 8px;
 							}
+							@media (max-width: 640px) {
+								#team-howto img {
+									width: 100%;
+								}
+							}
 						`}</style>
-						<ModalWindow
-							id="team-howto"
-							closedby="closerequest"
-							isOpen={logic.isServerLinkHelpWindowOpen}
-							close={logic.closeServerLinkHelpWindow}
+							<ModalWindow
+								id="team-howto"
+								closedby="closerequest"
+								isOpen={logic.isServerLinkHelpWindowOpen}
+								close={logic.closeServerLinkHelpWindow}
+							>
+								<div className="window-title">
+									How do I get a server link?
+									<button
+										className="window-close"
+										aria-label="Close"
+										onClick={logic.closeServerLinkHelpWindow}
+									>
+										×
+									</button>
+								</div>
+								{/* Two screenshots, which scroll below the title bar when they are taller than the screen */}
+								<div id="team-howto-screenshots">
+									<img
+										src="/howtomakeprivateserver1.webp"
+										alt="Dandy's World page: open Servers, then Create Private Server, or Configure on an existing one"
+									/>
+									<img
+										src="/howtomakeprivateserver2.webp"
+										alt="Configure Private Server page: turn on Allow Joining, then copy the Private Server Link"
+									/>
+								</div>
+							</ModalWindow>
+						</DesktopWindow>
+						{/* Upvote Players icon, third in the row */}
+						<DesktopWindow
+							id="upvote"
+							iconId="upvote-icon"
+							title="Upvote Players"
+							image="/pixelated/Main_Character.webp"
+							{...logic.upvotePlayersWindow}
 						>
-							<div className="window-title">
-								How do I get a server link?
-								<button
-									className="window-close"
-									aria-label="Close"
-									onClick={logic.closeServerLinkHelpWindow}
-								>
-									×
-								</button>
-							</div>
-							{/* Two screenshots, which scroll below the title bar when they are taller than the screen */}
-							<div id="team-howto-screenshots">
-								<img
-									src="/howtomakeprivateserver1.webp"
-									alt="Dandy's World page: open Servers, then Create Private Server, or Configure on an existing one"
-								/>
-								<img
-									src="/howtomakeprivateserver2.webp"
-									alt="Configure Private Server page: turn on Allow Joining, then copy the Private Server Link"
-								/>
-							</div>
-						</ModalWindow>
-					</DesktopWindow>
-					{/* Upvote Players icon, third in the row */}
-					<style>{`
-						#upvote-icon {
-							left: 252px;
-						}
-					`}</style>
-					<DesktopWindow
-						id="upvote"
-						iconId="upvote-icon"
-						title="Upvote Players"
-						image="/pixelated/Main_Character.webp"
-						{...logic.upvotePlayersWindow}
-					>
-						{/* Window that scrolls below its title bar when it is taller than the screen */}
-						<style>{`
+							{/* Window that scrolls below its title bar when it is taller than the screen */}
+							<style>{`
 							#upvote[open] {
 								max-height: 90vh;
 								display: flex;
@@ -1562,37 +1939,37 @@ createRoot(document.getElementById('root')!).render(
 								overflow-y: auto;
 							}
 						`}</style>
-						<div id="upvote-contents">
-							{/* Line at the top, which explains how to verify to a user who did not */}
-							<style>{`
+							<div id="upvote-contents">
+								{/* Line at the top, which explains how to verify to a user who did not */}
+								<style>{`
 								#upvote-intro {
 									max-width: 600px;
 									white-space: pre-line;
 								}
 							`}</style>
-							<p id="upvote-intro">{logic.upvotePlayersIntroText}</p>
-							{logic.showLastFoundTeam && (
-								<>
-									{/* TEAM SETTINGS of the team in one line, then its server link */}
-									<style>{`
+								<p id="upvote-intro">{logic.upvotePlayersIntroText}</p>
+								{logic.showLastFoundTeam && (
+									<>
+										{/* TEAM SETTINGS of the team in one line, then its server link */}
+										<style>{`
 										#upvote-settings a {
 											color: var(--link);
 										}
 									`}</style>
-									<p id="upvote-settings">
-										{logic.lastFoundTeamSettingsText}
-										<br />
-										<a
-											href={logic.lastFoundTeamServerLink}
-											target="_blank"
-											rel="noreferrer"
-										>
-											{logic.lastFoundTeamServerLink}
-										</a>
-									</p>
-									{/* White read-only table of the team, with Toon, Trinket A, Trinket B, Badges, Role
+										<p id="upvote-settings">
+											{logic.lastFoundTeamSettingsText}
+											<br />
+											<a
+												href={logic.lastFoundTeamServerLink}
+												target="_blank"
+												rel="noreferrer"
+											>
+												{logic.lastFoundTeamServerLink}
+											</a>
+										</p>
+										{/* White read-only table of the team, with Toon, Trinket A, Trinket B, Badges, Role
 									and Player columns and grey placeholders */}
-									<style>{`
+										<style>{`
 										#upvote-table {
 											border-collapse: collapse;
 											background: var(--field);
@@ -1617,72 +1994,81 @@ createRoot(document.getElementById('root')!).render(
 											height: 40px;
 											vertical-align: middle;
 										}
+										@media (max-width: 640px) {
+											#upvote-table-scroll {
+												overflow-x: auto;
+											}
+										}
 									`}</style>
-									<table id="upvote-table">
-										<thead>
-											<tr>
-												<th>Toon</th>
-												<th>Trinket A</th>
-												<th>Trinket B</th>
-												<th>Badges</th>
-												<th>Role</th>
-												<th>Player</th>
-											</tr>
-										</thead>
-										<tbody>
-											{logic.lastFoundTeamRows.map((row) => (
-												<tr key={row.key}>
-													{/* Whole row merged into one grey "(Leave Empty)" cell */}
-													{row.isLeftEmpty && (
-														<td
-															className="upvote-left-empty"
-															colSpan={6}
-														>
-															(Leave Empty)
-														</td>
-													)}
-													{/* Toon or trinket picture, or a grey "(Any)" */}
-													{!row.isLeftEmpty && row.pictureCells.map((cell) => (
-														<td key={cell.key}>
-															{cell.anyText && <span className="team-placeholder">{cell.anyText}</span>}
-															{cell.picture && (
-																<img
-																	className="toon-or-trinket-picture"
-																	src={cell.picture.src}
-																	title={cell.picture.title}
-																/>
+										{/* Strip around the table that scrolls sideways when the table is wider than a
+									phone */}
+										<div id="upvote-table-scroll">
+											<table id="upvote-table">
+												<thead>
+													<tr>
+														<th>Toon</th>
+														<th>Trinket A</th>
+														<th>Trinket B</th>
+														<th>Badges</th>
+														<th>Role</th>
+														<th>Player</th>
+													</tr>
+												</thead>
+												<tbody>
+													{logic.lastFoundTeamRows.map((row) => (
+														<tr key={row.key}>
+															{/* Whole row merged into one grey "(Leave Empty)" cell */}
+															{row.isLeftEmpty && (
+																<td
+																	className="upvote-left-empty"
+																	colSpan={6}
+																>
+																	(Leave Empty)
+																</td>
 															)}
-														</td>
+															{/* Toon or trinket picture, or a grey "(Any)" */}
+															{!row.isLeftEmpty && row.pictureCells.map((cell) => (
+																<td key={cell.key}>
+																	{cell.anyText && <span className="team-placeholder">{cell.anyText}</span>}
+																	{cell.picture && (
+																		<img
+																			className="toon-or-trinket-picture"
+																			src={cell.picture.src}
+																			title={cell.picture.title}
+																		/>
+																	)}
+																</td>
+															))}
+															{/* Badge names stacked in the cell, or a grey "(none required)" */}
+															{!row.isLeftEmpty && (
+																<td>
+																	{row.noBadgesText && (
+																		<span className="team-placeholder">{row.noBadgesText}</span>
+																	)}
+																	{row.badgeNames.map((name) => <div key={name}>{name}</div>)}
+																</td>
+															)}
+															{/* Role names stacked in the cell, or a grey "(none required)" */}
+															{!row.isLeftEmpty && (
+																<td>
+																	{row.noRolesText && (
+																		<span className="team-placeholder">{row.noRolesText}</span>
+																	)}
+																	{row.roleNames.map((name) => <div key={name}>{name}</div>)}
+																</td>
+															)}
+															{/* Grey name of the player who took the row */}
+															{!row.isLeftEmpty && (
+																<td className="team-placeholder">{row.playerName}</td>
+															)}
+														</tr>
 													))}
-													{/* Badge names stacked in the cell, or a grey "(none required)" */}
-													{!row.isLeftEmpty && (
-														<td>
-															{row.noBadgesText && (
-																<span className="team-placeholder">{row.noBadgesText}</span>
-															)}
-															{row.badgeNames.map((name) => <div key={name}>{name}</div>)}
-														</td>
-													)}
-													{/* Role names stacked in the cell, or a grey "(none required)" */}
-													{!row.isLeftEmpty && (
-														<td>
-															{row.noRolesText && (
-																<span className="team-placeholder">{row.noRolesText}</span>
-															)}
-															{row.roleNames.map((name) => <div key={name}>{name}</div>)}
-														</td>
-													)}
-													{/* Grey name of the player who took the row */}
-													{!row.isLeftEmpty && (
-														<td className="team-placeholder">{row.playerName}</td>
-													)}
-												</tr>
-											))}
-										</tbody>
-									</table>
-									{/* Old-style etched group box titled "VERIFIED PLAYERS", with one line per verified
+												</tbody>
+											</table>
+										</div>
+										{/* Old-style etched group box titled "VERIFIED PLAYERS", with one line per verified
 									player: their name, then an Upvote button that reads "Upvoted ✓" once clicked */}
-									<style>{`
+										<style>{`
 										#upvote-players {
 											margin-top: 12px;
 										}
@@ -1694,28 +2080,30 @@ createRoot(document.getElementById('root')!).render(
 											padding: 2px 0;
 										}
 									`}</style>
-									<fieldset id="upvote-players">
-										<legend>VERIFIED PLAYERS</legend>
-										{logic.noOtherVerifiedPlayersText && <p>{logic.noOtherVerifiedPlayersText}</p>}
-										{logic.upvoteEntries.map((entry) => (
-											<div key={entry.key}>
-												{entry.text}
-												{entry.showUpvoteButton && (
-													<button
-														title={entry.upvoteButtonTitle}
-														onClick={entry.toggleUpvote}
-													>
-														{entry.upvoteButtonText}
-													</button>
-												)}
-											</div>
-										))}
-									</fieldset>
-								</>
-							)}
-						</div>
-					</DesktopWindow>
-					{/* Two white-on-black counters side by side at the bottom middle of the screen */}
+										<fieldset id="upvote-players">
+											<legend>VERIFIED PLAYERS</legend>
+											{logic.noOtherVerifiedPlayersText && <p>{logic.noOtherVerifiedPlayersText}</p>}
+											{logic.upvoteEntries.map((entry) => (
+												<div key={entry.key}>
+													{entry.text}
+													{entry.showUpvoteButton && (
+														<button
+															title={entry.upvoteButtonTitle}
+															onClick={entry.toggleUpvote}
+														>
+															{entry.upvoteButtonText}
+														</button>
+													)}
+												</div>
+											))}
+										</fieldset>
+									</>
+								)}
+							</div>
+						</DesktopWindow>
+					</div>
+					{/* Two white-on-black counters side by side at the bottom middle of the screen, or stacked in
+					the bottom left corner of a phone */}
 					<style>{`
 						#counters {
 							position: fixed;
@@ -1731,6 +2119,15 @@ createRoot(document.getElementById('root')!).render(
 						#counters span {
 							padding: 1px 3px;
 							background: rgba(0, 0, 0, 0.6);
+						}
+						@media (max-width: 640px) {
+							#counters {
+								left: 12px;
+								translate: none;
+								flex-direction: column;
+								align-items: flex-start;
+								gap: 4px;
+							}
 						}
 					`}</style>
 					<div id="counters">
