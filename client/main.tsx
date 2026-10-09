@@ -469,104 +469,6 @@ function ReservedWindowEntry({ chip }: {
 	)
 }
 
-// Hidden filter that makes a picture blocky and reduces it to a few colors
-function PixelatedFewColorsFilter({
-	id,
-	blockSize,
-	shadesPerColorChannel,
-}: {
-	id: string
-	blockSize: number
-	shadesPerColorChannel: number
-}) {
-	const shades = Array.from(
-		{ length: shadesPerColorChannel },
-		(_, shade) => shade / (shadesPerColorChannel - 1),
-	).join(' ')
-	return (
-		<filter
-			id={id}
-			colorInterpolationFilters="sRGB"
-			x="0"
-			y="0"
-		>
-			{/* Keeps the top left pixel of every block */}
-			<feFlood
-				x="0"
-				y="0"
-				width="1"
-				height="1"
-			/>
-			<feComposite
-				width={blockSize}
-				height={blockSize}
-			/>
-			<feTile result="grid" />
-			<feComposite
-				in="SourceGraphic"
-				in2="grid"
-				operator="in"
-				result="kept"
-			/>
-			{/* Spreads each kept pixel over its whole block, by stacking copies of the kept pixels
-			shifted right one pixel at a time, and then copies of that row shifted down. Offsets are
-			measured in page pixels, so the blocks line up at any screen scaling, unlike
-			feConvolveMatrix, whose kernel is measured in screen pixels. */}
-			{Array.from({ length: blockSize }, (_, shift) => (
-				<feOffset
-					key={shift}
-					in="kept"
-					dx={shift}
-					result={`kept-right-${shift}`}
-				/>
-			))}
-			<feMerge result="kept-row">
-				{Array.from({ length: blockSize }, (_, shift) => (
-					<feMergeNode
-						key={shift}
-						in={`kept-right-${shift}`}
-					/>
-				))}
-			</feMerge>
-			{Array.from({ length: blockSize }, (_, shift) => (
-				<feOffset
-					key={shift}
-					in="kept-row"
-					dy={shift}
-					result={`kept-row-down-${shift}`}
-				/>
-			))}
-			<feMerge>
-				{Array.from({ length: blockSize }, (_, shift) => (
-					<feMergeNode
-						key={shift}
-						in={`kept-row-down-${shift}`}
-					/>
-				))}
-			</feMerge>
-			{/* Rounds each color channel to a few levels and makes every pixel fully solid or clear */}
-			<feComponentTransfer>
-				<feFuncR
-					type="discrete"
-					tableValues={shades}
-				/>
-				<feFuncG
-					type="discrete"
-					tableValues={shades}
-				/>
-				<feFuncB
-					type="discrete"
-					tableValues={shades}
-				/>
-				<feFuncA
-					type="discrete"
-					tableValues="0 1"
-				/>
-			</feComponentTransfer>
-		</filter>
-	)
-}
-
 createRoot(document.getElementById('root')!).render(
 	<StrictMode>
 		{/* Desktop with the Roblox Verification and Find a Team icons and their windows */}
@@ -578,18 +480,119 @@ createRoot(document.getElementById('root')!).render(
 						width="0"
 						height="0"
 					>
-						{/* Strong filter for the icon pictures and the Team found! picture */}
-						<PixelatedFewColorsFilter
+						{/* Hidden filter that makes the icon pictures and the Team found! picture blocky and
+						reduces them to a few colors */}
+						<filter
 							id="retro"
-							blockSize={3}
-							shadesPerColorChannel={6}
-						/>
-						{/* Mild filter for the toon and trinket pictures */}
-						<PixelatedFewColorsFilter
+							colorInterpolationFilters="sRGB"
+							x="0"
+							y="0"
+						>
+							{/* Keeps one pixel out of every 3 by 3 block and spreads it over the whole block */}
+							<feFlood
+								x="1"
+								y="1"
+								width="1"
+								height="1"
+							/>
+							<feComposite
+								width="3"
+								height="3"
+							/>
+							<feTile result="grid" />
+							<feComposite
+								in="SourceGraphic"
+								in2="grid"
+								operator="in"
+							/>
+							<feMorphology
+								operator="dilate"
+								radius="1"
+							/>
+							{/* Rounds each color channel to 6 levels and makes every pixel fully solid or clear */}
+							<feComponentTransfer>
+								<feFuncR
+									type="discrete"
+									tableValues="0 0.2 0.4 0.6 0.8 1"
+								/>
+								<feFuncG
+									type="discrete"
+									tableValues="0 0.2 0.4 0.6 0.8 1"
+								/>
+								<feFuncB
+									type="discrete"
+									tableValues="0 0.2 0.4 0.6 0.8 1"
+								/>
+								<feFuncA
+									type="discrete"
+									tableValues="0 1"
+								/>
+							</feComponentTransfer>
+						</filter>
+						{/* Hidden filter that makes the toon and trinket pictures a little blocky and reduces
+						them to a few colors */}
+						<filter
 							id="retro-mild"
-							blockSize={2}
-							shadesPerColorChannel={6}
-						/>
+							colorInterpolationFilters="sRGB"
+							x="0"
+							y="0"
+						>
+							{/* Keeps the top left pixel of every 2 by 2 block */}
+							<feFlood
+								x="0"
+								y="0"
+								width="1"
+								height="1"
+							/>
+							<feComposite
+								width="2"
+								height="2"
+							/>
+							<feTile result="grid" />
+							<feComposite
+								in="SourceGraphic"
+								in2="grid"
+								operator="in"
+								result="kept"
+							/>
+							{/* Spreads each kept pixel over its whole block, by stacking the kept pixels with a
+							copy shifted one pixel right, and then that row with a copy shifted one pixel down */}
+							<feOffset
+								dx="1"
+								result="kept-right"
+							/>
+							<feMerge result="kept-row">
+								<feMergeNode in="kept" />
+								<feMergeNode in="kept-right" />
+							</feMerge>
+							<feOffset
+								dy="1"
+								result="kept-row-down"
+							/>
+							<feMerge>
+								<feMergeNode in="kept-row" />
+								<feMergeNode in="kept-row-down" />
+							</feMerge>
+							{/* Rounds each color channel to 6 levels and makes every pixel fully solid or clear */}
+							<feComponentTransfer>
+								<feFuncR
+									type="discrete"
+									tableValues="0 0.2 0.4 0.6 0.8 1"
+								/>
+								<feFuncG
+									type="discrete"
+									tableValues="0 0.2 0.4 0.6 0.8 1"
+								/>
+								<feFuncB
+									type="discrete"
+									tableValues="0 0.2 0.4 0.6 0.8 1"
+								/>
+								<feFuncA
+									type="discrete"
+									tableValues="0 1"
+								/>
+							</feComponentTransfer>
+						</filter>
 					</svg>
 					{/* Roblox Verification icon, first in the row */}
 					<style>{`
