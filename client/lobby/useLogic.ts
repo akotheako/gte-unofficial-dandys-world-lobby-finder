@@ -882,8 +882,7 @@ export function useLogic() {
 
 					// "Verified only" checkbox below the chip, only for a verified host
 					showVerifiedOnlyCheckbox: isRobloxVerified && !isTableLocked,
-					verifiedOnlyCheckboxTooltip: `Only players with a verified Roblox account can take this row.
-Badges can only be checked for verified players.`,
+					verifiedOnlyCheckboxTooltip: `Allow only verified players into this player slot.`,
 					isVerifiedOnlyCheckboxChecked: row.isVerifiedPlayerRequired,
 					toggleVerifiedOnlyCheckbox: (isChecked: boolean) => toggleVerifiedOnlyCheckbox({
 						setIsVerifiedPlayerRequired: (isVerifiedPlayerRequired) => mutateState((state) => {
