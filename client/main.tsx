@@ -1011,6 +1011,9 @@ createRoot(document.getElementById('root')!).render(
 							#team-table td.team-clickable .team-placeholder {
 								cursor: pointer;
 							}
+							#team-table .team-text[draggable="true"] {
+								cursor: grab;
+							}
 							#team-table td.team-clickable:hover {
 								background: var(--field-hover);
 							}
