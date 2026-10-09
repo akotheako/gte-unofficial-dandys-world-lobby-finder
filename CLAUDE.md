@@ -14,6 +14,11 @@ check of the site, and the Playwright tests in `tests/` automate them.
 - Commit only when everything is stable: `npm run lint` and `npm run build` pass, and
   the changed feature works when you run it. Even when the user asks for a commit, report anything that is
   still broken first, and fix it or ask before committing.
+- When the user says "only commit what we've changed here", or something similar, commit every
+  change that belongs to the work of the current conversation, and nothing else. That includes the
+  changes that the user made by hand, as long as they are directly related to that work. Leave
+  every unrelated change uncommitted. Commit the files as they are, without modifying anything and
+  without running lint, the build or the tests first.
 - Whenever you change the code, update every piece of documentation that the change affects, such
   as `README.md`, this file and code comments, in the same task. The documentation describes only
   what exists now, so leave out anything that has been removed or replaced, and write no negative
