@@ -790,10 +790,10 @@ export function useLogic() {
 			badges: row.badgeNames.map((name) => ({
 				name,
 				isCrossedOut: !row.isVerifiedPlayerRequired,
-				crossedOutTooltip: row.isVerifiedPlayerRequired
-					? undefined
-					: 'Badges cannot be verified for unverified players. Check "Verified only".',
 			})),
+			badgesCellTooltip: row.isVerifiedPlayerRequired || !row.badgeNames.length
+				? 'Click to modify required badges'
+				: 'Only verified players can require badges.',
 
 			// Role names stacked in the Role cell after Badges.
 			// Solar Support is crossed out when the toon is not Bobette.

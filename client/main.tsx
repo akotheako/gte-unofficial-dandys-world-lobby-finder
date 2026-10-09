@@ -1070,6 +1070,7 @@ createRoot(document.getElementById('root')!).render(
 											<td
 												className={row.badgesAndRoleCellClass}
 												onClick={row.openBadgesWindow}
+												title={row.badgesCellTooltip}
 											>
 												{row.noBadgesText && (
 													<span className="team-placeholder">{row.noBadgesText}</span>
@@ -1079,7 +1080,6 @@ createRoot(document.getElementById('root')!).render(
 														key={badge.name}
 														className="team-badge-or-role"
 														data-crossed-out={badge.isCrossedOut}
-														title={badge.crossedOutTooltip}
 													>
 														{badge.name}
 													</div>
