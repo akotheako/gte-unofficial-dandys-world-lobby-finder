@@ -1,17 +1,14 @@
-import type { FormEvent } from 'react'
 import type { RobloxAccount } from './useLogic.ts'
 
 export async function verifyRobloxUsername({
 	setRobloxVerificationError,
 	setVerifiedRobloxAccount,
-	event,
+	username,
 }: {
 	setRobloxVerificationError: (robloxVerificationError: string) => void
 	setVerifiedRobloxAccount: (verifiedRobloxAccount: RobloxAccount) => void
-	event: FormEvent<HTMLFormElement>
+	username: string
 }) {
-	event.preventDefault()
-	const username = new FormData(event.currentTarget).get('username') as string
 	localStorage.setItem('robloxUsername', username)
 	const res = await fetch('/api/roblox/check', {
 		method: 'POST',

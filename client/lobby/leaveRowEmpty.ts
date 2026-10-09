@@ -1,12 +1,12 @@
-import type { DragEvent } from 'react'
+import type { DraggedItem } from './useLogic.ts'
 
 export function leaveRowEmpty({
+	getDraggedItem,
 	setIsLeftEmpty,
-	event,
 }: {
+	getDraggedItem: () => DraggedItem | null
 	setIsLeftEmpty: (isLeftEmpty: boolean) => void
-	event: DragEvent
 }) {
-	if (!event.dataTransfer.types.includes('leave-empty')) return
+	if (getDraggedItem()?.kind !== 'leave-empty') return
 	setIsLeftEmpty(true)
 }

@@ -29,8 +29,6 @@ export default defineConfig({
 	],
 	use: {
 		baseURL: 'http://localhost:3100',
-		// Edge is Chromium and comes with Windows, so the tests need no browser download
-		channel: 'msedge',
 		permissions: [
 			'clipboard-read',
 			'clipboard-write',
@@ -39,14 +37,36 @@ export default defineConfig({
 		// npx playwright show-trace opens
 		trace: 'retain-on-failure',
 	},
-	// "fast" runs without a window, and the npm scripts that show the tests use "visible"
+	// "fast" runs without a window, and the npm scripts that show the tests use "visible". "firefox"
+	// and "webkit" run without a window in the engines of Firefox and Safari, which
+	// npx playwright install firefox webkit downloads. Their engines reject the clipboard permission
+	// names of Chromium, so they grant none, and tests/allowClipboard.ts fakes the clipboard there.
 	projects: [
-		{ name: 'fast' },
+		{
+			name: 'fast',
+			// Edge is Chromium and comes with Windows, so the tests need no browser download
+			use: { channel: 'msedge' },
+		},
+		{
+			name: 'firefox',
+			use: {
+				browserName: 'firefox',
+				permissions: [],
+			},
+		},
+		{
+			name: 'webkit',
+			use: {
+				browserName: 'webkit',
+				permissions: [],
+			},
+		},
 		{
 			name: 'visible',
 			// Slow motion makes the longest tests take minutes
 			timeout: 600_000,
 			use: {
+				channel: 'msedge',
 				headless: false,
 				launchOptions: {
 					// Every step waits this long, so a person can follow the page

@@ -1,13 +1,17 @@
-import type { DragEvent } from 'react'
+import type { DraggedItem } from './useLogic.ts'
 
 export function dragFromSideWindow({
-	event,
+	setDraggedItem,
 	kind,
 	name,
 }: {
-	event: DragEvent
-	kind: 'toon' | 'trinket' | 'leave-empty' | 'reserved-for'
+	setDraggedItem: (draggedItem: DraggedItem) => void
+	kind: DraggedItem['kind']
 	name: string
 }) {
-	event.dataTransfer.setData(kind, name)
+	setDraggedItem({
+		kind,
+		name,
+		fromTableCell: '',
+	})
 }

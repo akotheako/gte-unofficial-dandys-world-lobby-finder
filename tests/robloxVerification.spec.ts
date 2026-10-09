@@ -1,10 +1,12 @@
 import { expect, test } from '@playwright/test'
+import { allowClipboard } from './allowClipboard.ts'
 import { verifyAsRobloxAccount } from './verifyAsRobloxAccount.ts'
 
 // The real Roblox API stays out of the tests, so the routes that call it answer from here, the way
 // that the server answers them
 
 test('the emoji code has the sentence and 8 emojis, and Copy copies it', async ({ page }) => {
+	await allowClipboard(page.context())
 	await page.goto('/')
 	await page.locator('#account-icon').click()
 	const emojiCodeField = page.locator('#account-code input')

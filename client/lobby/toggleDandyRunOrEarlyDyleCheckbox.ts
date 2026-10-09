@@ -1,14 +1,12 @@
-import type { ChangeEvent } from 'react'
-
 export function toggleDandyRunOrEarlyDyleCheckbox({
 	localStorageKey,
 	setIsChecked,
-	event,
+	isChecked,
 }: {
 	localStorageKey: string
 	setIsChecked: (isChecked: boolean) => void
-	event: ChangeEvent<HTMLInputElement>
+	isChecked: boolean
 }) {
-	localStorage.setItem(localStorageKey, String(event.target.checked))
-	setIsChecked(event.target.checked)
+	localStorage.setItem(localStorageKey, String(isChecked))
+	setIsChecked(isChecked)
 }

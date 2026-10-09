@@ -1,18 +1,22 @@
-import type { DragEvent } from 'react'
-import type { PictureColumn } from './useLogic.ts'
+import type {
+	DraggedItem,
+	PictureColumn,
+} from './useLogic.ts'
 
 export function dragPictureFromTable({
 	getPicture,
-	event,
+	setDraggedItem,
 	index,
 	column,
 }: {
 	getPicture: () => string
-	event: DragEvent
+	setDraggedItem: (draggedItem: DraggedItem) => void
 	index: number
 	column: PictureColumn
 }) {
-	const kind = column === 'toonPicture' ? 'toon' : 'trinket'
-	event.dataTransfer.setData(kind, getPicture())
-	event.dataTransfer.setData('from', `${index} ${column}`)
+	setDraggedItem({
+		kind: column === 'toonPicture' ? 'toon' : 'trinket',
+		name: getPicture(),
+		fromTableCell: `${index} ${column}`,
+	})
 }

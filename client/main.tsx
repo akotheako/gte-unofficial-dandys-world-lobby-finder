@@ -1,35 +1,80 @@
 import {
 	StrictMode,
 	createElement,
-	type ChangeEventHandler,
-	type DragEventHandler,
-	type MouseEventHandler,
-	type ReactEventHandler,
+	useEffect,
+	useRef,
 	type ReactNode,
 } from 'react'
 import { createRoot } from 'react-dom/client'
 import { useLogic } from './lobby/useLogic.ts'
 
-// Desktop icon that opens an old-style grey window with a navy title bar and an × button
+// Desktop icon that opens an old-style grey window with a navy title bar and an × button. The
+// window grows out of the icon when it opens, and shrinks back into it when it closes.
 function DesktopWindow({
 	id,
 	iconId,
 	title,
 	image,
-	onIconClick,
-	onCancel,
-	onCloseClick,
+	isOpen,
+	openFromIcon,
+	close,
 	children,
 }: {
 	id: string
 	iconId: string
 	title: string
 	image: string
-	onIconClick: MouseEventHandler<HTMLButtonElement>
-	onCancel: ReactEventHandler<HTMLDialogElement>
-	onCloseClick: () => void
+	isOpen: boolean
+	openFromIcon: () => void
+	close: () => void
 	children: ReactNode
 }) {
+	const iconRef = useRef<HTMLButtonElement>(null)
+	const dialogRef = useRef<HTMLDialogElement>(null)
+	const shrinkAnimationRef = useRef<Animation>(null)
+	useEffect(() => {
+		const icon = iconRef.current!
+		const dialog = dialogRef.current!
+		if (isOpen) {
+			// A window that opens again while it still shrinks stays open
+			shrinkAnimationRef.current?.cancel()
+			if (dialog.open) return
+			// show() instead of showModal() leaves out the dark backdrop and keeps the page clickable
+			dialog.show()
+			const from = icon.getBoundingClientRect()
+			const to = dialog.getBoundingClientRect()
+			dialog.animate([
+				{
+					translate: `${from.x - to.x}px ${from.y - to.y}px`,
+					scale: `${from.width / to.width} ${from.height / to.height}`,
+				},
+				{
+					translate: '0 0',
+					scale: '1',
+				},
+			], {
+				duration: 200,
+				easing: 'ease-out',
+			})
+		} else if (dialog.open) {
+			const from = dialog.getBoundingClientRect()
+			const to = icon.getBoundingClientRect()
+			shrinkAnimationRef.current = dialog.animate([
+				{
+					translate: '0 0',
+					scale: '1',
+				},
+				{
+					translate: `${to.x - from.x}px ${to.y - from.y}px`,
+					scale: `${to.width / from.width} ${to.height / from.height}`,
+				},
+			], {
+				duration: 150,
+				easing: 'ease-in',
+			})
+			shrinkAnimationRef.current.onfinish = () => dialog.close()
+		}
+	}, [isOpen])
 	return (
 		<>
 			{/* Desktop icon picture with a white label, in a row along the top of the screen */}
@@ -69,9 +114,10 @@ function DesktopWindow({
 				}
 			`}</style>
 			<button
+				ref={iconRef}
 				id={iconId}
 				className="window-icon"
-				onClick={onIconClick}
+				onClick={openFromIcon}
 			>
 				<img
 					src={image}
@@ -102,10 +148,19 @@ function DesktopWindow({
 				}
 			`}</style>
 			<dialog
+				ref={dialogRef}
 				id={id}
 				className="window"
 				closedby="closerequest"
-				onCancel={onCancel}
+				onCancel={(event) => {
+					// React passes on the cancel of the windows inside this one, which close by themselves
+					if (event.target !== event.currentTarget) return
+					// The window stays open until it has shrunk into its icon
+					event.preventDefault()
+					close()
+				}}
+				// Firefox only starts a drag that carries some data
+				onDragStart={(event) => event.dataTransfer.setData('text/plain', '')}
 			>
 				{/* Navy title bar with the window's title and an × button */}
 				<style>{`
@@ -146,7 +201,7 @@ function DesktopWindow({
 					<button
 						className="window-close"
 						aria-label="Close"
-						onClick={onCloseClick}
+						onClick={close}
 					>
 						×
 					</button>
@@ -157,13 +212,48 @@ function DesktopWindow({
 	)
 }
 
+// Old-style grey window on top of everything else, which darkens the page behind it
+function ModalWindow({
+	id,
+	closedby,
+	isOpen,
+	close,
+	children,
+}: {
+	id: string
+	closedby: 'any' | 'closerequest'
+	isOpen: boolean
+	close: () => void
+	children: ReactNode
+}) {
+	const dialogRef = useRef<HTMLDialogElement>(null)
+	useEffect(() => {
+		const dialog = dialogRef.current!
+		if (isOpen && !dialog.open) dialog.showModal()
+		if (!isOpen && dialog.open) dialog.close()
+	}, [isOpen])
+	return (
+		<dialog
+			ref={dialogRef}
+			id={id}
+			className="window"
+			closedby={closedby}
+			// Esc and, with closedby="any", a click outside the window close it by themselves
+			onClose={close}
+		>
+			{children}
+		</dialog>
+	)
+}
+
 // Grey window in the middle of the screen with a navy title bar, an × button, and a white list of
 // checkboxes, which the Badges and Role cells of the Find a Team table open
 function ChecklistWindow({
 	id,
 	title,
 	checkboxes,
-	onCloseClick,
+	isOpen,
+	close,
 	copyButtonText,
 	pasteButtonText,
 	isPasteDisabled,
@@ -176,9 +266,10 @@ function ChecklistWindow({
 		name: string
 		hasLineAbove: boolean
 		isChecked: boolean
-		toggleCheckbox: ChangeEventHandler<HTMLInputElement>
+		toggleCheckbox: (isChecked: boolean) => void
 	}[]
-	onCloseClick: () => void
+	isOpen: boolean
+	close: () => void
 	copyButtonText: string
 	pasteButtonText: string
 	isPasteDisabled: boolean
@@ -186,10 +277,11 @@ function ChecklistWindow({
 	onPasteClick: () => void
 }) {
 	return (
-		<dialog
+		<ModalWindow
 			id={id}
-			className="window"
 			closedby="any"
+			isOpen={isOpen}
+			close={close}
 		>
 			{/* Title bar with the window's title and a grey × button that closes the window */}
 			<div className="window-title">
@@ -197,7 +289,7 @@ function ChecklistWindow({
 				<button
 					className="window-close"
 					aria-label="Close"
-					onClick={onCloseClick}
+					onClick={close}
 				>
 					×
 				</button>
@@ -239,7 +331,7 @@ function ChecklistWindow({
 						<input
 							type="checkbox"
 							checked={checkbox.isChecked}
-							onChange={checkbox.toggleCheckbox}
+							onChange={(event) => checkbox.toggleCheckbox(event.target.checked)}
 						/>
 						{checkbox.name}
 					</label>
@@ -267,7 +359,7 @@ function ChecklistWindow({
 					{pasteButtonText}
 				</button>
 			</div>
-		</dialog>
+		</ModalWindow>
 	)
 }
 
@@ -280,8 +372,8 @@ function ReservationChip({
 	onDragEnd,
 }: {
 	text: string
-	onDragStart: DragEventHandler
-	onDragEnd?: DragEventHandler
+	onDragStart: () => void
+	onDragEnd: () => void
 }) {
 	return (
 		<>
@@ -311,7 +403,8 @@ function ReservationChip({
 function ReservedWindowEntry({ chip }: {
 	chip: {
 		text: string
-		dragFromSideWindow: DragEventHandler
+		dragFromSideWindow: () => void
+		endDragFromSideWindow: () => void
 		showRemoveFriendButton: boolean
 		removeFriend: () => void
 	}
@@ -321,6 +414,7 @@ function ReservedWindowEntry({ chip }: {
 			<ReservationChip
 				text={chip.text}
 				onDragStart={chip.dragFromSideWindow}
+				onDragEnd={chip.endDragFromSideWindow}
 			/>
 			{/* Grey × button that removes the friend */}
 			{chip.showRemoveFriendButton && (
@@ -511,7 +605,12 @@ createRoot(document.getElementById('root')!).render(
 								`}</style>
 								<form
 									id="account-username"
-									onSubmit={logic.verifyRobloxUsername}
+									onSubmit={(event) => {
+										event.preventDefault()
+										logic.verifyRobloxUsername(
+											new FormData(event.currentTarget).get('username') as string,
+										)
+									}}
 								>
 									<input
 										name="username"
@@ -642,6 +741,7 @@ createRoot(document.getElementById('root')!).render(
 									className="team-text"
 									draggable
 									onDragStart={logic.dragLeaveEmptyTile}
+									onDragEnd={logic.endDragFromSideWindow}
 								>
 									(Leave Empty)
 								</div>
@@ -652,6 +752,7 @@ createRoot(document.getElementById('root')!).render(
 										title={toon.title}
 										draggable
 										onDragStart={toon.dragFromSideWindow}
+										onDragEnd={logic.endDragFromSideWindow}
 									/>
 								))}
 							</div>
@@ -679,6 +780,7 @@ createRoot(document.getElementById('root')!).render(
 											title={trinket.title}
 											draggable
 											onDragStart={trinket.dragFromSideWindow}
+											onDragEnd={logic.endDragFromSideWindow}
 										/>
 									))}
 								</div>
@@ -767,7 +869,8 @@ createRoot(document.getElementById('root')!).render(
 							id="team-badges"
 							title="Badges"
 							checkboxes={logic.badgesWindowCheckboxes}
-							onCloseClick={logic.closeBadgesWindow}
+							isOpen={logic.isBadgesWindowOpen}
+							close={logic.closeBadgesWindow}
 							copyButtonText={logic.badgesWindowCopyButtonText}
 							pasteButtonText={logic.badgesWindowPasteButtonText}
 							isPasteDisabled={logic.isBadgesWindowPasteDisabled}
@@ -779,7 +882,8 @@ createRoot(document.getElementById('root')!).render(
 							id="team-roles"
 							title="Roles"
 							checkboxes={logic.rolesWindowCheckboxes}
-							onCloseClick={logic.closeRolesWindow}
+							isOpen={logic.isRolesWindowOpen}
+							close={logic.closeRolesWindow}
 							copyButtonText={logic.rolesWindowCopyButtonText}
 							pasteButtonText={logic.rolesWindowPasteButtonText}
 							isPasteDisabled={logic.isRolesWindowPasteDisabled}
@@ -878,7 +982,10 @@ createRoot(document.getElementById('root')!).render(
 								}
 							}
 						`}</style>
-						<table id="team-table">
+						<table
+							id="team-table"
+							onDrop={logic.landDragOnTable}
+						>
 							<thead>
 								<tr>
 									<th>Toon</th>
@@ -894,7 +1001,10 @@ createRoot(document.getElementById('root')!).render(
 								{logic.teamTableRows.map((row) => (
 									<tr
 										key={row.key}
-										onDragOver={row.allowLeaveEmptyDropOnRow}
+										// The browser only lets a drop land where its dragover was prevented
+										onDragOver={(event) => {
+											if (row.canDropLeaveEmptyOnRow) event.preventDefault()
+										}}
 										onDrop={row.leaveRowEmpty}
 									>
 										{/* Whole row merged into one cell with "(Leave Empty)" in the middle,
@@ -904,7 +1014,9 @@ createRoot(document.getElementById('root')!).render(
 												className={row.leaveEmptyCellClass}
 												colSpan={row.leaveEmptyCellColSpan}
 												onClick={row.undoLeaveRowEmpty}
-												onDragOver={row.allowPictureDropOnLeftEmptyRow}
+												onDragOver={(event) => {
+													if (row.canDropPictureOnLeftEmptyRow) event.preventDefault()
+												}}
 												onDrop={row.dropPictureOnLeftEmptyRow}
 											>
 												(Leave Empty)
@@ -913,7 +1025,9 @@ createRoot(document.getElementById('root')!).render(
 										{!row.isLeftEmpty && row.pictureCells.map((cell) => (
 											<td
 												key={cell.column}
-												onDragOver={cell.allowPictureDropOnCell}
+												onDragOver={(event) => {
+													if (cell.canDropPictureOnCell) event.preventDefault()
+												}}
 												onDrop={cell.dropPictureOnCell}
 											>
 												{/* Grey "(Any)" text in an empty Toon or Trinket cell, which cannot be dragged */}
@@ -988,7 +1102,9 @@ createRoot(document.getElementById('root')!).render(
 										the player in the row */}
 										{!row.isLeftEmpty && (
 											<td
-												onDragOver={row.allowReservationDropOnPlayerCell}
+												onDragOver={(event) => {
+													if (row.canDropReservationOnPlayerCell) event.preventDefault()
+												}}
 												onDrop={row.dropReservationOnPlayerCell}
 											>
 												{row.showFindingPlayerText && (
@@ -1017,7 +1133,9 @@ createRoot(document.getElementById('root')!).render(
 														<input
 															type="checkbox"
 															checked={row.isVerifiedOnlyCheckboxChecked}
-															onChange={row.toggleVerifiedOnlyCheckbox}
+															onChange={(event) => row.toggleVerifiedOnlyCheckbox(
+																event.target.checked,
+															)}
 														/>
 														Verified only
 													</label>
@@ -1056,7 +1174,10 @@ createRoot(document.getElementById('root')!).render(
 						`}</style>
 						<form
 							id="team-form"
-							onSubmit={logic.toggleFindingPlayers}
+							onSubmit={(event) => {
+								event.preventDefault()
+								logic.toggleFindingPlayers()
+							}}
 						>
 							{/* Line for a friend who opened an invite link, saying whose team they are in */}
 							{logic.invitedFriendText && <p id="team-invited-friend">{logic.invitedFriendText}</p>}
@@ -1093,7 +1214,7 @@ createRoot(document.getElementById('root')!).render(
 											type="password"
 											defaultValue={logic.serverLinkFieldStartValue}
 											readOnly={logic.isServerLinkFieldLocked}
-											onChange={logic.saveServerLinkField}
+											onChange={(event) => logic.saveServerLinkField(event.target.value)}
 										/>
 									</label>
 									{/* Blue underlined "?" right of the field that opens the server link help window */}
@@ -1154,7 +1275,7 @@ createRoot(document.getElementById('root')!).render(
 											type="checkbox"
 											checked={logic.isDandyRunCheckboxChecked}
 											disabled={logic.areDandyRunAndEarlyDyleCheckboxesLocked}
-											onChange={logic.toggleDandyRunCheckbox}
+											onChange={(event) => logic.toggleDandyRunCheckbox(event.target.checked)}
 										/>
 										Dandy Run
 									</label>
@@ -1163,7 +1284,7 @@ createRoot(document.getElementById('root')!).render(
 											type="checkbox"
 											checked={logic.isEarlyDyleCheckboxChecked}
 											disabled={logic.areDandyRunAndEarlyDyleCheckboxesLocked}
-											onChange={logic.toggleEarlyDyleCheckbox}
+											onChange={(event) => logic.toggleEarlyDyleCheckbox(event.target.checked)}
 										/>
 										Early Dyle
 									</label>
@@ -1185,7 +1306,7 @@ createRoot(document.getElementById('root')!).render(
 										<select
 											value={logic.chosenRegionDropdownOption}
 											disabled={logic.areRegionAndFloorGoalDropdownsLocked}
-											onChange={logic.chooseRegionDropdownOption}
+											onChange={(event) => logic.chooseRegionDropdownOption(event.target.value)}
 										>
 											{logic.regionDropdownOptions.map((option) => (
 												<option key={option}>{option}</option>
@@ -1197,7 +1318,7 @@ createRoot(document.getElementById('root')!).render(
 										<select
 											value={logic.chosenFloorGoalDropdownOption}
 											disabled={logic.areRegionAndFloorGoalDropdownsLocked}
-											onChange={logic.chooseFloorGoalDropdownOption}
+											onChange={(event) => logic.chooseFloorGoalDropdownOption(event.target.value)}
 										>
 											{logic.floorGoalDropdownOptions.map((option) => (
 												<option key={option}>{option}</option>
@@ -1333,10 +1454,11 @@ createRoot(document.getElementById('root')!).render(
 								color: #00e;
 							}
 						`}</style>
-						<dialog
+						<ModalWindow
 							id="team-found"
-							className="window"
 							closedby="closerequest"
+							isOpen={logic.isTeamFoundWindowOpen}
+							close={logic.closeTeamFoundWindow}
 						>
 							{/* Picture of all of the toons waiting together at the elevator, above the window */}
 							<img
@@ -1366,7 +1488,7 @@ createRoot(document.getElementById('root')!).render(
 									{logic.teamServerLink}
 								</a>
 							</p>
-						</dialog>
+						</ModalWindow>
 						{/* Window on top of Find a Team with two screenshots that explain how to get a server link */}
 						<style>{`
 							#team-howto {
@@ -1383,10 +1505,11 @@ createRoot(document.getElementById('root')!).render(
 								margin-bottom: 8px;
 							}
 						`}</style>
-						<dialog
+						<ModalWindow
 							id="team-howto"
-							className="window"
 							closedby="closerequest"
+							isOpen={logic.isServerLinkHelpWindowOpen}
+							close={logic.closeServerLinkHelpWindow}
 						>
 							<div className="window-title">
 								How do I get a server link?
@@ -1406,7 +1529,7 @@ createRoot(document.getElementById('root')!).render(
 								src="/howtomakeprivateserver2.webp"
 								alt="Configure Private Server page: turn on Allow Joining, then copy the Private Server Link"
 							/>
-						</dialog>
+						</ModalWindow>
 					</DesktopWindow>
 					{/* Upvote Players icon, third in the row */}
 					<style>{`

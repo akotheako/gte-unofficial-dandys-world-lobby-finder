@@ -1,16 +1,14 @@
-import type { ChangeEvent } from 'react'
-
 export function toggleRoleCheckbox({
 	getRoleNames,
 	setRoleNames,
-	event,
+	isChecked,
 	name,
 }: {
 	getRoleNames: () => string[]
 	setRoleNames: (roleNames: string[]) => void
-	event: ChangeEvent<HTMLInputElement>
+	isChecked: boolean
 	name: string
 }) {
 	const otherRoleNames = getRoleNames().filter((role) => role !== name)
-	setRoleNames(event.target.checked ? [...otherRoleNames, name] : otherRoleNames)
+	setRoleNames(isChecked ? [...otherRoleNames, name] : otherRoleNames)
 }

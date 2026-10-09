@@ -1,15 +1,18 @@
-import type { DragEvent } from 'react'
 import type { ReservedFor } from '../../shared/teamTypes.ts'
+import type { DraggedItem } from './useLogic.ts'
 
 export function dragReservationFromTable({
 	getReservedFor,
-	event,
+	setDraggedItem,
 	index,
 }: {
 	getReservedFor: () => ReservedFor
-	event: DragEvent
+	setDraggedItem: (draggedItem: DraggedItem) => void
 	index: number
 }) {
-	event.dataTransfer.setData('reserved-for', getReservedFor())
-	event.dataTransfer.setData('from', `${index} reservedFor`)
+	setDraggedItem({
+		kind: 'reserved-for',
+		name: getReservedFor(),
+		fromTableCell: `${index} reservedFor`,
+	})
 }

@@ -1,11 +1,9 @@
-import type { ChangeEvent } from 'react'
-
 export function toggleVerifiedOnlyCheckbox({
 	setIsVerifiedPlayerRequired,
-	event,
+	isChecked,
 }: {
 	setIsVerifiedPlayerRequired: (isVerifiedPlayerRequired: boolean) => void
-	event: ChangeEvent<HTMLInputElement>
+	isChecked: boolean
 }) {
-	setIsVerifiedPlayerRequired(event.target.checked)
+	setIsVerifiedPlayerRequired(isChecked)
 }

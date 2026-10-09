@@ -1,25 +1,30 @@
-import type { DragEvent } from 'react'
-import type { PictureColumn } from './useLogic.ts'
+import type {
+	DraggedItem,
+	PictureColumn,
+} from './useLogic.ts'
 
 export function dropPictureOnCell({
+	getDraggedItem,
 	getRowPicture,
 	setPicture,
 	setTableDragLandedInAnotherCell,
-	event,
 	index,
 	column,
 }: {
+	getDraggedItem: () => DraggedItem | null
 	getRowPicture: (column: PictureColumn) => string
 	setPicture: (picture: string) => void
 	setTableDragLandedInAnotherCell: (tableDragLandedInAnotherCell: boolean) => void
-	event: DragEvent
 	index: number
 	column: PictureColumn
 }) {
-	const kind = column === 'toonPicture' ? 'toon' : 'trinket'
-	const name = event.dataTransfer.getData(kind)
-	const from = event.dataTransfer.getData('from')
-	if (!name || from === `${index} ${column}`) return
+	const draggedItem = getDraggedItem()
+	if (draggedItem?.kind !== (column === 'toonPicture' ? 'toon' : 'trinket')) return
+	const {
+		name,
+		fromTableCell,
+	} = draggedItem
+	if (fromTableCell === `${index} ${column}`) return
 	// A row cannot hold the same trinket twice, unless it is moving between the two columns
 	const otherTrinketColumn = {
 		toonPicture: '',
@@ -29,9 +34,9 @@ export function dropPictureOnCell({
 	if (
 		otherTrinketColumn
 		&& getRowPicture(otherTrinketColumn) === name
-		&& from !== `${index} ${otherTrinketColumn}`
+		&& fromTableCell !== `${index} ${otherTrinketColumn}`
 	) return
 	setPicture(name)
 	// A picture dragged from another cell moves out of that cell when its drag ends
-	if (from) setTableDragLandedInAnotherCell(true)
+	if (fromTableCell) setTableDragLandedInAnotherCell(true)
 }

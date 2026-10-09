@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { allowClipboard } from './allowClipboard.ts'
 import { verifyAsRobloxAccount } from './verifyAsRobloxAccount.ts'
 
 test.beforeEach(async ({ page }) => {
@@ -407,6 +408,9 @@ test.describe('after verifying', () => {
 	})
 
 	test('"Copy invite link" copies one link per tab', async ({ page }) => {
+		await allowClipboard(page.context())
+		await page.reload()
+		await page.locator('#team-icon').click()
 		const copyButton = page.getByRole('button', { name: 'Copy invite link' })
 		await copyButton.click()
 		await expect(page.locator('#team-reserved button', { hasText: 'Copied!' })).toBeVisible()

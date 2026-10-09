@@ -1,12 +1,10 @@
-import type { ChangeEvent } from 'react'
-
 export function saveServerLinkField({
 	setServerLink,
-	event,
+	serverLink,
 }: {
 	setServerLink: (serverLink: string) => void
-	event: ChangeEvent<HTMLInputElement>
+	serverLink: string
 }) {
-	localStorage.setItem('serverLink', event.target.value)
-	setServerLink(event.target.value)
+	localStorage.setItem('serverLink', serverLink)
+	setServerLink(serverLink)
 }

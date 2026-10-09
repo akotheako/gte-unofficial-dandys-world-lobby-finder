@@ -1,21 +1,21 @@
-import type { DragEvent } from 'react'
 import type { ReservedFor } from '../../shared/teamTypes.ts'
+import type { DraggedItem } from './useLogic.ts'
 
 export function dropReservationOnPlayerCell({
+	getDraggedItem,
 	setReservedFor,
 	setTableDragLandedInAnotherCell,
-	event,
 	index,
 }: {
+	getDraggedItem: () => DraggedItem | null
 	setReservedFor: (reservedFor: ReservedFor) => void
 	setTableDragLandedInAnotherCell: (tableDragLandedInAnotherCell: boolean) => void
-	event: DragEvent
 	index: number
 }) {
-	const reservedFor = event.dataTransfer.getData('reserved-for') as ReservedFor
-	const from = event.dataTransfer.getData('from')
-	if (!reservedFor || from === `${index} reservedFor`) return
-	setReservedFor(reservedFor)
+	const draggedItem = getDraggedItem()
+	if (draggedItem?.kind !== 'reserved-for') return
+	if (draggedItem.fromTableCell === `${index} reservedFor`) return
+	setReservedFor(draggedItem.name as ReservedFor)
 	// A chip dragged from another Player cell moves out of that cell when its drag ends
-	if (from) setTableDragLandedInAnotherCell(true)
+	if (draggedItem.fromTableCell) setTableDragLandedInAnotherCell(true)
 }

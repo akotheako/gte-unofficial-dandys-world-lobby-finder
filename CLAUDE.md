@@ -36,8 +36,12 @@ check of the site, and the Playwright tests in `tests/` automate them.
   - The frontend logic is the exception. Every reaction of the page, meaning every click, input,
     drag, drop, fetch or timer, gets its own file in `client/lobby/`, and `useLogic` wires it. All
     state lives in `useLogic`.
-  - The view only shows the values that `useLogic` returns, as they are, and passes on the
-    functions that it returns. Every label, image path and condition is computed in `useLogic`.
+  - The view only shows the values that `useLogic` returns, as they are, and calls the functions
+    that it returns. Every label, image path and condition is computed in `useLogic`, and its
+    functions take plain values, such as a string or a boolean. The view does only the minimum that the browser requires on top of that: it turns an event into
+    plain values, such as `event.target.checked`, it calls `preventDefault()` where the browser
+    needs it, and it opens, closes and animates the `<dialog>` elements through refs, following the
+    open states that `useLogic` returns.
   - The whole page is a single component, written inline in the `render` call with
     `createElement(() => { ... })`, because JSX cannot use an inline function as a tag. The `render`
     call runs only once, so the component is created once and never remounts. Never create a

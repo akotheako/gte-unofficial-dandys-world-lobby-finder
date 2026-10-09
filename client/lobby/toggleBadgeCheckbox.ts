@@ -1,18 +1,17 @@
-import type { ChangeEvent } from 'react'
 import { badgeCategories } from '../../shared/badgeCategories.ts'
 
 export function toggleBadgeCheckbox({
 	getBadgeNames,
 	setBadgeNames,
-	event,
+	isChecked,
 	name,
 }: {
 	getBadgeNames: () => string[]
 	setBadgeNames: (badgeNames: string[]) => void
-	event: ChangeEvent<HTMLInputElement>
+	isChecked: boolean
 	name: string
 }) {
-	if (!event.target.checked) {
+	if (!isChecked) {
 		setBadgeNames(getBadgeNames().filter((badge) => badge !== name))
 		return
 	}

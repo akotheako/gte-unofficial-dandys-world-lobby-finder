@@ -9,6 +9,7 @@
 		"lint": "eslint .",
 		"start": "node --env-file-if-exists=.env server/main.ts",
 		"test": "playwright test --project=fast",
+		"test:other-browsers": "playwright test --project=firefox --project=webkit",
 		"test:ui": "playwright test --project=visible --ui",
 		"test:step": "playwright test --project=visible --debug",
 		"test:watch": "playwright test --project=visible"

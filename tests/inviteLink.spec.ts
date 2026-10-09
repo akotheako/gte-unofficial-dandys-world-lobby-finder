@@ -4,6 +4,7 @@ import {
 	type Browser,
 	type Page,
 } from '@playwright/test'
+import { allowClipboard } from './allowClipboard.ts'
 import { verifyAsRobloxAccount } from './verifyAsRobloxAccount.ts'
 
 // Every test opens its own browser profiles, which close when it ends, so that the server sees the
@@ -18,10 +19,7 @@ async function openFindATeamAs({
 	path?: string
 }) {
 	const context = await browser.newContext()
-	await context.grantPermissions([
-		'clipboard-read',
-		'clipboard-write',
-	])
+	await allowClipboard(context)
 	if (username) {
 		await verifyAsRobloxAccount({
 			context,

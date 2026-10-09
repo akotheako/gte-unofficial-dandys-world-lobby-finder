@@ -5,6 +5,7 @@ import {
 	type Page,
 } from '@playwright/test'
 import type { TeamTableRow } from '../shared/teamTypes.ts'
+import { allowClipboard } from './allowClipboard.ts'
 import { connectToTestDatabase } from './testDatabase.ts'
 import { verifyAsRobloxAccount } from './verifyAsRobloxAccount.ts'
 
@@ -52,6 +53,7 @@ async function startSearch({
 	prepareBeforeSearch?: (page: Page) => Promise<void>
 }) {
 	const context = await browser.newContext()
+	await allowClipboard(context)
 	if (username) {
 		await verifyAsRobloxAccount({
 			context,
@@ -554,10 +556,6 @@ test.describe('Upvote Players', () => {
 			serverLink: serverLinkA,
 			prepareBeforeSearch: async (page) => {
 				await page.waitForFunction(() => document.getAnimations().length === 0)
-				await page.context().grantPermissions([
-					'clipboard-read',
-					'clipboard-write',
-				])
 				await page.getByRole('button', { name: 'Copy invite link' }).click()
 				const inviteLink = await page.evaluate(() => navigator.clipboard.readText())
 				const friendContext = await browser.newContext()
