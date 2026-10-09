@@ -44,3 +44,17 @@ test('the counters show "…" and then numbers', async ({ page }) => {
 	await expect(page.locator('#counters')).toContainText(/\d+ online/, { timeout: 20_000 })
 	await expect(page.locator('#counters')).toContainText(/\d+ looking for a team/)
 })
+
+test('Dark mode swaps the wallpaper and the window colors, also after a reload', async ({
+	page,
+}) => {
+	await page.goto('/')
+	await expect(page.locator('body')).toHaveCSS('background-image', /Gardenview_Rainbow_Print/)
+	await expect(page.locator('#account')).toHaveCSS('background-color', 'rgb(192, 192, 192)')
+	await page.locator('#dark-mode input').check()
+	await expect(page.locator('body')).toHaveCSS('background-image', /Astro_Pattern_Print/)
+	await expect(page.locator('#account')).toHaveCSS('background-color', 'rgb(52, 48, 74)')
+	await page.reload()
+	await expect(page.locator('#dark-mode input')).toBeChecked()
+	await expect(page.locator('body')).toHaveCSS('background-image', /Astro_Pattern_Print/)
+})

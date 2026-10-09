@@ -38,6 +38,7 @@ import { readSavedTeamTable } from './readSavedTeamTable.ts'
 import { removeFriendFromReservedWindow } from './removeFriendFromReservedWindow.ts'
 import { saveServerLinkField } from './saveServerLinkField.ts'
 import { toggleDandyRunOrEarlyDyleCheckbox } from './toggleDandyRunOrEarlyDyleCheckbox.ts'
+import { toggleDarkModeCheckbox } from './toggleDarkModeCheckbox.ts'
 import { saveTeamTable } from './saveTeamTable.ts'
 import { toggleBadgeCheckbox } from './toggleBadgeCheckbox.ts'
 import { toggleFindingPlayers } from './toggleFindingPlayers.ts'
@@ -103,6 +104,7 @@ export function useLogic() {
 		trinketsWindowPictures: string[]
 		serverLinkFieldStartValue: string
 		serverLink: string
+		isDarkModeCheckboxChecked: boolean
 		isDandyRunCheckboxChecked: boolean
 		isEarlyDyleCheckboxChecked: boolean
 		chosenRegionDropdownOption: string
@@ -162,6 +164,7 @@ export function useLogic() {
 		trinketsWindowPictures: [],
 		serverLinkFieldStartValue: localStorage.getItem('serverLink') ?? '',
 		serverLink: localStorage.getItem('serverLink') ?? '',
+		isDarkModeCheckboxChecked: localStorage.getItem('darkMode') === 'true',
 		isDandyRunCheckboxChecked: localStorage.getItem('dandyRun') === 'true',
 		isEarlyDyleCheckboxChecked: localStorage.getItem('earlyDyle') === 'true',
 		chosenRegionDropdownOption: localStorage.getItem('region') ?? 'Any',
@@ -1141,5 +1144,14 @@ Verify your account in Roblox Verification, and the players of the last team tha
 		// Two counters at the bottom middle of the screen
 		onlineCounterText: `${state.onThisPageCount ?? '…'} online`,
 		findingPlayersCounterText: `${state.findingPlayersCount ?? '…'} looking for a team`,
+
+
+		// Dark mode checkbox at the bottom right of the screen, which swaps the wallpaper and the
+		// window colors
+		isDarkModeCheckboxChecked: state.isDarkModeCheckboxChecked,
+		toggleDarkModeCheckbox: (isChecked: boolean) => toggleDarkModeCheckbox({
+			setIsChecked: (isDarkModeCheckboxChecked) => setState({ isDarkModeCheckboxChecked }),
+			isChecked,
+		}),
 	}
 }

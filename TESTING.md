@@ -22,6 +22,8 @@ check says what to do and what should happen. Mobile layouts are out of scope.
 - Opening one window closes any other open window.
 - The page has no dark backdrop, so the rest of it stays clickable while a window is open.
 - Both counters at the bottom show "…" until the first check-in answers, and numbers afterwards.
+- The "Dark mode" checkbox at the bottom right swaps the Gardenview wallpaper for the Astro one
+  and turns the windows dark purple, and it stays checked after a reload.
 
 ## 2. Roblox Verification
 

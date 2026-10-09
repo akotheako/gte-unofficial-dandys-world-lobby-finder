@@ -101,7 +101,7 @@ function DesktopWindow({
 					text-shadow: 1px 1px #000;
 				}
 				.window-icon:hover span {
-					background: #000080;
+					background: var(--title-bar);
 				}
 				.window-icon img {
 					filter: url(#retro);
@@ -131,11 +131,11 @@ function DesktopWindow({
 			<style>{`
 				.window {
 					padding: 3px 11px 11px;
-					background: #c0c0c0;
-					color: #000;
-					color-scheme: light;
+					background: var(--window-face);
+					color: var(--window-text);
+					color-scheme: var(--window-controls);
 					border: 2px solid;
-					border-color: #fff #000 #000 #fff;
+					border-color: var(--bevel-light) var(--bevel-dark) var(--bevel-dark) var(--bevel-light);
 					font: 13px monospace;
 					transform-origin: top left;
 				}
@@ -155,16 +155,16 @@ function DesktopWindow({
 				}
 				.window::-webkit-scrollbar-track,
 				.window ::-webkit-scrollbar-track {
-					background: repeating-conic-gradient(#c0c0c0 0 25%, #fff 0 50%) 0 0 / 2px 2px;
+					background: repeating-conic-gradient(var(--window-face) 0 25%, var(--field) 0 50%) 0 0 / 2px 2px;
 				}
 				.window::-webkit-scrollbar-thumb,
 				.window ::-webkit-scrollbar-thumb,
 				.window::-webkit-scrollbar-button,
 				.window ::-webkit-scrollbar-button {
-					background: #c0c0c0;
+					background: var(--window-face);
 					border: 2px solid;
-					border-color: #fff #000 #000 #fff;
-					box-shadow: inset -1px -1px #808080;
+					border-color: var(--bevel-light) var(--bevel-dark) var(--bevel-dark) var(--bevel-light);
+					box-shadow: inset -1px -1px var(--bevel-shadow);
 				}
 				.window::-webkit-scrollbar-button:single-button,
 				.window ::-webkit-scrollbar-button:single-button {
@@ -182,7 +182,7 @@ function DesktopWindow({
 				}
 				.window::-webkit-scrollbar-button:active,
 				.window ::-webkit-scrollbar-button:active {
-					border-color: #808080;
+					border-color: var(--bevel-shadow);
 					box-shadow: none;
 				}
 			`}</style>
@@ -209,7 +209,7 @@ function DesktopWindow({
 						align-items: center;
 						margin: 0 -8px 8px;
 						padding: 2px 3px;
-						background: #000080;
+						background: var(--title-bar);
 						color: #fff;
 						font-weight: bold;
 					}
@@ -222,18 +222,18 @@ function DesktopWindow({
 							width: 18px;
 							height: 16px;
 							padding: 0;
-							background: #c0c0c0;
-							color: #000;
+							background: var(--window-face);
+							color: var(--window-text);
 							border: 2px solid;
-							border-color: #fff #000 #000 #fff;
+							border-color: var(--bevel-light) var(--bevel-dark) var(--bevel-dark) var(--bevel-light);
 							font: bold 12px monospace;
 							line-height: 1;
 						}
 						.window-close:hover {
-							background: #dcdcdc;
+							background: var(--button-hover);
 						}
 						.window-close:active {
-							border-color: #000 #fff #fff #000;
+							border-color: var(--bevel-dark) var(--bevel-light) var(--bevel-light) var(--bevel-dark);
 							padding: 1px 0 0 1px;
 						}
 					`}</style>
@@ -342,9 +342,9 @@ function ChecklistWindow({
 					flex-direction: column;
 					gap: 2px;
 					padding: 4px;
-					background: #fff;
+					background: var(--field);
 					border: 2px solid;
-					border-color: #808080 #fff #fff #808080;
+					border-color: var(--bevel-shadow) var(--bevel-light) var(--bevel-light) var(--bevel-shadow);
 				}
 				.team-checklist label {
 					display: flex;
@@ -354,11 +354,11 @@ function ChecklistWindow({
 					cursor: pointer;
 				}
 				.team-checklist label:hover {
-					background: #e0e0e0;
+					background: var(--field-hover);
 				}
 				.team-checklist label[data-has-line-above="true"] {
 					padding-top: 2px;
-					border-top: 1px solid #c0c0c0;
+					border-top: 1px solid var(--window-face);
 				}
 			`}</style>
 			<div className="team-checklist">
@@ -422,7 +422,7 @@ function ReservationChip({
 					cursor: grab;
 				}
 				.team-chip:hover {
-					background: #e0e0e0;
+					background: var(--field-hover);
 				}
 			`}</style>
 			<div
@@ -571,7 +571,7 @@ createRoot(document.getElementById('root')!).render(
 								<style>{`
 									#account-badge-update-error {
 										margin: 0 0 1em;
-										color: #a00;
+										color: var(--error);
 										text-align: center;
 									}
 								`}</style>
@@ -703,9 +703,9 @@ createRoot(document.getElementById('root')!).render(
 								grid-template-columns: repeat(5, 48px);
 								gap: 4px;
 								padding: 4px;
-								background: #fff;
+								background: var(--field);
 								border: 2px solid;
-								border-color: #808080 #fff #fff #808080;
+								border-color: var(--bevel-shadow) var(--bevel-light) var(--bevel-light) var(--bevel-shadow);
 							}
 							.team-palette img,
 							.team-palette .team-text {
@@ -729,12 +729,12 @@ createRoot(document.getElementById('root')!).render(
 								pointer-events: none;
 							}
 							.team-placeholder {
-								color: #a8a8a8;
+								color: var(--faded-text);
 								cursor: default;
 							}
 							.team-drag-hint {
 								margin-bottom: 4px;
-								color: #404040;
+								color: var(--hint-text);
 								font-size: 11px;
 							}
 						`}</style>
@@ -816,7 +816,7 @@ createRoot(document.getElementById('root')!).render(
 										width: 256px;
 										margin: 0 0 8px;
 										padding: 4px 8px 8px;
-										border: 2px groove #fff;
+										border: 2px groove var(--bevel-light);
 									}
 									#team-reserved fieldset:last-child {
 										margin-bottom: 0;
@@ -919,14 +919,14 @@ createRoot(document.getElementById('root')!).render(
 							#team-table {
 								width: 100%;
 								border-collapse: collapse;
-								background: #fff;
+								background: var(--field);
 							}
 							#team-table th,
 							#team-table td {
 								min-width: 120px;
 								height: 44px;
 								padding: 2px 6px;
-								border: 1px solid #808080;
+								border: 1px solid var(--table-line);
 								text-align: center;
 							}
 							#team-table th:nth-child(-n + 3),
@@ -936,18 +936,18 @@ createRoot(document.getElementById('root')!).render(
 							}
 							#team-table td.team-disabled {
 								width: auto;
-								color: #a8a8a8;
+								color: var(--faded-text);
 							}
 							#team-table td.team-clickable,
 							#team-table td.team-clickable .team-placeholder {
 								cursor: pointer;
 							}
 							#team-table td.team-clickable:hover {
-								background: #f0f0f0;
+								background: var(--field-hover);
 							}
 							#team-table th {
 								height: 20px;
-								background: #c0c0c0;
+								background: var(--window-face);
 							}
 							#team-table th[title] {
 								cursor: help;
@@ -1177,7 +1177,7 @@ createRoot(document.getElementById('root')!).render(
 							}
 							#team-form-error {
 								margin: 0;
-								color: #a00;
+								color: var(--error);
 							}
 							#team-invited-friend {
 								margin: 0;
@@ -1232,7 +1232,7 @@ createRoot(document.getElementById('root')!).render(
 									<style>{`
 									#team-server-link-help {
 										margin: 0 8px;
-										color: #00e;
+										color: var(--link);
 										text-decoration: underline;
 										cursor: pointer;
 									}
@@ -1257,7 +1257,7 @@ createRoot(document.getElementById('root')!).render(
 									gap: 6px 24px;
 									margin: 0;
 									padding: 6px 10px 10px;
-									border: 2px groove #fff;
+									border: 2px groove var(--bevel-light);
 								}
 								#team-settings legend {
 									padding: 0 4px;
@@ -1371,7 +1371,7 @@ createRoot(document.getElementById('root')!).render(
 											top: 0;
 											width: 2px;
 											height: 5px;
-											background: #000;
+											background: var(--window-text);
 											transform-origin: 1px 9px;
 											animation: team-spoke 0.8s steps(1) infinite;
 										}
@@ -1422,7 +1422,7 @@ createRoot(document.getElementById('root')!).render(
 									display: flex;
 									align-items: center;
 									gap: 6px;
-									color: #404040;
+									color: var(--hint-text);
 									font-size: 11px;
 								}
 								#team-server-link-hint.team-invisible {
@@ -1462,7 +1462,7 @@ createRoot(document.getElementById('root')!).render(
 								margin: 0;
 							}
 							#team-found a {
-								color: #00e;
+								color: var(--link);
 							}
 						`}</style>
 						<ModalWindow
@@ -1585,7 +1585,7 @@ createRoot(document.getElementById('root')!).render(
 									{/* TEAM SETTINGS of the team in one line, then its server link */}
 									<style>{`
 										#upvote-settings a {
-											color: #00e;
+											color: var(--link);
 										}
 									`}</style>
 									<p id="upvote-settings">
@@ -1604,22 +1604,22 @@ createRoot(document.getElementById('root')!).render(
 									<style>{`
 										#upvote-table {
 											border-collapse: collapse;
-											background: #fff;
+											background: var(--field);
 										}
 										#upvote-table th,
 										#upvote-table td {
 											min-width: 60px;
 											height: 44px;
 											padding: 2px 6px;
-											border: 1px solid #808080;
+											border: 1px solid var(--table-line);
 											text-align: center;
 										}
 										#upvote-table th {
 											height: 20px;
-											background: #c0c0c0;
+											background: var(--window-face);
 										}
 										#upvote-table td.upvote-left-empty {
-											color: #a8a8a8;
+											color: var(--faded-text);
 										}
 										#upvote-table img {
 											width: 40px;
@@ -1745,6 +1745,70 @@ createRoot(document.getElementById('root')!).render(
 						<span>{logic.onlineCounterText}</span>
 						<span>{logic.findingPlayersCounterText}</span>
 					</div>
+					{/* White-on-black "Dark mode" checkbox at the bottom right of the screen. Checking
+					it swaps the Gardenview wallpaper for the Astro one and turns the grey windows
+					dark. */}
+					<style>{`
+						:root {
+							--window-face: #c0c0c0;
+							--window-text: #000;
+							--window-controls: light;
+							--bevel-light: #fff;
+							--bevel-dark: #000;
+							--bevel-shadow: #808080;
+							--table-line: #808080;
+							--field: #fff;
+							--field-hover: #e0e0e0;
+							--button-hover: #dcdcdc;
+							--title-bar: #000080;
+							--link: #00e;
+							--error: #a00;
+							--faded-text: #a8a8a8;
+							--hint-text: #404040;
+						}
+						:root:has(#dark-mode input:checked) {
+							--window-face: #34304a;
+							--window-text: #e8e6f0;
+							--window-controls: dark;
+							--bevel-light: #5e5880;
+							--bevel-dark: #0c0a14;
+							--bevel-shadow: #1e1b2c;
+							--table-line: #4a4566;
+							--field: #1a1826;
+							--field-hover: #2c2840;
+							--button-hover: #423c5c;
+							--title-bar: #5a2a8c;
+							--link: #9cc0ff;
+							--error: #ff7070;
+							--faded-text: #6c6884;
+							--hint-text: #b0aac8;
+						}
+						body:has(#dark-mode input:checked) {
+							background-image: url(/Astro_Pattern_Print.webp);
+						}
+						#dark-mode {
+							position: fixed;
+							bottom: 12px;
+							right: 12px;
+							display: flex;
+							align-items: center;
+							gap: 4px;
+							padding: 1px 3px;
+							background: rgba(0, 0, 0, 0.6);
+							color: #fff;
+							font: bold 13px monospace;
+							text-shadow: 1px 1px #000;
+							cursor: pointer;
+						}
+					`}</style>
+					<label id="dark-mode">
+						<input
+							type="checkbox"
+							checked={logic.isDarkModeCheckboxChecked}
+							onChange={(event) => logic.toggleDarkModeCheckbox(event.target.checked)}
+						/>
+						Dark mode
+					</label>
 				</>
 			)
 		})}
