@@ -480,8 +480,8 @@ createRoot(document.getElementById('root')!).render(
 						width="0"
 						height="0"
 					>
-						{/* Hidden filter that makes the icon pictures and the Team found! picture blocky and
-						reduces them to a few colors */}
+						{/* Hidden filter that makes the icon pictures blocky and reduces them to a few
+						colors */}
 						<filter
 							id="retro"
 							colorInterpolationFilters="sRGB"
@@ -529,7 +529,7 @@ createRoot(document.getElementById('root')!).render(
 								/>
 							</feComponentTransfer>
 						</filter>
-						{/* Hidden filter that makes the toon and trinket pictures a little blocky and reduces
+						{/* Hidden filter that makes the toon, trinket and Team found! pictures a little blocky and reduces
 						them to a few colors */}
 						<filter
 							id="retro-mild"
@@ -1514,9 +1514,9 @@ createRoot(document.getElementById('root')!).render(
 								{logic.findingWithoutServerLinkHint}
 							</p>
 						</form>
-						{/* Window on top of Find a Team that says the team is found, with the blue link to its
-						Roblox server below the text, and the picture of everyone at the elevator sitting on top
-						of the window */}
+						{/* Window on top of Find a Team that says the team is found, with a Click to join server button
+						below the text, and the picture of everyone at the elevator sitting on
+						top of the window */}
 						<style>{`
 							#team-found {
 								max-width: 520px;
@@ -1529,13 +1529,37 @@ createRoot(document.getElementById('root')!).render(
 								left: 50%;
 								translate: -50% 0;
 								width: 33%;
-								filter: url(#retro);
+								filter: url(#retro-mild);
 							}
 							#team-found p {
-								margin: 0;
+								margin: 4px 0 0;
+								text-align: center;
 							}
 							#team-found a {
 								color: var(--link);
+							}
+							#team-found #team-found-join {
+								display: block;
+								width: fit-content;
+								margin: 12px auto 8px;
+								padding: 4px 24px;
+								background: var(--window-face);
+								color: var(--window-text);
+								border: 2px solid;
+								border-color: var(--bevel-light) var(--bevel-dark) var(--bevel-dark)
+									var(--bevel-light);
+								box-shadow: inset -1px -1px var(--bevel-shadow);
+								font-weight: bold;
+								text-decoration: none;
+							}
+							#team-found #team-found-join:hover {
+								background: var(--button-hover);
+							}
+							#team-found #team-found-join:active {
+								border-color: var(--bevel-dark) var(--bevel-light) var(--bevel-light)
+									var(--bevel-dark);
+								box-shadow: none;
+								translate: 1px 1px;
 							}
 						`}</style>
 						<ModalWindow
@@ -1560,18 +1584,30 @@ createRoot(document.getElementById('root')!).render(
 									×
 								</button>
 							</div>
-							{/* Text that says who joined whose team, then the server link on the next line */}
+							{/* Centered text that says who joined whose team, with the host's username as a
+							blue link to their Roblox profile */}
 							<p>
-								{logic.teamFoundText}
-								<br />
-								<a
-									href={logic.teamServerLink}
-									target="_blank"
-									rel="noreferrer"
-								>
-									{logic.teamServerLink}
-								</a>
+								{logic.teamFoundText.beforeHost}
+								{logic.teamFoundText.host && (
+									<a
+										href={logic.teamFoundText.hostProfileLink}
+										target="_blank"
+										rel="noreferrer"
+									>
+										{logic.teamFoundText.host}
+									</a>
+								)}
+								{logic.teamFoundText.afterHost}
 							</p>
+							{/* Raised grey Click to join server button that opens the server in Roblox */}
+							<a
+								id="team-found-join"
+								href={logic.teamServerLink}
+								target="_blank"
+								rel="noreferrer"
+							>
+								Click to join server
+							</a>
 						</ModalWindow>
 						{/* Window on top of Find a Team with two screenshots that explain how to get a server link */}
 						<style>{`

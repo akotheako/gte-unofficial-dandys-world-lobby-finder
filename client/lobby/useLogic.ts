@@ -1035,16 +1035,41 @@ That is a row without a chip, or an extra row that shares a chip.`
 		// of the team, which its × and Esc close
 		isTeamFoundWindowOpen: state.isTeamFoundWindowOpen,
 		closeTeamFoundWindow: () => setState({ isTeamFoundWindowOpen: false }),
+		// Text of the window, split around the host's username, which the view shows as a link to
+		// the host's Roblox profile when the text names the host
 		teamFoundText: (() => {
-			const host = shownTeamStatus?.hostRobloxUsername
+			const host = shownTeamStatus?.hostRobloxUsername ?? ''
+			const hostProfileLink = `https://www.roblox.com/user.aspx?username=${encodeURIComponent(host)
+			}`
+			const textWithoutHost = (text: string) => ({
+				beforeHost: text,
+				host: '',
+				hostProfileLink: '',
+				afterHost: '',
+			})
 			if (hasJoinedATeam) {
-				if (host) return `The host is @${host}. Everyone, join their server!`
-				return `${isInvitedFriend ? 'Your team' : 'You'} joined a team! Join its server:`
+				if (host) {
+					return {
+						beforeHost: 'The host is ',
+						host: `@${host}`,
+						hostProfileLink,
+						afterHost: '. Everyone, join their server!',
+					}
+				}
+				return textWithoutHost(
+					`${isInvitedFriend ? 'Your team' : 'You'} joined a team! Join its server:`,
+				)
 			}
-			if (!isInvitedFriend) return 'Players joined your team! Everyone meets in this server:'
-			return host
-				? `Players joined @${host}'s team! Everyone meets in this server:`
-				: 'Players joined the team! Everyone meets in this server:'
+			if (!isInvitedFriend) {
+				return textWithoutHost('Players joined your team! Everyone meets in your server:')
+			}
+			if (!host) return textWithoutHost('Players joined the team! Everyone meets in this server:')
+			return {
+				beforeHost: 'Players joined ',
+				host: `@${host}`,
+				hostProfileLink,
+				afterHost: '\'s team! Everyone meets in this server:',
+			}
 		})(),
 		teamServerLink,
 

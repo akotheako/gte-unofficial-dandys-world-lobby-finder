@@ -554,13 +554,14 @@ checkIn.post('/', async (c) => {
 					&& other.team_table_rows.filter((row) => !row.isLeftEmpty).length
 						=== myTeam.team_table_rows.filter((row) => !row.isLeftEmpty).length
 				if (!areSettingsCompatible) continue
-				// The older search hosts when both ways fit, and a search that others already joined
-				// can only host
+				// The host is the search whose server link everyone uses, so it needs a link. The
+				// older search hosts when both ways fit, and a search that others already joined can
+				// only host.
 				const [olderTeam, newerTeam] = other.started_at <= myTeam.started_at
 					? [other, myTeam]
 					: [myTeam, other]
 				const merge = [[olderTeam, newerTeam], [newerTeam, olderTeam]]
-					.filter(([, joiner]) => mergedTeamOf(joiner).length === 1)
+					.filter(([host, joiner]) => host.server_link && mergedTeamOf(joiner).length === 1)
 					.map(([host, joiner]) => {
 						const mergedTeam = [...mergedTeamOf(host), joiner]
 						return {
@@ -589,7 +590,6 @@ checkIn.post('/', async (c) => {
 					})
 				if (!merge) continue
 				merge.joiner.joined_team_id = merge.host.team_id
-				merge.host.server_link ||= merge.joiner.server_link
 				changedTeams.add(merge.host)
 				changedTeams.add(merge.joiner)
 

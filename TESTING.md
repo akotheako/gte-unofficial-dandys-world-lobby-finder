@@ -158,9 +158,9 @@ These checks need two or three profiles that search at the same time.
   either side, and when they do every role that the row asks for.
 - A "Verified only" row rejects an unverified player, accepts a harder badge of the same category,
   such as Marathon Runner for Speed Walker, and rejects an easier one.
-- The older search hosts, and a search that others joined cannot join another one.
-- Everyone gets the host's link, or the joiner's link when the host has none, and invited friends
-  get it too.
+- The search with a server link hosts, or the older search when both have one, and a search that
+  others joined cannot join another one.
+- Everyone gets the host's link, and invited friends get it too.
 - Players who join later keep appearing in the team's status.
 - After Leave Team on the joining side, the host keeps showing the team as it was found, with the
   joiner's name and the "Team found!" window.

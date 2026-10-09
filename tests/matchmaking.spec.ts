@@ -113,12 +113,12 @@ test('two fitting searches merge, and the older one hosts with its link', async 
 	})
 	await expect(hostPage.locator('#team-found')).toHaveAttribute('open', '', { timeout: 20_000 })
 	await expect(hostPage.locator('#team-found'))
-		.toContainText('Players joined your team! Everyone meets in this server:')
-	await expect(hostPage.locator('#team-found a')).toHaveText(serverLinkA)
+		.toContainText('Players joined your team! Everyone meets in your server:')
+	await expect(hostPage.locator('#team-found-join')).toHaveAttribute('href',serverLinkA)
 	await expect(joinerPage.locator('#team-found')).toHaveAttribute('open', '', { timeout: 20_000 })
 	await expect(joinerPage.locator('#team-found'))
 		.toContainText('The host is @HostPlayer. Everyone, join their server!')
-	await expect(joinerPage.locator('#team-found a')).toHaveText(serverLinkA)
+	await expect(joinerPage.locator('#team-found-join')).toHaveAttribute('href',serverLinkA)
 	await expect(joinerPage.locator('#team-find button')).toHaveText('Leave Team')
 	await expect(hostPage.locator('#team-table tbody tr').nth(1)).toContainText('(@JoinerPlayer)')
 	await expect(joinerPage.locator('#team-table tbody tr').nth(1)).toContainText('(@HostPlayer)')
@@ -126,20 +126,24 @@ test('two fitting searches merge, and the older one hosts with its link', async 
 	await joinerPage.context().close()
 })
 
-test('a host without a link gets the joiner\'s link', async ({ browser }) => {
-	const hostPage = await startSearch({
-		browser,
-		username: 'HostPlayer',
-		rows: meAndOneOpenRow,
-	})
+test('a newer search with the only link hosts the older one', async ({ browser }) => {
 	const joinerPage = await startSearch({
 		browser,
 		username: 'JoinerPlayer',
 		rows: meAndOneOpenRow,
+	})
+	const hostPage = await startSearch({
+		browser,
+		username: 'HostPlayer',
+		rows: meAndOneOpenRow,
 		serverLink: serverLinkB,
 	})
-	await expect(hostPage.locator('#team-found a')).toHaveText(serverLinkB, { timeout: 20_000 })
-	await expect(joinerPage.locator('#team-found a')).toHaveText(serverLinkB, { timeout: 20_000 })
+	await expect(hostPage.locator('#team-found'))
+		.toContainText('Players joined your team!', { timeout: 20_000 })
+	await expect(hostPage.locator('#team-found-join')).toHaveAttribute('href',serverLinkB)
+	await expect(joinerPage.locator('#team-found'))
+		.toContainText('The host is @HostPlayer.', { timeout: 20_000 })
+	await expect(joinerPage.locator('#team-found-join')).toHaveAttribute('href',serverLinkB)
 	await hostPage.context().close()
 	await joinerPage.context().close()
 })
@@ -405,7 +409,7 @@ test('after Leave Team, the host keeps the team as it was found', async ({ brows
 	await hostPage.waitForTimeout(12_000)
 	await expect(hostPage.locator('#team-table tbody tr').nth(1)).toContainText('(@JoinerPlayer)')
 	await expect(hostPage.locator('#team-found')).toHaveAttribute('open')
-	await expect(hostPage.locator('#team-found a')).toHaveText(serverLinkA)
+	await expect(hostPage.locator('#team-found-join')).toHaveAttribute('href',serverLinkA)
 	await hostPage.context().close()
 	await joinerPage.context().close()
 })
@@ -422,11 +426,12 @@ test('a team whose host closed the tab keeps its last status', async ({ browser 
 		username: 'JoinerPlayer',
 		rows: meAndOneOpenRow,
 	})
-	await expect(joinerPage.locator('#team-found a')).toHaveText(serverLinkA, { timeout: 20_000 })
+	await expect(joinerPage.locator('#team-found-join'))
+		.toHaveAttribute('href', serverLinkA, { timeout: 20_000 })
 	await hostPage.close({ runBeforeUnload: true })
 	await joinerPage.waitForTimeout(12_000)
 	await expect(joinerPage.locator('#team-table tbody tr').nth(1)).toContainText('(@HostPlayer)')
-	await expect(joinerPage.locator('#team-found a')).toHaveText(serverLinkA)
+	await expect(joinerPage.locator('#team-found-join')).toHaveAttribute('href',serverLinkA)
 	await hostPage.context().close()
 	await joinerPage.context().close()
 })
