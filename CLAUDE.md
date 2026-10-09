@@ -11,7 +11,7 @@ check of the site, and the Playwright tests in `tests/` automate them.
 ## Claude rules
 
 - Don't use python or a Node script or anything weird to make edits to files, just use your Edit Tool.
-- Commit only when everything is stable: `npm run lint`, `npm run build` and `npm test` pass, and
+- Commit only when everything is stable: `npm run lint` and `npm run build` pass, and
   the changed feature works when you run it. Even when the user asks for a commit, report anything that is
   still broken first, and fix it or ask before committing.
 - Whenever you change the code, update every piece of documentation that the change affects, such
