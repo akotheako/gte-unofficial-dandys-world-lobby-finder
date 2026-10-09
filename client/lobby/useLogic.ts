@@ -449,7 +449,7 @@ export function useLogic() {
 		// Toon pictures in the Toons side window to the lower left
 		toonsWindowTiles: state.toonsWindowPictures.map((name) => ({
 			name,
-			src: `/toons/${name}`,
+			src: `/pixelated/toons/${name}`,
 			title: name.replace('.png', ''),
 			dragFromSideWindow: () => dragFromSideWindow({
 				setDraggedItem: (draggedItem) => setState({ draggedItem }),
@@ -461,7 +461,7 @@ export function useLogic() {
 		// Trinket pictures in the Trinkets side window to the upper right
 		trinketsWindowTiles: state.trinketsWindowPictures.map((name) => ({
 			name,
-			src: `/trinkets/${name}`,
+			src: `/pixelated/trinkets/${name}`,
 			title: name.replace('.png', ''),
 			dragFromSideWindow: () => dragFromSideWindow({
 				setDraggedItem: (draggedItem) => setState({ draggedItem }),
@@ -737,7 +737,7 @@ export function useLogic() {
 					// Picture inside the cell, which drags to another cell or out of the table to
 					// clear it
 					picture: row[column] ? {
-						src: `/${column === 'toonPicture' ? 'toons' : 'trinkets'}/${row[column]}`,
+						src: `/pixelated/${column === 'toonPicture' ? 'toons' : 'trinkets'}/${row[column]}`,
 						title: row[column].replace('.png', ''),
 						draggable: !isTableLocked,
 						dragPictureFromTable: () => dragPictureFromTable({
@@ -1127,7 +1127,7 @@ Verify your account in Roblox Verification, and the players of the last team tha
 					key: column,
 					anyText: row[column] ? '' : '(Any)',
 					picture: row[column] ? {
-						src: `/${column === 'toonPicture' ? 'toons' : 'trinkets'}/${row[column]}`,
+						src: `/pixelated/${column === 'toonPicture' ? 'toons' : 'trinkets'}/${row[column]}`,
 						title: row[column].replace('.png', ''),
 					} : null,
 				})),

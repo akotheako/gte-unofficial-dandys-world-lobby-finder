@@ -104,10 +104,10 @@ function DesktopWindow({
 					background: var(--title-bar);
 				}
 				.window-icon img {
-					filter: url(#retro);
+					image-rendering: pixelated;
 				}
 				.window-icon:hover img {
-					filter: url(#retro) brightness(1.15);
+					filter: brightness(1.15);
 				}
 				.window-icon:active {
 					transform: translate(1px, 1px);
@@ -476,124 +476,6 @@ createRoot(document.getElementById('root')!).render(
 			const logic = useLogic()
 			return (
 				<>
-					<svg
-						width="0"
-						height="0"
-					>
-						{/* Hidden filter that makes the icon pictures blocky and reduces them to a few
-						colors */}
-						<filter
-							id="retro"
-							colorInterpolationFilters="sRGB"
-							x="0"
-							y="0"
-						>
-							{/* Keeps one pixel out of every 3 by 3 block and spreads it over the whole block */}
-							<feFlood
-								x="1"
-								y="1"
-								width="1"
-								height="1"
-							/>
-							<feComposite
-								width="3"
-								height="3"
-							/>
-							<feTile result="grid" />
-							<feComposite
-								in="SourceGraphic"
-								in2="grid"
-								operator="in"
-							/>
-							<feMorphology
-								operator="dilate"
-								radius="1"
-							/>
-							{/* Rounds each color channel to 6 levels and makes every pixel fully solid or clear */}
-							<feComponentTransfer>
-								<feFuncR
-									type="discrete"
-									tableValues="0 0.2 0.4 0.6 0.8 1"
-								/>
-								<feFuncG
-									type="discrete"
-									tableValues="0 0.2 0.4 0.6 0.8 1"
-								/>
-								<feFuncB
-									type="discrete"
-									tableValues="0 0.2 0.4 0.6 0.8 1"
-								/>
-								<feFuncA
-									type="discrete"
-									tableValues="0 1"
-								/>
-							</feComponentTransfer>
-						</filter>
-						{/* Hidden filter that makes the toon, trinket and Team found! pictures a little blocky and reduces
-						them to a few colors */}
-						<filter
-							id="retro-mild"
-							colorInterpolationFilters="sRGB"
-							x="0"
-							y="0"
-						>
-							{/* Keeps the top left pixel of every 2 by 2 block */}
-							<feFlood
-								x="0"
-								y="0"
-								width="1"
-								height="1"
-							/>
-							<feComposite
-								width="2"
-								height="2"
-							/>
-							<feTile result="grid" />
-							<feComposite
-								in="SourceGraphic"
-								in2="grid"
-								operator="in"
-								result="kept"
-							/>
-							{/* Spreads each kept pixel over its whole block, by stacking the kept pixels with a
-							copy shifted one pixel right, and then that row with a copy shifted one pixel down */}
-							<feOffset
-								dx="1"
-								result="kept-right"
-							/>
-							<feMerge result="kept-row">
-								<feMergeNode in="kept" />
-								<feMergeNode in="kept-right" />
-							</feMerge>
-							<feOffset
-								dy="1"
-								result="kept-row-down"
-							/>
-							<feMerge>
-								<feMergeNode in="kept-row" />
-								<feMergeNode in="kept-row-down" />
-							</feMerge>
-							{/* Rounds each color channel to 6 levels and makes every pixel fully solid or clear */}
-							<feComponentTransfer>
-								<feFuncR
-									type="discrete"
-									tableValues="0 0.2 0.4 0.6 0.8 1"
-								/>
-								<feFuncG
-									type="discrete"
-									tableValues="0 0.2 0.4 0.6 0.8 1"
-								/>
-								<feFuncB
-									type="discrete"
-									tableValues="0 0.2 0.4 0.6 0.8 1"
-								/>
-								<feFuncA
-									type="discrete"
-									tableValues="0 1"
-								/>
-							</feComponentTransfer>
-						</filter>
-					</svg>
 					{/* Roblox Verification icon, first in the row */}
 					<style>{`
 						#account-icon {
@@ -604,7 +486,7 @@ createRoot(document.getElementById('root')!).render(
 						id="account"
 						iconId="account-icon"
 						title="Roblox Verification"
-						image="/Gossip_Bud.webp"
+						image="/pixelated/Gossip_Bud.webp"
 						{...logic.robloxVerificationWindow}
 					>
 						{logic.isRobloxVerified ? (
@@ -737,7 +619,7 @@ createRoot(document.getElementById('root')!).render(
 						id="team"
 						iconId="team-icon"
 						title="Find a Team"
-						image="/All_Together.webp"
+						image="/pixelated/All_Together.webp"
 						{...logic.findATeamWindow}
 					>
 						{/* Side windows that hang outside this window's edges */}
@@ -778,7 +660,7 @@ createRoot(document.getElementById('root')!).render(
 								cursor: grab;
 							}
 							.toon-or-trinket-picture {
-								filter: url(#retro-mild);
+								image-rendering: pixelated;
 							}
 							.team-text {
 								display: flex;
@@ -1529,7 +1411,7 @@ createRoot(document.getElementById('root')!).render(
 								left: 50%;
 								translate: -50% 0;
 								width: 33%;
-								filter: url(#retro-mild);
+								image-rendering: pixelated;
 							}
 							#team-found p {
 								margin: 4px 0 0;
@@ -1570,7 +1452,7 @@ createRoot(document.getElementById('root')!).render(
 						>
 							{/* Picture of all of the toons waiting together at the elevator, above the window */}
 							<img
-								src="/Everyone_at_elevator.webp"
+								src="/pixelated/Everyone_at_elevator.webp"
 								alt="All of the toons waiting together at the elevator"
 							/>
 							{/* Title bar with Team found! and a grey × button that closes the window */}
@@ -1665,7 +1547,7 @@ createRoot(document.getElementById('root')!).render(
 						id="upvote"
 						iconId="upvote-icon"
 						title="Upvote Players"
-						image="/Main_Character.webp"
+						image="/pixelated/Main_Character.webp"
 						{...logic.upvotePlayersWindow}
 					>
 						{/* Window that scrolls below its title bar when it is taller than the screen */}
