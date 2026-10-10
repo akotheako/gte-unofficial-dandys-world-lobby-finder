@@ -120,8 +120,8 @@ test.describe('with "Me" on the first row', () => {
 
 test('TEAM SETTINGS start on Any and 50, with the checkbox tooltips', async ({ page }) => {
 	await expect(page.locator('#team-settings select').first()).toHaveValue('Any')
-	await expect(page.locator('#team-settings select').nth(1)).toHaveValue('50')
-	await expect(page.locator('#team-settings select').nth(2)).toHaveValue('50')
+	await expect(page.locator('#team-settings select').nth(1)).toHaveValue('25')
+	await expect(page.locator('#team-settings select').nth(2)).toHaveValue('25')
 	await expect(page.locator('#team-settings label', { hasText: 'Dandy Run' }))
 		.toHaveAttribute('title', 'Don\'t buy anything in Dandy\'s shop!!')
 	await expect(page.locator('#team-settings label', { hasText: 'Early Dyle' }))

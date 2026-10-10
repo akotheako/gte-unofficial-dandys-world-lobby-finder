@@ -166,7 +166,7 @@ These checks need profiles A and B, and A is verified.
   link.
 - The blue "?" opens the help window on top, with both pictures.
 - Dandy Run and Early Dyle show their tooltips, Region starts on Any, and both
-  dropdowns of the Floor goal start on 50. The "from" dropdown never offers a floor above "to", and
+  dropdowns of the Floor goal start on 25. The "from" dropdown never offers a floor above "to", and
   "to" never offers one below "from".
 - While it searches, the button reads "Finding Players (Click to Cancel)", the table, the link and
   TEAM SETTINGS are locked, rows without a player show "Finding player" with animated dots, the
