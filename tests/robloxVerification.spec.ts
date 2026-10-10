@@ -90,7 +90,7 @@ test('the account and its badges from the cookie survive a reload', async ({
 	await page.reload()
 	await page.locator('#account-icon').click()
 	await expect(page.locator('#account')).toContainText('Verified as TestHost')
-	await expect(page.locator('#account-badges li')).toHaveCount(14)
+	await expect(page.locator('#account-badges li')).toHaveCount(15)
 	await expect(page.locator('#account-badges')).toContainText('✅ Marathon Runner')
 	await expect(page.locator('#account-badges')).toContainText('⬜ Speed Walker')
 })

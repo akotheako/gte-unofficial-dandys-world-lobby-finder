@@ -11,6 +11,7 @@ import { reportsReaderRobloxUserId, type Report } from '../../shared/reports.ts'
 import { useSyncState } from '../useSyncState.ts'
 import { addUnverifiedFriend } from './addUnverifiedFriend.ts'
 import { checkInWithServer } from './checkInWithServer.ts'
+import { closeTeamFoundWindow } from './closeTeamFoundWindow.ts'
 import {
 	chooseRegionOrFloorGoalDropdownOption,
 } from './chooseRegionOrFloorGoalDropdownOption.ts'
@@ -140,6 +141,7 @@ export function useLogic() {
 		chosenFloorGoalToDropdownOption: string
 		findPlayersError: string
 		isFindingPlayers: boolean
+		searchId: string
 		pageId: string
 		inviteCode: string
 		inviteFromLink: { inviteCode: string } | null
@@ -215,6 +217,7 @@ export function useLogic() {
 		chosenFloorGoalToDropdownOption: localStorage.getItem('floorGoalTo') ?? '25',
 		findPlayersError: '',
 		isFindingPlayers: false,
+		searchId: '',
 		pageId: sessionStorage.getItem('pageId') ?? crypto.randomUUID(),
 		inviteCode: sessionStorage.getItem('inviteCode') ?? crypto.randomUUID(),
 		// Invite links look like /?invite=<invite code>
@@ -309,6 +312,7 @@ export function useLogic() {
 		}),
 		getServerLink: () => getSyncState().serverLink,
 		getIsFindingPlayers: () => getSyncState().isFindingPlayers,
+		getSearchId: () => getSyncState().searchId,
 		getInviteFromLink: () => getSyncState().inviteFromLink,
 		getShownTeamStatus: () => getSyncState().shownTeamStatus,
 		setOnThisPageCount: (onThisPageCount) => setState({ onThisPageCount }),
@@ -333,7 +337,9 @@ export function useLogic() {
 		shownTeamStatus,
 	} = state
 	const isInvitedFriend = Boolean(state.inviteFromLink)
-	// An invited friend only watches the team, and a searching team cannot change
+	// An invited friend only watches the team, and a searching team cannot change. The search of
+	// a found team ends on the server, while the page keeps it running until "Team found!" closes,
+	// so that the Player column keeps the found players.
 	const isTableLocked = state.isFindingPlayers || isInvitedFriend
 	const isSearching = isInvitedFriend
 		? Boolean(shownTeamStatus?.isSearching)
@@ -1351,7 +1357,6 @@ export function useLogic() {
 				// which rows the team's own players are in, since a chip on several rows takes
 				// only one of them
 				const showFindingPlayerText = isSearching
-					&& !hasJoinedATeam
 					&& Boolean(shownTeamStatus)
 					&& !playerInRow
 				return {
@@ -1522,13 +1527,13 @@ export function useLogic() {
 			getServerLink: () => getSyncState().serverLink,
 			getIsFindingPlayers: () => getSyncState().isFindingPlayers,
 			setIsFindingPlayers: (isFindingPlayers) => setState({ isFindingPlayers }),
+			setSearchId: (searchId) => setState({ searchId }),
 			setShownTeamStatus: (shownTeamStatus) => setState({ shownTeamStatus }),
 			setFindPlayersError: (findPlayersError) => setState({ findPlayersError }),
 		}),
-		findPlayersButtonText: (() => {
-			if (hasJoinedATeam) return 'Leave Team'
-			return state.isFindingPlayers ? 'Finding Players (Click to Cancel)' : 'Find Players'
-		})(),
+		findPlayersButtonText: state.isFindingPlayers
+			? 'Finding Players (Click to Cancel)'
+			: 'Find Players',
 		// Find Players is greyed out, with this tooltip saying why, while the team cannot search
 		...(() => {
 			const filledRows = state.teamTableRows.filter((row) => !row.isLeftEmpty)
@@ -1536,7 +1541,7 @@ export function useLogic() {
 				row.reservedFor ? [row.reservedFor] : []
 			)))
 			const findPlayersButtonDisabledTooltip = (() => {
-				if (state.isFindingPlayers || hasJoinedATeam) return ''
+				if (state.isFindingPlayers) return ''
 				if (!reservations.has('me')) {
 					return '"Me" from the Reserved window has to be on at least 1 row that is not "(Leave Empty)".'
 				}
@@ -1559,9 +1564,8 @@ That is a row without a chip, or an extra row that shares a chip.`
 				findPlayersButtonDisabledTooltip,
 			}
 		})(),
-		// The spinner stops once the team joined another team, or once every row of it is taken
+		// The spinner stops once every row of the team is taken
 		showFindingPlayersSpinner: isSearching
-			&& !hasJoinedATeam
 			&& shownTeamTableRows.some((row, index) => (
 				!row.isLeftEmpty && !shownTeamStatus?.playersInRows[index]
 			)),
@@ -1577,7 +1581,12 @@ That is a row without a chip, or an extra row that shares a chip.`
 		// Window on top of Find a Team that opens once players got together, with the server link
 		// of the team, which its × and Esc close
 		isTeamFoundWindowOpen: state.isTeamFoundWindowOpen,
-		closeTeamFoundWindow: () => setState({ isTeamFoundWindowOpen: false }),
+		closeTeamFoundWindow: () => closeTeamFoundWindow({
+			getIsInvitedFriend: () => Boolean(getSyncState().inviteFromLink),
+			setIsTeamFoundWindowOpen: (isTeamFoundWindowOpen) => setState({ isTeamFoundWindowOpen }),
+			setIsFindingPlayers: (isFindingPlayers) => setState({ isFindingPlayers }),
+			setShownTeamStatus: (shownTeamStatus) => setState({ shownTeamStatus }),
+		}),
 		// Text of the window, split around the host's username, which the view shows as a link to
 		// the host's Roblox profile when the text names the host
 		teamFoundText: (() => {

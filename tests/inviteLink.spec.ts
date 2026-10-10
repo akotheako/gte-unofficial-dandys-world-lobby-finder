@@ -155,6 +155,8 @@ test('the link lets no new friend in once the team searches', async ({ browser }
 	await hostPage.locator('#team-reserved .team-chip', { hasText: 'Me' })
 		.dragTo(hostPage.locator('#team-table tbody tr').first().locator('td').nth(5))
 	// Settings that no other test uses, so that this search merges with nobody
+	// The "from" dropdown of the Floor goal only offers floors up to the "to" dropdown
+	await hostPage.locator('#team-settings select').nth(2).selectOption('100+')
 	await hostPage.locator('#team-settings select').nth(1).selectOption('100+')
 	await hostPage.locator('#team-settings select').first().selectOption('Oceania')
 	await hostPage.locator('#team-find button').click()

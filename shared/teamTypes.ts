@@ -72,7 +72,7 @@ export type CheckInAnswer = {
 		isSearching: boolean
 		hasJoinedATeam: boolean
 		hostRobloxUsername: string
-		// Empty until players got together
+		// Empty until every row of the merged team has a player
 		teamServerLink: string
 	} | null
 }

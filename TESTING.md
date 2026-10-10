@@ -197,10 +197,15 @@ These checks need two or three profiles that search at the same time.
   others joined cannot join another one.
 - Everyone gets the host's link, and invited friends get it too.
 - Players who join later keep appearing in the team's status.
-- After Leave Team on the joining side, the host keeps showing the team as it was found, with the
-  joiner's name and the "Team found!" window.
-- When the host closes the tab, the team falls apart, and its last status stays until Find a Team
-  is closed.
+- "Team found!" opens only once every row of the merged team has a player. Before that, the merged
+  team keeps searching, with the spinner and "Finding player..." on its empty rows.
+- Once the team is found, the table stays locked with the found players' names until "Team found!"
+  closes, and closing it unlocks the table and brings back Find Players.
+- When the joiner closes "Team found!" and clicks Find Players, the new search does not match the
+  found host again, and the host keeps showing the team as it was found, with the joiner's name
+  and the "Team found!" window.
+- When the host closes the tab, the team falls apart, and its last status stays until "Team found!"
+  closes.
 - A tab that is hidden for more than 90 seconds without a check-in counts as gone.
 - The spinner stops once every row is taken.
 - "looking for a team" drops when searches merge, and "online" drops about 90 seconds after a tab

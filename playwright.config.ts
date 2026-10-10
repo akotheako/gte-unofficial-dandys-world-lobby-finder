@@ -29,6 +29,12 @@ export default defineConfig({
 	],
 	use: {
 		baseURL: 'http://localhost:3100',
+		// Wider than the 1320px at which the page switches to its narrow layout, which hides the My
+		// Toons and My Trinkets side windows that the tests drag from
+		viewport: {
+			width: 1600,
+			height: 900,
+		},
 		// Every click, request, answer and console line of a failed test, which
 		// npx playwright show-trace opens
 		trace: 'retain-on-failure',

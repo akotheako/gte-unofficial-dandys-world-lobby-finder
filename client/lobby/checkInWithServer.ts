@@ -10,6 +10,7 @@ export function checkInWithServer({
 	getTeamSettings,
 	getServerLink,
 	getIsFindingPlayers,
+	getSearchId,
 	getInviteFromLink,
 	getShownTeamStatus,
 	setOnThisPageCount,
@@ -38,6 +39,7 @@ export function checkInWithServer({
 	}
 	getServerLink: () => string
 	getIsFindingPlayers: () => boolean
+	getSearchId: () => string
 	getInviteFromLink: () => { inviteCode: string } | null
 	getShownTeamStatus: () => CheckInAnswer['shownTeamStatus']
 	setOnThisPageCount: (onThisPageCount: number) => void
@@ -77,6 +79,7 @@ export function checkInWithServer({
 				serverLink: getServerLink(),
 				...getTeamSettings(),
 				isFindingPlayers,
+				searchId: getSearchId(),
 			}
 			: null
 		const answer = await fetch('/api/check-in', {
@@ -96,10 +99,9 @@ export function checkInWithServer({
 			lastOnThisPageCount = answer.onThisPageCount
 			setOnThisPageCount(answer.onThisPageCount)
 			setFindingPlayersCount(answer.findingPlayersCount)
-			// Once the team got together, it keeps showing players who join later, and its last
-			// status stays until Find a Team is closed when the team falls apart, such as when the
-			// host closes their page
-			if (!getShownTeamStatus()?.teamServerLink || answer.shownTeamStatus?.teamServerLink) {
+			// The status of a found team stays until its "Team found!" window closes, even when the
+			// team falls apart, such as when the host closes their page
+			if (!getShownTeamStatus()?.teamServerLink) {
 				setInvitingTeam(answer.invitingTeam)
 				setShownTeamStatus(answer.shownTeamStatus)
 			}

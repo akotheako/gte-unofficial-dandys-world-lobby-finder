@@ -5,19 +5,19 @@ export function toggleFindingPlayers({
 	getServerLink,
 	getIsFindingPlayers,
 	setIsFindingPlayers,
+	setSearchId,
 	setShownTeamStatus,
 	setFindPlayersError,
 }: {
 	getServerLink: () => string
 	getIsFindingPlayers: () => boolean
 	setIsFindingPlayers: (isFindingPlayers: boolean) => void
+	setSearchId: (searchId: string) => void
 	setShownTeamStatus: (shownTeamStatus: null) => void
 	setFindPlayersError: (findPlayersError: string) => void
 }) {
 	if (getIsFindingPlayers()) {
 		setIsFindingPlayers(false)
-		// The status of a team that got together stays until it is cleared, so the next search
-		// would show the old team
 		setShownTeamStatus(null)
 		return
 	}
@@ -26,6 +26,8 @@ export function toggleFindingPlayers({
 		setFindPlayersError('The server link is invalid!')
 	} else {
 		setFindPlayersError('')
+		// The server tells a new search apart from the search that the team was found with
+		setSearchId(crypto.randomUUID())
 		setIsFindingPlayers(true)
 	}
 }

@@ -93,15 +93,19 @@ async function startSearch({
 		dandyRun: String(isDandyRun ?? false),
 		missingToons: JSON.stringify(missingToons ?? []),
 		missingTrinkets: JSON.stringify(missingTrinkets ?? []),
+		// The page drops the chip of an unverified friend who is not in the Reserved window
+		unverifiedFriendNumbers: JSON.stringify(rows.flatMap((row) => (
+			row.reservedFor?.startsWith('unverifiedFriend:')
+				? [Number(row.reservedFor.split(':')[1])]
+				: []
+		))),
 	})
 	const page = await context.newPage()
 	await page.goto('/')
 	await page.locator('#team-icon').click()
 	await prepareBeforeSearch?.(page)
 	await page.locator('#team-find button').click()
-	// In slow motion, the search can merge before the check, and then the button reads Leave Team
-	await expect(page.locator('#team-find button'))
-		.toHaveText(/^(Finding Players \(Click to Cancel\)|Leave Team)$/)
+	await expect(page.locator('#team-find button')).toHaveText('Finding Players (Click to Cancel)')
 	return page
 }
 
@@ -130,11 +134,50 @@ test('two fitting searches merge, and the older one hosts with its link', async 
 	await expect(joinerPage.locator('#team-found'))
 		.toContainText('The host is @HostPlayer. Everyone, join their server!')
 	await expect(joinerPage.locator('#team-found-join')).toHaveAttribute('href',serverLinkA)
-	await expect(joinerPage.locator('#team-find button')).toHaveText('Leave Team')
 	await expect(hostPage.locator('#team-table tbody tr').nth(1)).toContainText('(@JoinerPlayer)')
 	await expect(joinerPage.locator('#team-table tbody tr').nth(1)).toContainText('(@HostPlayer)')
+	// Closing "Team found!" ends the search and unlocks the table
+	await joinerPage.locator('#team-found .window-close').click()
+	await expect(joinerPage.locator('#team-find button')).toHaveText('Find Players')
+	await expect(joinerPage.locator('#team-table tbody tr').nth(1)).toContainText('Verified only')
 	await hostPage.context().close()
 	await joinerPage.context().close()
+})
+
+test('"Team found!" waits until every row has a player', async ({ browser }) => {
+	const meAndTwoOpenRows: Partial<TeamTableRow>[] = [
+		{ reservedFor: 'me' },
+		{},
+		{},
+	]
+	const hostPage = await startSearch({
+		browser,
+		username: 'HostPlayer',
+		rows: meAndTwoOpenRows,
+		serverLink: serverLinkA,
+	})
+	const firstJoinerPage = await startSearch({
+		browser,
+		username: 'FirstJoiner',
+		rows: meAndTwoOpenRows,
+	})
+	await expect(hostPage.locator('#team-table tbody')).toContainText('(@FirstJoiner)', {
+		timeout: 20_000,
+	})
+	await expect(hostPage.locator('#team-found')).not.toHaveAttribute('open')
+	await expect(firstJoinerPage.locator('#team-find button'))
+		.toHaveText('Finding Players (Click to Cancel)')
+	const secondJoinerPage = await startSearch({
+		browser,
+		username: 'SecondJoiner',
+		rows: meAndTwoOpenRows,
+	})
+	for (const page of [hostPage, firstJoinerPage, secondJoinerPage]) {
+		await expect(page.locator('#team-found')).toHaveAttribute('open', '', { timeout: 20_000 })
+	}
+	await hostPage.context().close()
+	await firstJoinerPage.context().close()
+	await secondJoinerPage.context().close()
 })
 
 test('a newer search with the only link hosts the older one', async ({ browser }) => {
@@ -346,9 +389,6 @@ for (const {
 					{},
 				],
 				missingToons: ['bobette.png'],
-				prepareBeforeSearch: async (page: Page) => {
-					await page.getByRole('button', { name: '+ Add unverified friend' }).click()
-				},
 			},
 		},
 		{
@@ -456,7 +496,9 @@ test('the same verified account never ends up twice in one team', async ({ brows
 	await secondPage.context().close()
 })
 
-test('after Leave Team, the host keeps the team as it was found', async ({ browser }) => {
+test('a new search does not match the found host again, who keeps the found team', async ({
+	browser,
+}) => {
 	const hostPage = await startSearch({
 		browser,
 		username: 'HostPlayer',
@@ -473,8 +515,11 @@ test('after Leave Team, the host keeps the team as it was found', async ({ brows
 	})
 	await joinerPage.locator('#team-found .window-close').click()
 	await joinerPage.locator('#team-find button').click()
-	await expect(joinerPage.locator('#team-find button')).toHaveText('Find Players')
+	await expect(joinerPage.locator('#team-find button'))
+		.toHaveText('Finding Players (Click to Cancel)')
 	await hostPage.waitForTimeout(12_000)
+	await expect(joinerPage.locator('#team-table tbody tr').nth(1)).toContainText('Finding player')
+	await expect(joinerPage.locator('#team-found')).not.toHaveAttribute('open')
 	await expect(hostPage.locator('#team-table tbody tr').nth(1)).toContainText('(@JoinerPlayer)')
 	await expect(hostPage.locator('#team-found')).toHaveAttribute('open')
 	await expect(hostPage.locator('#team-found-join')).toHaveAttribute('href',serverLinkA)

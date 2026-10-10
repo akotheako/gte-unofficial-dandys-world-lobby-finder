@@ -33,7 +33,21 @@ type Team = {
 	region: string
 	floor_goal: string
 	is_searching: boolean
+	// Random id of the search that the page started with its last click on Find Players
+	search_id: string
 	joined_team_id: string | null
+	// Status of the search's table as it was when every row of its merged team got a player, which
+	// ends the search. The check-ins answer with it from then on, so that a page that only checks in
+	// after other players of the team left still sees every player.
+	found_status: {
+		// Id of the found_teams record, the same on every search of the team
+		foundTeamId: string
+		teamServerLink: string
+		hostRobloxUsername: string
+		playersInRows: (PlayerInRow | null)[]
+		hostRowIndex: number
+		hasJoinedATeam: boolean
+	} | null
 	started_at: Date
 }
 
@@ -237,7 +251,8 @@ function placePlayersInRows({
 // searches, lets a page that opened an invite link join the inviting team, and merges searches
 // that fit each other. A merged team is a host and the searches that joined it, and every player
 // of it has to fit a row of every table in it, so every search gets what it asked for. Every
-// player then gets the host's server link.
+// player gets the host's server link once every row has a player, which ends the searches of the
+// team.
 export const checkIn = new Hono()
 
 // The tables are created on the first request, so a new database needs no setup step
@@ -276,6 +291,8 @@ checkIn.use(async (_c, next) => {
 		ALTER TABLE verified_friends DROP COLUMN IF EXISTS friend_id;
 		ALTER TABLE teams ADD COLUMN IF NOT EXISTS roblox_user_id text NOT NULL DEFAULT '';
 		ALTER TABLE verified_friends ADD COLUMN IF NOT EXISTS roblox_user_id text NOT NULL DEFAULT '';
+		ALTER TABLE teams ADD COLUMN IF NOT EXISTS search_id text NOT NULL DEFAULT '';
+		ALTER TABLE teams ADD COLUMN IF NOT EXISTS found_status jsonb;
 		-- Record of every team that got together, which Upvote Players shows
 		CREATE TABLE IF NOT EXISTS found_teams (
 			found_team_id text PRIMARY KEY,
@@ -311,6 +328,7 @@ checkIn.post('/', async (c) => {
 			region: string
 			floorGoal: string
 			isFindingPlayers: boolean
+			searchId: string
 		} | null
 		// The invite link that the page was opened with
 		invite: { inviteCode: string } | null
@@ -377,12 +395,19 @@ checkIn.post('/', async (c) => {
 			error = 'The server link is invalid!'
 		}
 		const savedTeamIndex = teams.findIndex((team) => team.team_id === pageId)
+		const savedTeam = teams[savedTeamIndex]
+		const searchId = String(sentTeam?.searchId ?? '')
 		if (!sentTeam || error) {
 			if (savedTeamIndex !== -1) teams.splice(savedTeamIndex, 1)
 			writes.push(`DELETE FROM teams WHERE team_id = ${sqlLiteral(pageId)}`)
-		// A running search keeps the team that it joined and its place in the queue, since the
-		// table cannot change while it runs
-		} else if (!teams[savedTeamIndex]?.is_searching || !sentTeam.isFindingPlayers) {
+		// A running search keeps the team that it joined, its place in the queue and whether it was
+		// found, since the table cannot change while it runs. A page that closes "Team found!" and
+		// clicks Find Players again before its next check-in sends a new search id.
+		} else if (
+			savedTeam?.search_id !== searchId
+			|| !savedTeam.is_searching
+			|| !sentTeam.isFindingPlayers
+		) {
 			const team: Team = {
 				team_id: pageId,
 				invite_code: String(sentTeam.inviteCode),
@@ -415,7 +440,9 @@ checkIn.post('/', async (c) => {
 				region: String(sentTeam.region),
 				floor_goal: String(sentTeam.floorGoal),
 				is_searching: Boolean(sentTeam.isFindingPlayers),
+				search_id: searchId,
 				joined_team_id: null,
+				found_status: null,
 				// now() is the time at which the transaction started, in both round trips
 				started_at: transactionTime,
 			}
@@ -438,7 +465,8 @@ checkIn.post('/', async (c) => {
 					is_early_dyle,
 					region,
 					floor_goal,
-					is_searching
+					is_searching,
+					search_id
 				)
 				VALUES (
 					${sqlLiteral(team.team_id)},
@@ -455,7 +483,8 @@ checkIn.post('/', async (c) => {
 					${team.is_early_dyle},
 					${sqlLiteral(team.region)},
 					${sqlLiteral(team.floor_goal)},
-					${team.is_searching}
+					${team.is_searching},
+					${sqlLiteral(team.search_id)}
 				)
 				ON CONFLICT (team_id) DO UPDATE SET
 					invite_code = excluded.invite_code,
@@ -472,7 +501,9 @@ checkIn.post('/', async (c) => {
 					region = excluded.region,
 					floor_goal = excluded.floor_goal,
 					is_searching = excluded.is_searching,
+					search_id = excluded.search_id,
 					joined_team_id = NULL,
+					found_status = NULL,
 					started_at = now()
 			`)
 		}
@@ -547,9 +578,13 @@ checkIn.post('/', async (c) => {
 		const teamsById = new Map(teams.map((team) => [team.team_id, team]))
 		const changedTeams = new Set<Team>()
 
-		// Puts searches whose host left or stopped searching back into the search
+		// Puts searches whose host left or stopped searching back into the search. A found search
+		// leaves its host once the host started a new search, and stays found.
 		for (const team of teams) {
-			if (team.joined_team_id && !teamsById.get(team.joined_team_id)?.is_searching) {
+			const host = team.joined_team_id ? teamsById.get(team.joined_team_id) : undefined
+			if (team.joined_team_id && (
+				!host?.is_searching || host.found_status?.foundTeamId !== team.found_status?.foundTeamId
+			)) {
 				team.joined_team_id = null
 				changedTeams.add(team)
 			}
@@ -574,7 +609,7 @@ checkIn.post('/', async (c) => {
 				to,
 			}
 		}
-		if (myTeam?.is_searching && !myTeam.joined_team_id) {
+		if (myTeam?.is_searching && !myTeam.joined_team_id && !myTeam.found_status) {
 			const myFloorGoal = floorGoalRangeOf(myTeam)
 			// Search as the server log names it, such as "@name (1a2b3c4d)", with the start of its
 			// page id, since a host who did not verify has no name
@@ -584,7 +619,12 @@ checkIn.post('/', async (c) => {
 				})`
 			)
 			for (const other of teams) {
-				if (other === myTeam || !other.is_searching || other.joined_team_id) continue
+				if (
+					other === myTeam
+					|| !other.is_searching
+					|| other.joined_team_id
+					|| other.found_status
+				) continue
 				const otherFloorGoal = floorGoalRangeOf(other)
 				const differences = [
 					other.is_dandy_run !== myTeam.is_dandy_run && 'Dandy Run differs',
@@ -650,7 +690,6 @@ checkIn.post('/', async (c) => {
 				changedTeams.add(merge.host)
 				changedTeams.add(merge.joiner)
 
-				// Every merge into the same search of the host updates one record
 				const mergedTeam = mergedTeamOf(merge.host)
 				const players = allPlayersOf(mergedTeam)
 				const verifiedPlayers = players.flatMap((player) => (
@@ -678,10 +717,36 @@ checkIn.post('/', async (c) => {
 					})),
 					verifiedPlayers,
 				}
+				// The team is found, and its search ends, once every row of every table has a player
+				const isEveryRowTaken = foundTeam.tables.every((table) => (
+					table.teamTableRows.every((row, rowIndex) => (
+						row.isLeftEmpty || table.playersInRows[rowIndex]
+					))
+				))
+				if (!isEveryRowTaken) break
+				const foundTeamId = `${merge.host.team_id} ${merge.host.started_at.toISOString()}`
+				for (const team of mergedTeam) {
+					const playersInRows = placePlayersInRows({
+						players,
+						team,
+						teamsById,
+					}) ?? []
+					team.found_status = {
+						foundTeamId,
+						teamServerLink: merge.host.server_link,
+						hostRobloxUsername: merge.host.roblox_username,
+						playersInRows: playersInRows.map((player) => player?.playerInRow ?? null),
+						hostRowIndex: playersInRows.findIndex((player) => (
+							player?.isHost && player.teamId === team.team_id
+						)),
+						hasJoinedATeam: team !== merge.host,
+					}
+					changedTeams.add(team)
+				}
 				writes.push(`
 					INSERT INTO found_teams (found_team_id, roblox_user_ids, found_team)
 					VALUES (
-						${sqlLiteral(`${merge.host.team_id} ${merge.host.started_at.toISOString()}`)},
+						${sqlLiteral(foundTeamId)},
 						${sqlLiteral(verifiedPlayers.map((player) => player.robloxUserId))},
 						${sqlLiteral(foundTeam)}
 					)
@@ -697,6 +762,7 @@ checkIn.post('/', async (c) => {
 			writes.push(`
 				UPDATE teams SET
 					joined_team_id = ${team.joined_team_id ? sqlLiteral(team.joined_team_id) : 'NULL'},
+					found_status = ${team.found_status ? sqlLiteral(team.found_status) : 'NULL'},
 					server_link = ${sqlLiteral(team.server_link)}
 				WHERE team_id = ${sqlLiteral(team.team_id)}
 			`)
@@ -705,7 +771,7 @@ checkIn.post('/', async (c) => {
 		const counts = {
 			onThisPageCount,
 			findingPlayersCount: teams.filter((team) => (
-				team.is_searching && !team.joined_team_id
+				team.is_searching && !team.joined_team_id && !team.found_status
 			)).length,
 		}
 
@@ -739,22 +805,29 @@ checkIn.post('/', async (c) => {
 				hostRobloxUsername: shownTeam.roblox_username,
 			} : null,
 			shownTeamStatus: shownTeam && finalHost ? {
-				playersInRows: shownTeam.team_table_rows.map((_row, rowIndex) => (
-					playersInShownRows?.[rowIndex]?.playerInRow ?? null
-				)),
-				hostRowIndex: playersInShownRows?.findIndex((player) => (
-					player?.isHost && player.teamId === shownTeam.team_id
-				)) ?? -1,
 				verifiedFriendRobloxUsernames: verifiedFriendsOf({
 					team: shownTeam,
 					verifiedFriends,
 				}).map((verifiedFriend) => verifiedFriend.roblox_username),
-				isSearching: shownTeam.is_searching,
-				hasJoinedATeam: Boolean(shownTeam.joined_team_id),
-				hostRobloxUsername: finalHost.roblox_username,
-				teamServerLink: shownTeam.is_searching && shownMergedTeam.length > 1
-					? finalHost.server_link
-					: '',
+				...shownTeam.found_status ? {
+					playersInRows: shownTeam.found_status.playersInRows,
+					hostRowIndex: shownTeam.found_status.hostRowIndex,
+					isSearching: false,
+					hasJoinedATeam: shownTeam.found_status.hasJoinedATeam,
+					hostRobloxUsername: shownTeam.found_status.hostRobloxUsername,
+					teamServerLink: shownTeam.found_status.teamServerLink,
+				} : {
+					playersInRows: shownTeam.team_table_rows.map((_row, rowIndex) => (
+						playersInShownRows?.[rowIndex]?.playerInRow ?? null
+					)),
+					hostRowIndex: playersInShownRows?.findIndex((player) => (
+						player?.isHost && player.teamId === shownTeam.team_id
+					)) ?? -1,
+					isSearching: shownTeam.is_searching,
+					hasJoinedATeam: Boolean(shownTeam.joined_team_id),
+					hostRobloxUsername: finalHost.roblox_username,
+					teamServerLink: '',
+				},
 			} : null,
 		} satisfies CheckInAnswer)
 	} catch (error) {
