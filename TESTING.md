@@ -237,6 +237,7 @@ These checks need two or three profiles that search at the same time.
   `https://discord.com/invite/dandysworld`.
 - A second report from the same IP address within a minute gets a 429 and "You can only send
   one report per minute. Please try again soon.", while another IP address can still send one.
+  Of five reports that one IP address sends at the same moment, only one is stored.
 - Send stays greyed out while the message box is empty.
 - Send stores the message in the `reports` table, with the Roblox username of a verified sender,
   empties the message box, and shows "Sent! Thank you for your message."

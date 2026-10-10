@@ -1,4 +1,5 @@
 import { createHmac } from 'node:crypto'
+import type { QueryResult } from '@neondatabase/serverless'
 import { Hono } from 'hono'
 import { getSignedCookie } from 'hono/cookie'
 import { reportsReaderRobloxUserId, type Report } from '../shared/reports.ts'
@@ -60,21 +61,34 @@ reports.post('/', async (c) => {
 	// as a hash, which is enough to recognize the same sender again.
 	const senderIp = c.req.header('x-forwarded-for')?.split(',')[0].trim() ?? ''
 	const senderIpHash = createHmac('sha256', cookieSecret).update(senderIp).digest('hex')
-	const { rowCount } = await database.query(`
-		INSERT INTO reports (topic, message, roblox_user_id, roblox_username, sender_ip_hash)
-		SELECT $1, $2, $3, $4, $5
-		WHERE NOT EXISTS (
-			SELECT 1 FROM reports
-			WHERE sender_ip_hash = $5 AND sent_at > now() - interval '1 minute'
+	const client = await database.connect()
+	let isReportStored: boolean
+	try {
+		// A query with several statements cannot take separate parameters, so the values go into
+		// its text through escapeLiteral
+		const sqlLiteral = (value: string | null) => (
+			value === null ? 'NULL' : client.escapeLiteral(value)
 		)
-	`, [
-		topic,
-		message,
-		robloxAccount ? String(robloxAccount.id) : null,
-		robloxAccount?.username ?? null,
-		senderIpHash,
-	])
-	if (!rowCount) {
+		const senderIpHashLiteral = sqlLiteral(senderIpHash)
+		// Several statements in one query run as one transaction, which holds the sender's lock to
+		// its end, so two reports from one sender that arrive together are checked one after the
+		// other. The two-number lock keys never collide with the check-in's single-number lock.
+		const results = await client.query(`
+			SELECT pg_advisory_xact_lock(2, hashtext(${senderIpHashLiteral}));
+			INSERT INTO reports (topic, message, roblox_user_id, roblox_username, sender_ip_hash)
+			SELECT ${sqlLiteral(topic)}, ${sqlLiteral(message)}, ${
+				sqlLiteral(robloxAccount ? String(robloxAccount.id) : null)
+			}, ${sqlLiteral(robloxAccount?.username ?? null)}, ${senderIpHashLiteral}
+			WHERE NOT EXISTS (
+				SELECT 1 FROM reports
+				WHERE sender_ip_hash = ${senderIpHashLiteral} AND sent_at > now() - interval '1 minute'
+			);
+		`) as unknown as QueryResult[]
+		isReportStored = Boolean(results[1].rowCount)
+	} finally {
+		client.release()
+	}
+	if (!isReportStored) {
 		return c.json({ error: 'You can only send one report per minute. Please try again soon.' }, 429)
 	}
 	return c.body(null, 204)

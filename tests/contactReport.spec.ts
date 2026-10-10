@@ -126,6 +126,22 @@ test('a sender can only send one report per minute', async ({ request }) => {
 	expect(otherSenderReport.status()).toBe(204)
 })
 
+test('only one of several reports that a sender sends at the same moment is stored', async ({
+	request,
+}) => {
+	const senderIp = crypto.randomUUID()
+	const statuses = await Promise.all([1, 2, 3, 4, 5].map(async () => (
+		await request.post('/api/reports', {
+			headers: { 'x-forwarded-for': senderIp },
+			data: {
+				topic: 'Other',
+				message: `Hello ${crypto.randomUUID()}`,
+			},
+		})
+	).status()))
+	expect(statuses.sort()).toEqual([204, 429, 429, 429, 429])
+})
+
 test('only @akotheakotheako sees the Reports icon, and it lists the reports', async ({
 	page,
 	context,
