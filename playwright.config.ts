@@ -76,9 +76,10 @@ export default defineConfig({
 	],
 	// The server writes its log into server.log and its errors into server-errors.log, and the run
 	// fails when it logged any error, since a failed check-in can go unnoticed by the test that
-	// caused it
+	// caused it. Node's warnings stay out of it, since Playwright sets FORCE_COLOR, and Node warns
+	// about it in a shell that sets NO_COLOR as well.
 	webServer: {
-		command: `npm run build && node --env-file=.env --env-file=.env.test server/main.ts > ${
+		command: `npm run build && node --no-warnings --env-file=.env --env-file=.env.test server/main.ts > ${
 			runFolder
 		}/server.log 2> ${runFolder}/server-errors.log`,
 		url: 'http://localhost:3100',

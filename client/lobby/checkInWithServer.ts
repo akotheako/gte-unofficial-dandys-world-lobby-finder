@@ -50,6 +50,7 @@ export function checkInWithServer({
 	// Answers that arrive after the check-ins restarted would show an outdated team
 	let isStopped = false
 	let timeout: ReturnType<typeof setTimeout> | undefined
+	let lastOnThisPageCount = 0
 	const checkIn = async () => {
 		const invite = getInviteFromLink()
 		const teamTableRows = getTeamTableRows()
@@ -85,6 +86,7 @@ export function checkInWithServer({
 			.catch(() => null)
 		if (isStopped) return
 		if (answer) {
+			lastOnThisPageCount = answer.onThisPageCount
 			setOnThisPageCount(answer.onThisPageCount)
 			setFindingPlayersCount(answer.findingPlayersCount)
 			// Once the team got together, it keeps showing players who join later, and its last
@@ -105,8 +107,15 @@ export function checkInWithServer({
 				}
 			}
 		}
-		// Pages that take part in a team check in often, and the others only keep the counters fresh
-		timeout = setTimeout(checkIn, team || invite ? 5_000 : 15_000)
+		// Pages that take part in a team check in often, and the others only keep the counters fresh.
+		// Every check-in waits for a lock that all of them share, so the other pages wait longer the
+		// more pages are open, from 15 seconds up to 45 at 450 pages. The server counts a page as gone
+		// after 90 silent seconds, and hidden tabs fire their timers only once a minute, so the wait
+		// stays well under 60 seconds.
+		timeout = setTimeout(
+			checkIn,
+			team || invite ? 5_000 : Math.min(45_000, Math.max(15_000, lastOnThisPageCount * 100)),
+		)
 	}
 	checkIn()
 	// Closing or reloading the tab ends its search, its team and its invite right away, instead of
