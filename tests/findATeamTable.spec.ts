@@ -23,9 +23,9 @@ test.describe('before verifying', () => {
 		await expect(page.locator('.team-verified-only')).toHaveCount(0)
 	})
 
-	test('every Role cell starts with Extractor', async ({ page }) => {
+	test('every Role cell starts with (none required)', async ({ page }) => {
 		for (const roleCell of await page.locator('#team-table tbody tr td:nth-child(4)').all()) {
-			await expect(roleCell).toHaveText('Extractor')
+			await expect(roleCell).toHaveText('(none required)')
 		}
 	})
 
@@ -233,9 +233,10 @@ test.describe('Roles window', () => {
 		const roleCell = page.locator('#team-table tbody tr').first().locator('td').nth(3)
 		await roleCell.click()
 		await page.locator('#team-roles label', { hasText: 'Distracts Pebble' }).click()
+		await page.locator('#team-roles label', { hasText: 'Extractor' }).click()
 		await expect(roleCell.locator('.team-badge-or-role')).toHaveText([
-			'Extractor',
 			'Distracts Pebble',
+			'Extractor',
 		])
 		await page.locator('#team-roles label', { hasText: 'Extractor' }).click()
 		await page.locator('#team-roles label', { hasText: 'Distracts Pebble' }).click()
@@ -266,7 +267,6 @@ test.describe('Roles window', () => {
 		const pasteButton = page.locator('#team-roles button', { hasText: 'Paste' })
 		await expect(pasteButton).toBeDisabled()
 		await page.locator('#team-roles label', { hasText: 'Babysits Glisten' }).click()
-		await page.locator('#team-roles label', { hasText: 'Extractor' }).click()
 		await page.locator('#team-roles button', { hasText: 'Copy' }).click()
 		await expect(page.locator('#team-roles .team-checklist-buttons button').first())
 			.toHaveText('Copied!')
@@ -292,7 +292,7 @@ test.describe('Roles window', () => {
 		))
 		await page.locator('#team-find button').click()
 		const sentRows = (await checkInRequest).postDataJSON().team.teamTableRows
-		expect(sentRows[0].roleNames).toEqual(['Extractor'])
+		expect(sentRows[0].roleNames).toEqual([])
 		await page.locator('#team-find button').click()
 	})
 })

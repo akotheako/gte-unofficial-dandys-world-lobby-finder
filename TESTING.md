@@ -62,7 +62,7 @@ and what should happen.
 
 - The table has the columns Toon, Trinket A, Trinket B, Role and Player, and 8 rows, with no Badges
   column and no "Verified only" checkboxes.
-- Every Role cell starts with "Extractor".
+- Every Role cell starts with "(none required)".
 - The toons window sits to the lower left, the trinkets window to the upper right, and the Reserved
   window below the trinkets. The toons and trinkets windows show "Drag onto the table" under their
   titles, with an "N/N Toons" or "N/N Trinkets" button on the right of that line.

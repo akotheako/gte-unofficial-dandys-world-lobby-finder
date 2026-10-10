@@ -33,7 +33,7 @@ export function readSavedTeamTable({ unverifiedFriendNumbers }: {
 			trinketAPicture: row.trinketAPicture ?? row.trinketA ?? '',
 			trinketBPicture: row.trinketBPicture ?? row.trinketB ?? '',
 			badgeNames: row.badgeNames ?? row.badges ?? [],
-			roleNames: row.roleNames ?? ['Extractor'],
+			roleNames: row.roleNames ?? [],
 			isVerifiedPlayerRequired: row.isVerifiedPlayerRequired
 				?? row.playerChoice === 'findVerifiedPlayer',
 			reservedFor: isFriendStillThere ? reservedFor as ReservedFor : '',
