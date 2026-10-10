@@ -818,9 +818,6 @@ createRoot(document.getElementById('root')!).render(
 								height: 48px;
 								cursor: grab;
 							}
-							.toon-or-trinket-picture {
-								image-rendering: pixelated;
-							}
 							.team-text {
 								display: flex;
 								align-items: center;
