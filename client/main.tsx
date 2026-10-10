@@ -2148,7 +2148,6 @@ createRoot(document.getElementById('root')!).render(
 								{/* Line at the top, which explains how to verify to a user who did not */}
 								<style>{`
 								#upvote-intro {
-									max-width: 600px;
 									white-space: pre-line;
 								}
 							`}</style>
