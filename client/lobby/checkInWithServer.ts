@@ -32,8 +32,8 @@ export function checkInWithServer({
 	}
 	getIsInviteLinkCopied: () => boolean
 	getTeamSettings: () => {
-		isDandyRun: boolean
-		isEarlyDyle: boolean
+		dandyRun: string
+		earlyDyle: string
 		region: string
 		floorGoal: string
 	}

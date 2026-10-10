@@ -1,4 +1,4 @@
-export function chooseRegionOrFloorGoalDropdownOption({
+export function chooseTeamSettingsDropdownOption({
 	localStorageKey,
 	setChosenOption,
 	chosenOption,

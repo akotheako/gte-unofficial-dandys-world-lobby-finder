@@ -1739,8 +1739,8 @@ createRoot(document.getElementById('root')!).render(
 										</a>
 									</div>
 								)}
-								{/* Old-style etched group box titled "TEAM SETTINGS", with checkboxes on the left and
-							dropdowns on the right */}
+								{/* Old-style etched group box titled "TEAM SETTINGS", with Dandy Run and Early Dyle on the
+							left and Region and Floor goal on the right */}
 								<style>{`
 								#team-settings {
 									display: grid;
@@ -1766,8 +1766,8 @@ createRoot(document.getElementById('root')!).render(
 							`}</style>
 								<fieldset id="team-settings">
 									<legend>TEAM SETTINGS</legend>
-									{/* Column of two checkboxes, Dandy Run and Early Dyle, that explain themselves on
-								hover */}
+									{/* Column of two labeled Any / Yes / No dropdowns, Dandy Run and Early Dyle, that
+								explain themselves on hover */}
 									<style>{`
 									#team-dandy-run-and-early-dyle {
 										display: contents;
@@ -1775,29 +1775,31 @@ createRoot(document.getElementById('root')!).render(
 									#team-dandy-run-and-early-dyle label {
 										cursor: help;
 									}
-									#team-dandy-run-and-early-dyle input {
-										flex: none;
-										margin: 0;
-									}
 								`}</style>
 									<div id="team-dandy-run-and-early-dyle">
 										<label title="Don't buy anything in Dandy's shop!!">
-											<input
-												type="checkbox"
-												checked={logic.isDandyRunCheckboxChecked}
-												disabled={logic.areDandyRunAndEarlyDyleCheckboxesLocked}
-												onChange={(event) => logic.toggleDandyRunCheckbox(event.target.checked)}
-											/>
-											Dandy Run
+											Dandy Run:
+											<select
+												value={logic.chosenDandyRunDropdownOption}
+												disabled={logic.areDandyRunAndEarlyDyleDropdownsLocked}
+												onChange={(event) => logic.chooseDandyRunDropdownOption(event.target.value)}
+											>
+												{logic.dandyRunAndEarlyDyleDropdownOptions.map((option) => (
+													<option key={option}>{option}</option>
+												))}
+											</select>
 										</label>
 										<label title={`Vote the special "TIME'S UP" card as soon as it appears`}>
-											<input
-												type="checkbox"
-												checked={logic.isEarlyDyleCheckboxChecked}
-												disabled={logic.areDandyRunAndEarlyDyleCheckboxesLocked}
-												onChange={(event) => logic.toggleEarlyDyleCheckbox(event.target.checked)}
-											/>
-											Early Dyle
+											Early Dyle:
+											<select
+												value={logic.chosenEarlyDyleDropdownOption}
+												disabled={logic.areDandyRunAndEarlyDyleDropdownsLocked}
+												onChange={(event) => logic.chooseEarlyDyleDropdownOption(event.target.value)}
+											>
+												{logic.dandyRunAndEarlyDyleDropdownOptions.map((option) => (
+													<option key={option}>{option}</option>
+												))}
+											</select>
 										</label>
 									</div>
 									{/* Column of two labeled dropdowns, Region and Floor goal, with the dropdowns lined

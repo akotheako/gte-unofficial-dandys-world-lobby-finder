@@ -165,7 +165,7 @@ These checks need profiles A and B, and A is verified.
 - An empty link is allowed, and the search shows the grey line about searching without a server
   link.
 - The blue "?" opens the help window on top, with both pictures.
-- Dandy Run and Early Dyle show their tooltips, Region starts on Any, and both
+- Dandy Run and Early Dyle show their tooltips, Dandy Run, Early Dyle and Region start on Any, and both
   dropdowns of the Floor goal start on 25. The "from" dropdown never offers a floor above "to", and
   "to" never offers one below "from".
 - While it searches, the button reads "Finding Players (Click to Cancel)", the table, the link and
@@ -184,8 +184,9 @@ These checks need two or three profiles that search at the same time.
   that are not "(Leave Empty)" merge, and "Team found!" opens with the elevator picture and the
   link.
 - Floor goal ranges that share at least one floor, such as 60 to 80 and 80 to 100+, merge.
+- A Region, Dandy Run or Early Dyle of Any merges with every other choice of that setting.
 - No merge happens when the Region differs and neither side is Any, when the Floor goal ranges share
-  no floor, when Dandy Run or Early Dyle differs, when the number of rows differs, or when neither side has a link.
+  no floor, when Dandy Run or Early Dyle differs and neither side is Any, when the number of rows differs, or when neither side has a link.
 - The same verified account never ends up twice in one team.
 - A player fits a row only when the toon and trinkets match, where "(Any)" matches anything on
   either side, and when they do every role that the row asks for.

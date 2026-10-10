@@ -48,7 +48,7 @@ test.describe('with "Me" on the first row', () => {
 		await page.locator('#team-find button').click()
 		await expect(page.locator('#team-form-error')).toHaveText('The server link is invalid!')
 		await expect(page.locator('#team-find button')).toHaveText('Find Players')
-		await page.locator('#team-settings select').nth(2).selectOption('60')
+		await page.locator('#team-settings select').nth(4).selectOption('60')
 		await expect(page.locator('#team-form-error')).toHaveText('')
 	})
 
@@ -69,8 +69,8 @@ test.describe('with "Me" on the first row', () => {
 		await expect(page.locator('#team-find button')).toHaveText('Finding Players (Click to Cancel)')
 		await expect(page.locator('#team-server-link-hint')).not.toHaveClass('team-invisible')
 		await expect(page.locator('#team-server-link-row input')).toHaveAttribute('readonly')
+		await expect(page.locator('#team-settings select').nth(2)).toBeDisabled()
 		await expect(page.locator('#team-settings select').first()).toBeDisabled()
-		await expect(page.locator('#team-settings input[type="checkbox"]').first()).toBeDisabled()
 		// "Finding player" comes with the server's first answer, which names the player in each row
 		await expect(rows.nth(1)).toContainText('Finding player', { timeout: 20_000 })
 		await expect(rows.nth(0)).toContainText('(Me)')
@@ -81,7 +81,7 @@ test.describe('with "Me" on the first row', () => {
 		await expect(page.locator('#team-roles')).not.toHaveAttribute('open')
 		await page.locator('#team-find button').click()
 		await expect(page.locator('#team-find button')).toHaveText('Find Players')
-		await expect(page.locator('#team-settings select').first()).toBeEnabled()
+		await expect(page.locator('#team-settings select').nth(2)).toBeEnabled()
 		await expect(rows.nth(0).locator('.team-chip')).toHaveText('Me')
 	})
 
@@ -96,11 +96,11 @@ test.describe('with "Me" on the first row', () => {
 	})
 
 	test('a reload ends the search and keeps the table and settings', async ({ page }) => {
-		await page.locator('#team-settings select').first().selectOption('Asia')
+		await page.locator('#team-settings select').nth(2).selectOption('Asia')
 		// "to" goes up first, since "from" only offers floors up to "to"
-		await page.locator('#team-settings select').nth(2).selectOption('80')
-		await page.locator('#team-settings select').nth(1).selectOption('70')
-		await page.locator('#team-settings label', { hasText: 'Dandy Run' }).click()
+		await page.locator('#team-settings select').nth(4).selectOption('80')
+		await page.locator('#team-settings select').nth(3).selectOption('70')
+		await page.locator('#team-settings select').first().selectOption('Yes')
 		await page.locator('#team-server-link-row input')
 			.fill('https://www.roblox.com/share?code=0123456789abcdef0123456789abcdef&type=Server')
 		await page.locator('#team-find button').click()
@@ -108,20 +108,23 @@ test.describe('with "Me" on the first row', () => {
 		await page.locator('#team-icon').click()
 		await expect(page.locator('#team-find button')).toHaveText('Find Players')
 		await expect(page.locator('#team-table tbody tr').first().locator('.team-chip')).toHaveText('Me')
-		await expect(page.locator('#team-settings select').first()).toHaveValue('Asia')
-		await expect(page.locator('#team-settings select').nth(1)).toHaveValue('70')
-		await expect(page.locator('#team-settings select').nth(2)).toHaveValue('80')
-		await expect(page.locator('#team-settings label', { hasText: 'Dandy Run' }).locator('input'))
-			.toBeChecked()
+		await expect(page.locator('#team-settings select').nth(2)).toHaveValue('Asia')
+		await expect(page.locator('#team-settings select').nth(3)).toHaveValue('70')
+		await expect(page.locator('#team-settings select').nth(4)).toHaveValue('80')
+		await expect(page.locator('#team-settings select').first()).toHaveValue('Yes')
 		await expect(page.locator('#team-server-link-row input'))
 			.toHaveValue('https://www.roblox.com/share?code=0123456789abcdef0123456789abcdef&type=Server')
 	})
 })
 
-test('TEAM SETTINGS start on Any and 50, with the checkbox tooltips', async ({ page }) => {
+test('TEAM SETTINGS start on Any and 25, with the Dandy Run and Early Dyle tooltips', async ({
+	page,
+}) => {
 	await expect(page.locator('#team-settings select').first()).toHaveValue('Any')
-	await expect(page.locator('#team-settings select').nth(1)).toHaveValue('25')
-	await expect(page.locator('#team-settings select').nth(2)).toHaveValue('25')
+	await expect(page.locator('#team-settings select').nth(1)).toHaveValue('Any')
+	await expect(page.locator('#team-settings select').nth(2)).toHaveValue('Any')
+	await expect(page.locator('#team-settings select').nth(3)).toHaveValue('25')
+	await expect(page.locator('#team-settings select').nth(4)).toHaveValue('25')
 	await expect(page.locator('#team-settings label', { hasText: 'Dandy Run' }))
 		.toHaveAttribute('title', 'Don\'t buy anything in Dandy\'s shop!!')
 	await expect(page.locator('#team-settings label', { hasText: 'Early Dyle' }))
@@ -161,8 +164,8 @@ test('a check-in cannot give the host badges that the cookie does not hold', asy
 				removedRobloxUsernames: [],
 				inviteCode: crypto.randomUUID(),
 				serverLink: '',
-				isDandyRun: false,
-				isEarlyDyle: false,
+				dandyRun: 'Any',
+				earlyDyle: 'Any',
 				region: 'Any',
 				floorGoal: '50 to 50',
 				isFindingPlayers: false,
@@ -204,8 +207,8 @@ test('quotes and backslashes in a check-in are stored as they are', async ({ req
 				removedRobloxUsernames: [trickyText],
 				inviteCode: pageId,
 				serverLink: '',
-				isDandyRun: false,
-				isEarlyDyle: false,
+				dandyRun: 'Any',
+				earlyDyle: 'Any',
 				region: trickyText,
 				floorGoal: trickyText,
 				isFindingPlayers: false,

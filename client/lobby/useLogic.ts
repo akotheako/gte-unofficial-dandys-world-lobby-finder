@@ -13,8 +13,8 @@ import { addUnverifiedFriend } from './addUnverifiedFriend.ts'
 import { checkInWithServer } from './checkInWithServer.ts'
 import { closeTeamFoundWindow } from './closeTeamFoundWindow.ts'
 import {
-	chooseRegionOrFloorGoalDropdownOption,
-} from './chooseRegionOrFloorGoalDropdownOption.ts'
+	chooseTeamSettingsDropdownOption,
+} from './chooseTeamSettingsDropdownOption.ts'
 import { copyChecklistNames } from './copyChecklistNames.ts'
 import { copyInviteLink } from './copyInviteLink.ts'
 import { copyVerificationEmojiCode } from './copyVerificationEmojiCode.ts'
@@ -43,7 +43,6 @@ import { readSavedTeamTable } from './readSavedTeamTable.ts'
 import { removeFriendFromReservedWindow } from './removeFriendFromReservedWindow.ts'
 import { saveServerLinkField } from './saveServerLinkField.ts'
 import { sendReport } from './sendReport.ts'
-import { toggleDandyRunOrEarlyDyleCheckbox } from './toggleDandyRunOrEarlyDyleCheckbox.ts'
 import { toggleDarkModeCheckbox } from './toggleDarkModeCheckbox.ts'
 import { saveTeamTable } from './saveTeamTable.ts'
 import { showAllOwnedPictures } from './showAllOwnedPictures.ts'
@@ -134,8 +133,8 @@ export function useLogic() {
 		serverLinkFieldStartValue: string
 		serverLink: string
 		isDarkModeCheckboxChecked: boolean
-		isDandyRunCheckboxChecked: boolean
-		isEarlyDyleCheckboxChecked: boolean
+		chosenDandyRunDropdownOption: string
+		chosenEarlyDyleDropdownOption: string
 		chosenRegionDropdownOption: string
 		chosenFloorGoalFromDropdownOption: string
 		chosenFloorGoalToDropdownOption: string
@@ -210,8 +209,8 @@ export function useLogic() {
 		serverLinkFieldStartValue: localStorage.getItem('serverLink') ?? '',
 		serverLink: localStorage.getItem('serverLink') ?? '',
 		isDarkModeCheckboxChecked: localStorage.getItem('darkMode') === 'true',
-		isDandyRunCheckboxChecked: localStorage.getItem('dandyRun') === 'true',
-		isEarlyDyleCheckboxChecked: localStorage.getItem('earlyDyle') === 'true',
+		chosenDandyRunDropdownOption: localStorage.getItem('dandyRunOption') ?? 'Any',
+		chosenEarlyDyleDropdownOption: localStorage.getItem('earlyDyleOption') ?? 'Any',
 		chosenRegionDropdownOption: localStorage.getItem('region') ?? 'Any',
 		chosenFloorGoalFromDropdownOption: localStorage.getItem('floorGoalFrom') ?? '25',
 		chosenFloorGoalToDropdownOption: localStorage.getItem('floorGoalTo') ?? '25',
@@ -303,8 +302,8 @@ export function useLogic() {
 		}),
 		getIsInviteLinkCopied: () => getSyncState().isInviteLinkCopied,
 		getTeamSettings: () => ({
-			isDandyRun: getSyncState().isDandyRunCheckboxChecked,
-			isEarlyDyle: getSyncState().isEarlyDyleCheckboxChecked,
+			dandyRun: getSyncState().chosenDandyRunDropdownOption,
+			earlyDyle: getSyncState().chosenEarlyDyleDropdownOption,
 			region: getSyncState().chosenRegionDropdownOption,
 			floorGoal: `${getSyncState().chosenFloorGoalFromDropdownOption} to ${
 				getSyncState().chosenFloorGoalToDropdownOption
@@ -378,8 +377,8 @@ export function useLogic() {
 	useEffect(() => setState({ findPlayersError: '' }), [
 		teamTableRowsText,
 		state.serverLink,
-		state.isDandyRunCheckboxChecked,
-		state.isEarlyDyleCheckboxChecked,
+		state.chosenDandyRunDropdownOption,
+		state.chosenEarlyDyleDropdownOption,
 		state.chosenRegionDropdownOption,
 		state.chosenFloorGoalFromDropdownOption,
 		state.chosenFloorGoalToDropdownOption,
@@ -1456,20 +1455,31 @@ export function useLogic() {
 		openServerLinkHelpWindow: () => setState({ isServerLinkHelpWindowOpen: true }),
 		closeServerLinkHelpWindow: () => setState({ isServerLinkHelpWindowOpen: false }),
 
-		// Dandy Run and Early Dyle checkboxes in the left column of TEAM SETTINGS
+		// Dandy Run and Early Dyle dropdowns in the left column of TEAM SETTINGS, where Any matches
+		// a team with either choice
 		// An invited friend sees the settings of the team that invited them
-		areDandyRunAndEarlyDyleCheckboxesLocked: isTableLocked,
-		isDandyRunCheckboxChecked: invitingTeam?.isDandyRun ?? state.isDandyRunCheckboxChecked,
-		toggleDandyRunCheckbox: (isChecked: boolean) => toggleDandyRunOrEarlyDyleCheckbox({
-			localStorageKey: 'dandyRun',
-			setIsChecked: (isDandyRunCheckboxChecked) => setState({ isDandyRunCheckboxChecked }),
-			isChecked,
+		areDandyRunAndEarlyDyleDropdownsLocked: isTableLocked,
+		dandyRunAndEarlyDyleDropdownOptions: [
+			'Any',
+			'Yes',
+			'No',
+		],
+		chosenDandyRunDropdownOption: invitingTeam?.dandyRun ?? state.chosenDandyRunDropdownOption,
+		chooseDandyRunDropdownOption: (chosenOption: string) => chooseTeamSettingsDropdownOption({
+			localStorageKey: 'dandyRunOption',
+			setChosenOption: (chosenDandyRunDropdownOption) => setState({
+				chosenDandyRunDropdownOption,
+			}),
+			chosenOption,
 		}),
-		isEarlyDyleCheckboxChecked: invitingTeam?.isEarlyDyle ?? state.isEarlyDyleCheckboxChecked,
-		toggleEarlyDyleCheckbox: (isChecked: boolean) => toggleDandyRunOrEarlyDyleCheckbox({
-			localStorageKey: 'earlyDyle',
-			setIsChecked: (isEarlyDyleCheckboxChecked) => setState({ isEarlyDyleCheckboxChecked }),
-			isChecked,
+		chosenEarlyDyleDropdownOption: invitingTeam?.earlyDyle
+			?? state.chosenEarlyDyleDropdownOption,
+		chooseEarlyDyleDropdownOption: (chosenOption: string) => chooseTeamSettingsDropdownOption({
+			localStorageKey: 'earlyDyleOption',
+			setChosenOption: (chosenEarlyDyleDropdownOption) => setState({
+				chosenEarlyDyleDropdownOption,
+			}),
+			chosenOption,
 		}),
 
 		// Region and Floor goal dropdowns in the right column of TEAM SETTINGS
@@ -1484,7 +1494,7 @@ export function useLogic() {
 			'Oceania',
 		],
 		chosenRegionDropdownOption: invitingTeam?.region ?? state.chosenRegionDropdownOption,
-		chooseRegionDropdownOption: (chosenOption: string) => chooseRegionOrFloorGoalDropdownOption({
+		chooseRegionDropdownOption: (chosenOption: string) => chooseTeamSettingsDropdownOption({
 			localStorageKey: 'region',
 			setChosenOption: (chosenRegionDropdownOption) => setState({
 				chosenRegionDropdownOption,
@@ -1498,7 +1508,7 @@ export function useLogic() {
 		),
 		chosenFloorGoalFromDropdownOption,
 		chooseFloorGoalFromDropdownOption: (chosenOption: string) => (
-			chooseRegionOrFloorGoalDropdownOption({
+			chooseTeamSettingsDropdownOption({
 				localStorageKey: 'floorGoalFrom',
 				setChosenOption: (chosenFloorGoalFromDropdownOption) => setState({
 					chosenFloorGoalFromDropdownOption,
@@ -1511,7 +1521,7 @@ export function useLogic() {
 		),
 		chosenFloorGoalToDropdownOption,
 		chooseFloorGoalToDropdownOption: (chosenOption: string) => (
-			chooseRegionOrFloorGoalDropdownOption({
+			chooseTeamSettingsDropdownOption({
 				localStorageKey: 'floorGoalTo',
 				setChosenOption: (chosenFloorGoalToDropdownOption) => setState({
 					chosenFloorGoalToDropdownOption,
@@ -1666,8 +1676,8 @@ Verify your account in Roblox Verification, and the players of the last team tha
 		lastFoundTeamSettingsText: state.lastFoundTeam ? [
 			`Region: ${state.lastFoundTeam.region}`,
 			`Floor goal: ${state.lastFoundTeam.floorGoal}`,
-			...state.lastFoundTeam.isDandyRun ? ['Dandy Run'] : [],
-			...state.lastFoundTeam.isEarlyDyle ? ['Early Dyle'] : [],
+			`Dandy Run: ${state.lastFoundTeam.dandyRun}`,
+			`Early Dyle: ${state.lastFoundTeam.earlyDyle}`,
 		].join(' · ') : '',
 		lastFoundTeamServerLink: state.lastFoundTeam?.serverLink ?? '',
 		// Rows of the read-only table, with the same columns as Find a Team once verified and an

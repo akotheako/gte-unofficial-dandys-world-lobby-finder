@@ -28,8 +28,8 @@ type Team = {
 	missing_trinkets: string[]
 	team_table_rows: TeamTableRow[]
 	server_link: string
-	is_dandy_run: boolean
-	is_early_dyle: boolean
+	dandy_run: string
+	early_dyle: string
 	region: string
 	floor_goal: string
 	is_searching: boolean
@@ -62,8 +62,9 @@ type VerifiedFriend = {
 // Record of a team that got together, as the found_teams table stores it
 export type FoundTeam = {
 	serverLink: string
-	isDandyRun: boolean
-	isEarlyDyle: boolean
+	// Absent from a record that an older version of the site saved
+	dandyRun?: string
+	earlyDyle?: string
 	region: string
 	floorGoal: string
 	// One table for each search of the merged team, with its players in its rows
@@ -269,8 +270,8 @@ checkIn.use(async (_c, next) => {
 			roblox_username text NOT NULL,
 			team_table_rows jsonb NOT NULL,
 			server_link text NOT NULL,
-			is_dandy_run boolean NOT NULL,
-			is_early_dyle boolean NOT NULL,
+			dandy_run text NOT NULL,
+			early_dyle text NOT NULL,
 			region text NOT NULL,
 			floor_goal text NOT NULL,
 			is_searching boolean NOT NULL,
@@ -293,6 +294,10 @@ checkIn.use(async (_c, next) => {
 		ALTER TABLE verified_friends ADD COLUMN IF NOT EXISTS roblox_user_id text NOT NULL DEFAULT '';
 		ALTER TABLE teams ADD COLUMN IF NOT EXISTS search_id text NOT NULL DEFAULT '';
 		ALTER TABLE teams ADD COLUMN IF NOT EXISTS found_status jsonb;
+		ALTER TABLE teams ADD COLUMN IF NOT EXISTS dandy_run text NOT NULL DEFAULT 'Any';
+		ALTER TABLE teams ADD COLUMN IF NOT EXISTS early_dyle text NOT NULL DEFAULT 'Any';
+		ALTER TABLE teams DROP COLUMN IF EXISTS is_dandy_run;
+		ALTER TABLE teams DROP COLUMN IF EXISTS is_early_dyle;
 		-- Record of every team that got together, which Upvote Players shows
 		CREATE TABLE IF NOT EXISTS found_teams (
 			found_team_id text PRIMARY KEY,
@@ -323,8 +328,9 @@ checkIn.post('/', async (c) => {
 			missingTrinkets?: string[]
 			inviteCode: string
 			serverLink: string
-			isDandyRun: boolean
-			isEarlyDyle: boolean
+			// Absent from a page that still runs an older version of the site
+			dandyRun?: string
+			earlyDyle?: string
 			region: string
 			floorGoal: string
 			isFindingPlayers: boolean
@@ -435,8 +441,8 @@ checkIn.post('/', async (c) => {
 					}
 				}),
 				server_link: serverLink,
-				is_dandy_run: Boolean(sentTeam.isDandyRun),
-				is_early_dyle: Boolean(sentTeam.isEarlyDyle),
+				dandy_run: String(sentTeam.dandyRun ?? 'Any'),
+				early_dyle: String(sentTeam.earlyDyle ?? 'Any'),
 				region: String(sentTeam.region),
 				floor_goal: String(sentTeam.floorGoal),
 				is_searching: Boolean(sentTeam.isFindingPlayers),
@@ -461,8 +467,8 @@ checkIn.post('/', async (c) => {
 					missing_trinkets,
 					team_table_rows,
 					server_link,
-					is_dandy_run,
-					is_early_dyle,
+					dandy_run,
+					early_dyle,
 					region,
 					floor_goal,
 					is_searching,
@@ -479,8 +485,8 @@ checkIn.post('/', async (c) => {
 					${sqlLiteral(team.missing_trinkets)},
 					${sqlLiteral(team.team_table_rows)},
 					${sqlLiteral(team.server_link)},
-					${team.is_dandy_run},
-					${team.is_early_dyle},
+					${sqlLiteral(team.dandy_run)},
+					${sqlLiteral(team.early_dyle)},
 					${sqlLiteral(team.region)},
 					${sqlLiteral(team.floor_goal)},
 					${team.is_searching},
@@ -496,8 +502,8 @@ checkIn.post('/', async (c) => {
 					missing_trinkets = excluded.missing_trinkets,
 					team_table_rows = excluded.team_table_rows,
 					server_link = excluded.server_link,
-					is_dandy_run = excluded.is_dandy_run,
-					is_early_dyle = excluded.is_early_dyle,
+					dandy_run = excluded.dandy_run,
+					early_dyle = excluded.early_dyle,
 					region = excluded.region,
 					floor_goal = excluded.floor_goal,
 					is_searching = excluded.is_searching,
@@ -627,8 +633,10 @@ checkIn.post('/', async (c) => {
 				) continue
 				const otherFloorGoal = floorGoalRangeOf(other)
 				const differences = [
-					other.is_dandy_run !== myTeam.is_dandy_run && 'Dandy Run differs',
-					other.is_early_dyle !== myTeam.is_early_dyle && 'Early Dyle differs',
+					other.dandy_run !== 'Any' && myTeam.dandy_run !== 'Any'
+						&& other.dandy_run !== myTeam.dandy_run && 'Dandy Run differs',
+					other.early_dyle !== 'Any' && myTeam.early_dyle !== 'Any'
+						&& other.early_dyle !== myTeam.early_dyle && 'Early Dyle differs',
 					// The two floor goal ranges share at least one floor
 					(otherFloorGoal.from > myFloorGoal.to || myFloorGoal.from > otherFloorGoal.to)
 						&& `floor goals ${myTeam.floor_goal} and ${other.floor_goal} share no floor`,
@@ -702,8 +710,8 @@ checkIn.post('/', async (c) => {
 				))
 				const foundTeam: FoundTeam = {
 					serverLink: merge.host.server_link,
-					isDandyRun: merge.host.is_dandy_run,
-					isEarlyDyle: merge.host.is_early_dyle,
+					dandyRun: merge.host.dandy_run,
+					earlyDyle: merge.host.early_dyle,
 					region: merge.host.region,
 					floorGoal: merge.host.floor_goal,
 					tables: mergedTeam.map((team) => ({
@@ -798,8 +806,8 @@ checkIn.post('/', async (c) => {
 			isVerificationNeededToJoin,
 			invitingTeam: invitingTeamId && shownTeam ? {
 				teamTableRows: shownTeam.team_table_rows,
-				isDandyRun: shownTeam.is_dandy_run,
-				isEarlyDyle: shownTeam.is_early_dyle,
+				dandyRun: shownTeam.dandy_run,
+				earlyDyle: shownTeam.early_dyle,
 				region: shownTeam.region,
 				floorGoal: shownTeam.floor_goal,
 				hostRobloxUsername: shownTeam.roblox_username,

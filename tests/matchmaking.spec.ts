@@ -40,7 +40,8 @@ async function startSearch({
 	region,
 	floorGoalFrom,
 	floorGoalTo,
-	isDandyRun,
+	dandyRun,
+	earlyDyle,
 	missingToons,
 	missingTrinkets,
 	prepareBeforeSearch,
@@ -54,7 +55,8 @@ async function startSearch({
 	// The "to" dropdown of the Floor goal starts on the same floor as "from" unless it is given
 	floorGoalFrom?: string
 	floorGoalTo?: string
-	isDandyRun?: boolean
+	dandyRun?: string
+	earlyDyle?: string
 	// Pictures that My Toons and My Trinkets mark as missing
 	missingToons?: string[]
 	missingTrinkets?: string[]
@@ -90,7 +92,8 @@ async function startSearch({
 		region: region ?? 'Any',
 		floorGoalFrom: floorGoalFrom ?? '50',
 		floorGoalTo: floorGoalTo ?? floorGoalFrom ?? '50',
-		dandyRun: String(isDandyRun ?? false),
+		dandyRunOption: dandyRun ?? 'Any',
+		earlyDyleOption: earlyDyle ?? 'Any',
 		missingToons: JSON.stringify(missingToons ?? []),
 		missingTrinkets: JSON.stringify(missingTrinkets ?? []),
 		// The page drops the chip of an unverified friend who is not in the Reserved window
@@ -246,8 +249,8 @@ for (const {
 		},
 		{
 			difference: 'Dandy Run',
-			first: { isDandyRun: true },
-			second: { isDandyRun: false },
+			first: { dandyRun: 'Yes' },
+			second: { dandyRun: 'No' },
 		},
 		{
 			difference: 'number of rows',
@@ -344,6 +347,16 @@ for (const {
 			match: 'a Region of Any matches every region',
 			first: { region: 'Any' },
 			second: { region: 'Europe' },
+		},
+		{
+			match: 'a Dandy Run of Any matches Yes',
+			first: { dandyRun: 'Any' },
+			second: { dandyRun: 'Yes' },
+		},
+		{
+			match: 'an Early Dyle of Any matches No',
+			first: { earlyDyle: 'No' },
+			second: { earlyDyle: 'Any' },
 		},
 		{
 			match: 'a matching toon fits',

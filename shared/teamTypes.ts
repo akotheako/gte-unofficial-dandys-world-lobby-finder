@@ -26,8 +26,8 @@ export type LastFoundTeam = {
 	teamTableRows: TeamTableRow[]
 	playersInRows: (PlayerInRow | null)[]
 	serverLink: string
-	isDandyRun: boolean
-	isEarlyDyle: boolean
+	dandyRun: string
+	earlyDyle: string
 	region: string
 	floorGoal: string
 	verifiedPlayers: {
@@ -55,8 +55,8 @@ export type CheckInAnswer = {
 	// Team that an invite link brought this page into, which the page shows instead of its own
 	invitingTeam: {
 		teamTableRows: TeamTableRow[]
-		isDandyRun: boolean
-		isEarlyDyle: boolean
+		dandyRun: string
+		earlyDyle: string
 		region: string
 		floorGoal: string
 		hostRobloxUsername: string

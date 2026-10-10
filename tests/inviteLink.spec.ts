@@ -65,7 +65,7 @@ test('a verified friend joins the host\'s team and sees it locked', async ({ bro
 	await expect(friendPage.locator('#team-reserved')).toHaveCount(0)
 	await expect(friendPage.locator('#team-server-link-row')).toHaveCount(0)
 	await expect(friendPage.locator('#team-find button')).toHaveCount(0)
-	await expect(friendPage.locator('#team-settings select').first()).toBeDisabled()
+	await expect(friendPage.locator('#team-settings select').nth(2)).toBeDisabled()
 	await expect(hostPage.locator('#team-reserved .team-chip', { hasText: '@InvitedFriend' }))
 		.toBeVisible({ timeout: 20_000 })
 	await friendPage.context().close()
@@ -156,9 +156,9 @@ test('the link lets no new friend in once the team searches', async ({ browser }
 		.dragTo(hostPage.locator('#team-table tbody tr').first().locator('td').nth(5))
 	// Settings that no other test uses, so that this search merges with nobody
 	// The "from" dropdown of the Floor goal only offers floors up to the "to" dropdown
-	await hostPage.locator('#team-settings select').nth(2).selectOption('100+')
-	await hostPage.locator('#team-settings select').nth(1).selectOption('100+')
-	await hostPage.locator('#team-settings select').first().selectOption('Oceania')
+	await hostPage.locator('#team-settings select').nth(4).selectOption('100+')
+	await hostPage.locator('#team-settings select').nth(3).selectOption('100+')
+	await hostPage.locator('#team-settings select').nth(2).selectOption('Oceania')
 	await hostPage.locator('#team-find button').click()
 	await expect(hostPage.locator('#team-find button'))
 		.toHaveText('Finding Players (Click to Cancel)')

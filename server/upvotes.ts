@@ -77,8 +77,8 @@ upvotes.get('/last-team', async (c) => {
 		teamTableRows: ownTable.teamTableRows,
 		playersInRows: ownTable.playersInRows,
 		serverLink: foundTeam.serverLink,
-		isDandyRun: foundTeam.isDandyRun,
-		isEarlyDyle: foundTeam.isEarlyDyle,
+		dandyRun: foundTeam.dandyRun ?? 'Any',
+		earlyDyle: foundTeam.earlyDyle ?? 'Any',
 		region: foundTeam.region,
 		floorGoal: foundTeam.floorGoal,
 		verifiedPlayers: foundTeam.verifiedPlayers
