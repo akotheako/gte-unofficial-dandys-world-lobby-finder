@@ -60,11 +60,15 @@ export default defineConfig({
 				launchOptions: {
 					// Every step waits this long, so a person can follow the page
 					slowMo: 700,
-					// An English browser with translation off, since Edge in another language offers to
-					// translate every page, and a fresh browser forgets the answer
 					args: [
+						// An English browser with translation off, since Edge in another language offers
+						// to translate every page, and a fresh browser forgets the answer
 						'--lang=en-US',
 						'--disable-features=Translate,TranslateUI',
+						// The second monitor, which sits right of the 1920px wide main one, so that the
+						// test windows stay out of the way of other work
+						'--window-position=1920,0',
+						'--window-size=1920,1080',
 					],
 				},
 			},
