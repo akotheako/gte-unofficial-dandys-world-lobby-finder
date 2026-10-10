@@ -1802,14 +1802,21 @@ createRoot(document.getElementById('root')!).render(
 										</label>
 									</div>
 									{/* Column of two labeled dropdowns, Region and Floor goal, with the dropdowns lined
-								up on the right */}
+								up on the right and equally wide */}
 									<style>{`
 									#team-region-and-floor-goal {
-										display: contents;
+										display: grid;
+										grid-row: span 2;
+										grid-template-columns: auto auto;
+										justify-content: space-between;
+										align-items: center;
+										gap: 6px 8px;
 									}
 									#team-region-and-floor-goal label {
-										justify-content: space-between;
-										gap: 8px;
+										display: contents;
+									}
+									#team-region-and-floor-goal select {
+										width: 100%;
 									}
 								`}</style>
 									<div id="team-region-and-floor-goal">
@@ -1828,7 +1835,8 @@ createRoot(document.getElementById('root')!).render(
 										{/* Floor goal as two dropdowns, "from" and "to" */}
 										<style>{`
 										#team-floor-goal-range {
-											display: flex;
+											display: grid;
+											grid-template-columns: 1fr auto 1fr;
 											align-items: center;
 											gap: 4px;
 										}
