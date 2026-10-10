@@ -146,7 +146,7 @@ function DesktopWindow({
 					height: fit-content;
 					margin: auto;
 				}
-				@media (max-width: 1180px) {
+				@media (max-width: 1320px) {
 					dialog.window {
 						max-width: calc(100vw - 16px);
 						max-height: calc(100dvh - 16px);
@@ -694,7 +694,7 @@ createRoot(document.getElementById('root')!).render(
 									#account-code button {
 										width: 72px;
 									}
-									@media (max-width: 1180px) {
+									@media (max-width: 1320px) {
 										#account-code input {
 											flex: 1;
 											width: auto;
@@ -724,7 +724,7 @@ createRoot(document.getElementById('root')!).render(
 									#account-username button {
 										width: 72px;
 									}
-									@media (max-width: 1180px) {
+									@media (max-width: 1320px) {
 										#account-username {
 											display: flex;
 											flex-wrap: wrap;
@@ -778,7 +778,7 @@ createRoot(document.getElementById('root')!).render(
 							#team-side-windows {
 								display: contents;
 							}
-							@media (max-width: 1180px) {
+							@media (max-width: 1320px) {
 								#team {
 									overflow: auto;
 								}
@@ -1195,7 +1195,7 @@ createRoot(document.getElementById('root')!).render(
 									width: 4ch;
 								}
 							}
-							@media (max-width: 1180px) {
+							@media (max-width: 1320px) {
 								#team-table {
 									display: none;
 								}
@@ -1373,7 +1373,7 @@ createRoot(document.getElementById('root')!).render(
 							#team-cards {
 								display: none;
 							}
-							@media (max-width: 1180px) {
+							@media (max-width: 1320px) {
 								#team-cards {
 									display: flex;
 									flex-direction: column;
@@ -2197,7 +2197,7 @@ createRoot(document.getElementById('root')!).render(
 											height: 40px;
 											vertical-align: middle;
 										}
-										@media (max-width: 1180px) {
+										@media (max-width: 1320px) {
 											#upvote-table {
 												display: none;
 											}
@@ -2272,7 +2272,7 @@ createRoot(document.getElementById('root')!).render(
 											#upvote-cards {
 												display: none;
 											}
-											@media (max-width: 1180px) {
+											@media (max-width: 1320px) {
 												#upvote-cards {
 													display: flex;
 													flex-direction: column;

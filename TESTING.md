@@ -26,7 +26,7 @@ and what should happen.
   and turns the windows dark purple, and it stays checked after a reload.
 - At 1920x1080, a tablet size such as 1024x768, and a phone size such as 390x844, every window
   and every side window of Find a Team fits on the screen, and the page never scrolls sideways.
-- At 1180px of width or less, the open window covers the desktop icons, and Find a Team shows one
+- At 1320px of width or less, the open window covers the desktop icons, and Find a Team shows one
   card per row instead of the table and its side windows.
 - Tapping a Toon or Trinket box of a card opens the Toons or Trinkets pick window, and tapping a
   tile puts it in the box and closes the window. "(Any)" empties the box, and the tile that the box
@@ -39,7 +39,7 @@ and what should happen.
   the ones of the Reserved window.
 - Tapping "Verified only" in a card toggles it without opening the pick window.
 - While Find Players searches, the boxes of the cards open nothing.
-- At 1180px of width or less, Upvote Players shows the last found team as read-only cards, each
+- At 1320px of width or less, Upvote Players shows the last found team as read-only cards, each
   with "Player Slot #N" above it, instead of the table.
 - At 640px of width or less, TEAM SETTINGS is one column, and the counters stack in the bottom left corner, clear of the "Dark mode" checkbox.
 
