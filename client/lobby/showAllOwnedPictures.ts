@@ -1,11 +1,16 @@
-// "Show all" button of the My Toons or My Trinkets window, which marks every tile as owned again
+// "Show all" button of the My Toons or My Trinkets window, which stays pressed in until it is
+// clicked again. While pressed, the side window and the pick window show every picture, missing
+// ones too.
 export function showAllOwnedPictures({
 	localStorageKey,
-	setMissingPictures,
+	getIsShowingAll,
+	setIsShowingAll,
 }: {
-	localStorageKey: 'missingToons' | 'missingTrinkets'
-	setMissingPictures: (missingPictures: string[]) => void
+	localStorageKey: 'showAllToons' | 'showAllTrinkets'
+	getIsShowingAll: () => boolean
+	setIsShowingAll: (isShowingAll: boolean) => void
 }) {
-	localStorage.removeItem(localStorageKey)
-	setMissingPictures([])
+	const isShowingAll = !getIsShowingAll()
+	localStorage.setItem(localStorageKey, String(isShowingAll))
+	setIsShowingAll(isShowingAll)
 }

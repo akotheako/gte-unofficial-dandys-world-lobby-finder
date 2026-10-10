@@ -63,33 +63,40 @@ test.describe('My Toons and My Trinkets windows', () => {
 		await expect(page.locator('#team-owned-pictures img')).toHaveCount(40)
 	})
 
-	test('a missing toon fades, leaves the side window and lowers the count', async ({ page }) => {
+	test('a missing toon loses its check mark, leaves the side window and lowers the count', async ({
+		page,
+	}) => {
 		await page.locator('#team-toons .team-drag-hint button').click()
 		const bobetteTile = page.locator('#team-owned-pictures img[title="bobette"]')
 		await bobetteTile.click()
 		await expect(bobetteTile).toHaveAttribute('data-missing', 'true')
+		await expect(page.locator('.team-owned-pictures-owned-mark')).toHaveCount(39)
+		await expect(page.locator('.team-owned-pictures-missing-mark')).toHaveCount(1)
 		await expect(page.locator('#team-toons img[title="bobette"]')).toHaveCount(0)
 		await expect(page.locator('#team-toons .team-drag-hint button')).toHaveText('39/40 Toons')
 		await bobetteTile.click()
 		await expect(page.locator('#team-toons img[title="bobette"]')).toHaveCount(1)
 	})
 
-	test('Show all brings back every trinket, and missing ones survive a reload', async ({
+	test('Show all shows missing trinkets without unmarking them, and both survive a reload', async ({
 		page,
 	}) => {
 		await page.locator('#team-trinkets .team-drag-hint button').click()
 		await page.locator('#team-owned-pictures img[title="alarm"]').click()
 		await page.locator('#team-owned-pictures img[title="bone"]').click()
+		await page.locator('#team-owned-pictures-show-all').click()
 		await page.reload()
 		await page.locator('#team-icon').click()
+		await expect(page.locator('#team-trinkets img')).toHaveCount(57)
 		await expect(page.locator('#team-trinkets .team-drag-hint button')).toHaveText(
 			'55/57 Trinkets',
 		)
 		await page.locator('#team-trinkets .team-drag-hint button').click()
-		await page.locator('#team-owned-pictures-show-all').click()
-		await expect(page.locator('#team-trinkets .team-drag-hint button')).toHaveText(
-			'57/57 Trinkets',
-		)
+		const showAllButton = page.locator('#team-owned-pictures-show-all')
+		await expect(showAllButton).toHaveAttribute('aria-pressed', 'true')
+		await expect(page.locator('.team-owned-pictures-missing-mark')).toHaveCount(2)
+		await showAllButton.click()
+		await expect(page.locator('#team-trinkets img')).toHaveCount(55)
 	})
 
 	test('the Reserved window shows ME and UNVERIFIED FRIENDS', async ({ page }) => {

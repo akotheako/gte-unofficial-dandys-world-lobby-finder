@@ -68,9 +68,12 @@ and what should happen.
   titles, with an "N/N Toons" or "N/N Trinkets" button on the right of that line.
 - The Toons and Trinkets pick windows of a narrow screen show the same button above their tiles.
 - That button opens the My Toons or My Trinkets window, which groups the pictures under category
-  titles. Clicking a tile fades it as missing, hides it from the side window and the pick window,
-  and lowers the count, and a second click brings it back. "Show all" brings every tile back, and
-  the missing pictures survive a reload.
+  titles. Every tile is tinted light grey and slightly see-through, with a big ✅ behind an owned
+  tile's picture. Clicking a tile swaps its ✅ for a red X, hides it from the side window and the
+  pick window, and lowers the count, and a second click brings it back.
+- "Show all" stays pressed in and brings the missing pictures back to the side window and the pick
+  window, while the marks in the window and the count stay the same. A second click hides them
+  again. The marks and "Show all" survive a reload.
 - A new `.png` in `public/toons` or `public/trinkets` appears after a reload.
 
 ## 4. Dragging pictures

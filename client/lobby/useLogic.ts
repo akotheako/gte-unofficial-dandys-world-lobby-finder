@@ -116,6 +116,9 @@ export function useLogic() {
 		// windows and pick windows therefore hide
 		missingToons: string[]
 		missingTrinkets: string[]
+		// "Show all" of that window is pressed in, which shows the missing pictures anyway
+		isShowingAllToons: boolean
+		isShowingAllTrinkets: boolean
 		openOwnedPicturesWindowKind: 'toon' | 'trinket' | null
 		serverLinkFieldStartValue: string
 		serverLink: string
@@ -182,6 +185,8 @@ export function useLogic() {
 		trinketsWindowPictures: [],
 		missingToons: JSON.parse(localStorage.getItem('missingToons') ?? '[]'),
 		missingTrinkets: JSON.parse(localStorage.getItem('missingTrinkets') ?? '[]'),
+		isShowingAllToons: localStorage.getItem('showAllToons') === 'true',
+		isShowingAllTrinkets: localStorage.getItem('showAllTrinkets') === 'true',
 		openOwnedPicturesWindowKind: null,
 		serverLinkFieldStartValue: localStorage.getItem('serverLink') ?? '',
 		serverLink: localStorage.getItem('serverLink') ?? '',
@@ -414,6 +419,10 @@ export function useLogic() {
 		? invitingTeam.floorGoal.split(' to ')
 		: [state.chosenFloorGoalFromDropdownOption, state.chosenFloorGoalToDropdownOption]
 
+	// Pictures that the side windows and the pick windows leave out
+	const hiddenToons = state.isShowingAllToons ? [] : state.missingToons
+	const hiddenTrinkets = state.isShowingAllTrinkets ? [] : state.missingTrinkets
+
 	return {
 
 		// Roblox Verification icon, first in the row at the top of the screen, and its window, which
@@ -523,7 +532,7 @@ export function useLogic() {
 
 		// Toon pictures in the Toons side window to the lower left
 		toonsWindowTiles: state.toonsWindowPictures.filter((name) => (
-			!state.missingToons.includes(name)
+			!hiddenToons.includes(name)
 		)).map((name) => ({
 			name,
 			src: `/pixelated/toons/${name}`,
@@ -537,7 +546,7 @@ export function useLogic() {
 
 		// Trinket pictures in the Trinkets side window to the upper right
 		trinketsWindowTiles: state.trinketsWindowPictures.filter((name) => (
-			!state.missingTrinkets.includes(name)
+			!hiddenTrinkets.includes(name)
 		)).map((name) => ({
 			name,
 			src: `/pixelated/trinkets/${name}`,
@@ -561,8 +570,9 @@ export function useLogic() {
 		openOwnedTrinketsWindow: () => setState({ openOwnedPicturesWindowKind: 'trinket' }),
 
 		// My Toons or My Trinkets window in the middle of the screen, with the pictures in category
-		// groups. A click on a tile marks it as missing, which fades it and hides it from the side
-		// window, and another click marks it as owned again. Its ×, Esc and a click outside it close it.
+		// groups. A click on a tile marks it as missing, which swaps its ✅ for a red X and hides it
+		// from the side window, and another click marks it as owned again. Its ×, Esc and a click
+		// outside it close it.
 		...(() => {
 			const isToonsWindow = state.openOwnedPicturesWindowKind === 'toon'
 			const pictures = isToonsWindow ? state.toonsWindowPictures : state.trinketsWindowPictures
@@ -786,6 +796,10 @@ export function useLogic() {
 							src: `/pixelated/${isToonsWindow ? 'toons' : 'trinkets'}/${name}`,
 							title: name.replace('.png', ''),
 							isMissing: missingPictures.includes(name),
+							// Small green check in the bottom right corner of an owned tile
+							ownedMark: missingPictures.includes(name) ? '' : '✅',
+							// Red X behind a missing tile, which shows through the see-through picture
+							missingMarkSrc: missingPictures.includes(name) ? '/redx.webp' : '',
 							toggle: () => toggleOwnedPictureTile({
 								localStorageKey,
 								getMissingPictures: () => (
@@ -800,12 +814,19 @@ export function useLogic() {
 							}),
 						})),
 				})),
+				// "Show all" button at the bottom, which looks pressed in while it is on
 				ownedPicturesWindowShowAllButtonText: 'Show all',
+				isOwnedPicturesWindowShowAllPressed: isToonsWindow
+					? state.isShowingAllToons
+					: state.isShowingAllTrinkets,
 				showAllOwnedPictures: () => showAllOwnedPictures({
-					localStorageKey,
-					setMissingPictures: (missingPictures) => setState({
-						[localStorageKey]: missingPictures,
-					}),
+					localStorageKey: isToonsWindow ? 'showAllToons' : 'showAllTrinkets',
+					getIsShowingAll: () => (
+						isToonsWindow ? getSyncState().isShowingAllToons : getSyncState().isShowingAllTrinkets
+					),
+					setIsShowingAll: (isShowingAll) => setState(isToonsWindow
+						? { isShowingAllToons: isShowingAll }
+						: { isShowingAllTrinkets: isShowingAll }),
 				}),
 			}
 		})(),
@@ -1061,8 +1082,7 @@ export function useLogic() {
 						}),
 					}] : [],
 					...(isToonBox ? state.toonsWindowPictures : state.trinketsWindowPictures)
-						.filter((name) => !(isToonBox ? state.missingToons : state.missingTrinkets)
-							.includes(name))
+						.filter((name) => !(isToonBox ? hiddenToons : hiddenTrinkets).includes(name))
 						.map((name) => ({
 							key: name,
 							text: '',

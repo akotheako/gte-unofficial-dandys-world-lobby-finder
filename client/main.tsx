@@ -938,7 +938,9 @@ createRoot(document.getElementById('root')!).render(
 								</div>
 							</div>
 							{/* My Toons or My Trinkets window in the middle of the screen, with a bold title
-						above each category's grid of tiles. Missing tiles are faded and grey. */}
+						above each category's grid of tiles. Every tile has a light grey tint and is slightly
+						see-through, with a big ✅ behind an owned tile's picture and a red X behind a missing
+						one's. */}
 							<style>{`
 								#team-owned-pictures-categories {
 									max-height: 70dvh;
@@ -953,16 +955,42 @@ createRoot(document.getElementById('root')!).render(
 									overflow: visible;
 									grid-template-columns: repeat(6, 48px);
 								}
+								.team-owned-pictures-tile {
+									position: relative;
+									width: 48px;
+									height: 48px;
+								}
 								#team-owned-pictures .team-palette img {
 									cursor: pointer;
 								}
-								#team-owned-pictures .team-palette img[data-missing="true"] {
-									opacity: 0.3;
-									filter: grayscale(1);
+								.team-owned-pictures-missing-mark {
+									position: absolute;
+									inset: 0;
+									pointer-events: none;
+								}
+								.team-owned-pictures-tile .toon-or-trinket-picture {
+									position: relative;
+									opacity: 0.6;
+									filter: grayscale(0.7) brightness(1.3);
+								}
+								.team-owned-pictures-owned-mark {
+									position: absolute;
+									inset: 0;
+									display: flex;
+									align-items: center;
+									justify-content: center;
+									font-size: 40px;
+									line-height: 1;
+									pointer-events: none;
 								}
 								#team-owned-pictures-show-all {
 									width: 100%;
 									margin-top: 6px;
+								}
+								#team-owned-pictures-show-all[aria-pressed="true"] {
+									border-style: solid;
+									border-color: var(--bevel-shadow) var(--bevel-light) var(--bevel-light) var(--bevel-shadow);
+									background: var(--field-hover);
 								}
 							`}</style>
 							<ModalWindow
@@ -992,22 +1020,41 @@ createRoot(document.getElementById('root')!).render(
 											</div>
 											<div className="team-palette">
 												{category.tiles.map((tile) => (
-													<img
+													<div
 														key={tile.name}
-														className="toon-or-trinket-picture"
-														src={tile.src}
-														title={tile.title}
-														data-missing={tile.isMissing}
-														onClick={tile.toggle}
-													/>
+														className="team-owned-pictures-tile"
+													>
+														{/* Red X behind a missing tile's picture */}
+														{tile.missingMarkSrc && (
+															<img
+																className="team-owned-pictures-missing-mark"
+																src={tile.missingMarkSrc}
+															/>
+														)}
+														{/* Big ✅ behind an owned tile's picture */}
+														{tile.ownedMark && (
+															<span className="team-owned-pictures-owned-mark">
+																{tile.ownedMark}
+															</span>
+														)}
+														<img
+															className="toon-or-trinket-picture"
+															src={tile.src}
+															title={tile.title}
+															data-missing={tile.isMissing}
+															onClick={tile.toggle}
+														/>
+													</div>
 												))}
 											</div>
 										</div>
 									))}
 								</div>
-								{/* Wide grey "Show all" button that marks every tile as owned */}
+								{/* Wide grey "Show all" button, which looks pressed in while the side window and
+							the pick window show every picture, missing ones too */}
 								<button
 									id="team-owned-pictures-show-all"
+									aria-pressed={logic.isOwnedPicturesWindowShowAllPressed}
 									onClick={logic.showAllOwnedPictures}
 								>
 									{logic.ownedPicturesWindowShowAllButtonText}
