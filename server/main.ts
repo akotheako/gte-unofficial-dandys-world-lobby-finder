@@ -3,6 +3,7 @@ import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
 import { checkIn } from './checkIn.ts'
 import { images } from './images.ts'
+import { reports } from './reports.ts'
 import { roblox } from './roblox.ts'
 import { upvotes } from './upvotes.ts'
 
@@ -14,6 +15,7 @@ app.route('/api/roblox', roblox)
 app.route('/api/check-in', checkIn)
 app.route('/api/images', images)
 app.route('/api/upvotes', upvotes)
+app.route('/api/reports', reports)
 
 // Set frontend route:
 app.use('/*', serveStatic({ root: './dist' }))

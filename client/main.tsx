@@ -2352,6 +2352,148 @@ createRoot(document.getElementById('root')!).render(
 								)}
 							</div>
 						</DesktopWindow>
+						{/* This is a fan project icon, fourth in the row */}
+						<DesktopWindow
+							id="fan-project"
+							iconId="fan-project-icon"
+							title="This is a fan project"
+							image="/blushcrunch.webp"
+							{...logic.fanProjectWindow}
+						>
+							<p>This project was made by fans for fans, and not made by Blushcrunch.</p>
+						</DesktopWindow>
+						{/* Contact/Report icon, fifth in the row */}
+						<DesktopWindow
+							id="contact-report"
+							iconId="contact-report-icon"
+							title="Contact/Report"
+							image="/contact_report.webp"
+							{...logic.contactReportWindow}
+						>
+							{/* Topic dropdown, the red Discord line, the message box, and Send with its status
+							line on the right */}
+							<style>{`
+								#contact-report-form {
+									display: flex;
+									flex-direction: column;
+									gap: 8px;
+									width: 420px;
+									max-width: 100%;
+								}
+								#contact-report-form textarea {
+									height: 140px;
+									resize: vertical;
+									font: inherit;
+								}
+								#contact-report-discord {
+									margin: 0;
+									color: var(--error);
+								}
+								#contact-report-discord a {
+									color: var(--link);
+								}
+								#contact-report-send {
+									display: flex;
+									align-items: center;
+									gap: 8px;
+								}
+							`}</style>
+							<form
+								id="contact-report-form"
+								onSubmit={(event) => {
+									event.preventDefault()
+									logic.sendReport()
+								}}
+							>
+								<select
+									value={logic.chosenReportTopicDropdownOption}
+									onChange={(event) => logic.chooseReportTopicDropdownOption(event.target.value)}
+								>
+									{logic.reportTopicDropdownOptions.map((option) => (
+										<option key={option}>{option}</option>
+									))}
+								</select>
+								{logic.reportOnDiscordLine && (
+									<p id="contact-report-discord">
+										{logic.reportOnDiscordLine.beforeLink}
+										<a
+											href={logic.reportOnDiscordLine.link}
+											target="_blank"
+											rel="noreferrer"
+										>
+											{logic.reportOnDiscordLine.linkText}
+										</a>
+										{logic.reportOnDiscordLine.afterLink}
+									</p>
+								)}
+								<textarea
+									value={logic.reportMessage}
+									onChange={(event) => logic.typeReportMessage(event.target.value)}
+									disabled={logic.isReportMessageBoxDisabled}
+									maxLength={2000}
+									placeholder="Your message"
+								/>
+								<div id="contact-report-send">
+									<button disabled={logic.isSendReportButtonDisabled}>Send</button>
+									<span>{logic.reportStatusText}</span>
+								</div>
+							</form>
+						</DesktopWindow>
+						{/* Reports icon, sixth in the row, which only the owner of the site sees */}
+						{logic.showReportsIcon && (
+							<DesktopWindow
+								id="reports"
+								iconId="reports-icon"
+								title="Reports"
+								image="/contact_report.webp"
+								{...logic.reportsWindow}
+							>
+								{/* Window that scrolls below its title bar when it is taller than the screen */}
+								<style>{`
+									#reports[open] {
+										max-height: 90vh;
+										display: flex;
+										flex-direction: column;
+									}
+									#reports-contents {
+										width: 560px;
+										max-width: 100%;
+										min-height: 0;
+										overflow-y: auto;
+									}
+								`}</style>
+								<div id="reports-contents">
+									<p>{logic.reportsIntroText}</p>
+									{/* White card for each report, with its topic, time and sender in bold
+									above the message */}
+									<style>{`
+										.reports-card {
+											margin-bottom: 6px;
+											padding: 6px;
+											background: var(--field);
+											border: 1px solid var(--table-line);
+										}
+										.reports-card-title {
+											margin-bottom: 4px;
+											font-weight: bold;
+										}
+										.reports-card-message {
+											white-space: pre-wrap;
+											overflow-wrap: anywhere;
+										}
+									`}</style>
+									{logic.reportCards.map((card) => (
+										<div
+											key={card.key}
+											className="reports-card"
+										>
+											<div className="reports-card-title">{card.titleText}</div>
+											<div className="reports-card-message">{card.message}</div>
+										</div>
+									))}
+								</div>
+							</DesktopWindow>
+						)}
 					</div>
 					{/* Two white-on-black counters side by side at the bottom middle of the screen, or stacked in
 					the bottom left corner of a phone */}

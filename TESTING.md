@@ -227,6 +227,26 @@ These checks need two or three profiles that search at the same time.
   player outside the voter's found teams.
 - A second upvote for the same player stores no second upvote.
 
+## 10b. This is a fan project and Contact/Report
+
+- The fourth icon opens "This is a fan project", which says "This project was made by fans for
+  fans, and not made by Blushcrunch."
+- The fifth icon opens "Contact/Report", whose dropdown starts on "Report a bug in the website".
+- "Report a bug in the game" and "Report a player" grey out the message box and Send, and show
+  the red line whose "Blushcrunch official discord server" links to
+  `https://discord.com/invite/dandysworld`.
+- A second report from the same IP address within a minute gets a 429 and "You can only send
+  one report per minute. Please try again soon.", while another IP address can still send one.
+- Send stays greyed out while the message box is empty.
+- Send stores the message in the `reports` table, with the Roblox username of a verified sender,
+  empties the message box, and shows "Sent! Thank you for your message."
+- The server answers 400 to a report with a game topic, an empty message, or a message longer
+  than 2000 characters.
+- Only the Roblox user ID of @akotheakotheako sees the Reports icon. Its window lists every
+  report as a card with the topic, the time, the sender or "Unverified sender", and the message.
+- Another account named akotheakotheako sees no Reports icon, and the server answers 403 to its
+  request for the reports, as well as to a request without a verified account.
+
 ## 11. Security
 
 - A changed `roblox` cookie is rejected.

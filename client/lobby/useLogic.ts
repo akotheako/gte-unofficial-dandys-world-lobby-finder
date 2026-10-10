@@ -7,6 +7,7 @@ import type {
 	ReservedFor,
 	TeamTableRow,
 } from '../../shared/teamTypes.ts'
+import { reportsReaderRobloxUserId, type Report } from '../../shared/reports.ts'
 import { useSyncState } from '../useSyncState.ts'
 import { addUnverifiedFriend } from './addUnverifiedFriend.ts'
 import { checkInWithServer } from './checkInWithServer.ts'
@@ -31,6 +32,7 @@ import { loadRobloxBadgeChecklist } from './loadRobloxBadgeChecklist.ts'
 import { loadSideWindowPictures } from './loadSideWindowPictures.ts'
 import { loadVerificationEmojiCode } from './loadVerificationEmojiCode.ts'
 import { loadVerifiedRobloxAccount } from './loadVerifiedRobloxAccount.ts'
+import { loadReports } from './loadReports.ts'
 import { logOutOfRoblox } from './logOutOfRoblox.ts'
 import { openBadgesOrRolesWindow } from './openBadgesOrRolesWindow.ts'
 import { openWindowFromIcon } from './openWindowFromIcon.ts'
@@ -39,6 +41,7 @@ import { pickInPickWindow } from './pickInPickWindow.ts'
 import { readSavedTeamTable } from './readSavedTeamTable.ts'
 import { removeFriendFromReservedWindow } from './removeFriendFromReservedWindow.ts'
 import { saveServerLinkField } from './saveServerLinkField.ts'
+import { sendReport } from './sendReport.ts'
 import { toggleDandyRunOrEarlyDyleCheckbox } from './toggleDandyRunOrEarlyDyleCheckbox.ts'
 import { toggleDarkModeCheckbox } from './toggleDarkModeCheckbox.ts'
 import { saveTeamTable } from './saveTeamTable.ts'
@@ -72,7 +75,13 @@ export type CardBoxInPickWindow = {
 	column: PictureColumn | 'reservedFor'
 }
 
-export type DesktopWindowName ='Roblox Verification' | 'Find a Team' | 'Upvote Players'
+export type DesktopWindowName =
+	| 'Roblox Verification'
+	| 'Find a Team'
+	| 'Upvote Players'
+	| 'This is a fan project'
+	| 'Contact/Report'
+	| 'Reports'
 
 // Tile, picture or chip that is being dragged. fromTableCell is '' for a side window, and otherwise
 // names the cell that the drag started in, like "2 trinketAPicture" or "2 reservedFor".
@@ -161,6 +170,13 @@ export function useLogic() {
 		// null when no search of this player found a team yet
 		lastFoundTeam: LastFoundTeam | null
 		isLastFoundTeamLoaded: boolean
+		chosenReportTopicDropdownOption: string
+		reportMessage: string
+		// "Sending...", "Sent! ...", or the server's error, below the Send button
+		reportStatusText: string
+		// null until the Reports window loaded them
+		reports: Report[] | null
+		reportsError: string
 	} => ({
 		verifiedRobloxAccount: null,
 		verificationEmojiCode: '',
@@ -231,6 +247,11 @@ export function useLogic() {
 		rolesWindowConfirmedButton: null,
 		lastFoundTeam: null,
 		isLastFoundTeamLoaded: false,
+		chosenReportTopicDropdownOption: 'Report a bug in the website',
+		reportMessage: '',
+		reportStatusText: '',
+		reports: null,
+		reportsError: '',
 	}))
 
 	// Fills the Toons and Trinkets side windows with pictures
@@ -427,6 +448,12 @@ export function useLogic() {
 	// Pictures that the side windows and the pick windows leave out
 	const hiddenToons = state.isShowingAllToons ? [] : state.missingToons
 	const hiddenTrinkets = state.isShowingAllTrinkets ? [] : state.missingTrinkets
+
+	// Bugs in the game and players are reported on the official Discord server instead
+	const isReportTopicForDiscord = [
+		'Report a bug in the game',
+		'Report a player',
+	].includes(state.chosenReportTopicDropdownOption)
 
 	return {
 
@@ -1721,6 +1748,104 @@ Verify your account in Roblox Verification, and the players of the last team tha
 					}),
 				}
 			})(),
+		})),
+
+
+		// This is a fan project icon, fourth in the row at the top of the screen, and its window
+		fanProjectWindow: {
+			isOpen: state.openDesktopWindowName === 'This is a fan project',
+			openFromIcon: () => openWindowFromIcon({
+				getOpenDesktopWindowName: () => getSyncState().openDesktopWindowName,
+				setOpenDesktopWindowName: (openDesktopWindowName) => setState({ openDesktopWindowName }),
+				closeFindATeamWindow,
+				desktopWindowName: 'This is a fan project',
+			}),
+			close: () => setState({ openDesktopWindowName: null }),
+		},
+
+
+		// Contact/Report icon, fifth in the row at the top of the screen, and its window with a topic
+		// dropdown, a message box and a Send button
+		contactReportWindow: {
+			isOpen: state.openDesktopWindowName === 'Contact/Report',
+			openFromIcon: () => openWindowFromIcon({
+				getOpenDesktopWindowName: () => getSyncState().openDesktopWindowName,
+				setOpenDesktopWindowName: (openDesktopWindowName) => setState({ openDesktopWindowName }),
+				closeFindATeamWindow,
+				desktopWindowName: 'Contact/Report',
+			}),
+			close: () => setState({ openDesktopWindowName: null }),
+		},
+		reportTopicDropdownOptions: [
+			'Report a bug in the website',
+			'Report a bug in the game',
+			'Report a player',
+			'Other',
+		],
+		chosenReportTopicDropdownOption: state.chosenReportTopicDropdownOption,
+		chooseReportTopicDropdownOption: (chosenOption: string) => setState({
+			chosenReportTopicDropdownOption: chosenOption,
+			reportStatusText: '',
+		}),
+		// Red line below the dropdown that sends game bugs and players to the official Discord server
+		reportOnDiscordLine: isReportTopicForDiscord
+			? {
+				beforeLink: `To ${state.chosenReportTopicDropdownOption.toLowerCase()}, join the `,
+				linkText: 'Blushcrunch official discord server',
+				link: 'https://discord.com/invite/dandysworld',
+				afterLink: '. This form is only for issues about this website, '
+					+ 'not the game itself or its players. Thank you!',
+			}
+			: null,
+		reportMessage: state.reportMessage,
+		isReportMessageBoxDisabled: isReportTopicForDiscord,
+		typeReportMessage: (reportMessage: string) => setState({ reportMessage }),
+		isSendReportButtonDisabled: isReportTopicForDiscord
+			|| !state.reportMessage.trim()
+			|| state.reportStatusText === 'Sending...',
+		sendReport: () => sendReport({
+			topic: getSyncState().chosenReportTopicDropdownOption,
+			message: getSyncState().reportMessage,
+			setReportMessage: (reportMessage) => setState({ reportMessage }),
+			setReportStatusText: (reportStatusText) => setState({ reportStatusText }),
+		}),
+		reportStatusText: state.reportStatusText,
+
+
+		// Reports icon, sixth in the row at the top of the screen, which only @akotheakotheako sees,
+		// and its window, which loads every report whenever it opens
+		showReportsIcon: state.verifiedRobloxAccount?.id === reportsReaderRobloxUserId,
+		reportsWindow: {
+			isOpen: state.openDesktopWindowName === 'Reports',
+			openFromIcon: () => {
+				openWindowFromIcon({
+					getOpenDesktopWindowName: () => getSyncState().openDesktopWindowName,
+					setOpenDesktopWindowName: (openDesktopWindowName) => setState({
+						openDesktopWindowName,
+					}),
+					closeFindATeamWindow,
+					desktopWindowName: 'Reports',
+				})
+				loadReports({
+					setReports: (reports) => setState({ reports }),
+					setReportsError: (reportsError) => setState({ reportsError }),
+				})
+			},
+			close: () => setState({ openDesktopWindowName: null }),
+		},
+		// Line at the top of the Reports window
+		reportsIntroText: (() => {
+			if (state.reportsError) return state.reportsError
+			if (!state.reports) return 'Loading reports...'
+			if (!state.reports.length) return 'No reports yet.'
+			return `${state.reports.length} reports, newest first`
+		})(),
+		reportCards: (state.reports ?? []).map((report) => ({
+			key: report.id,
+			titleText: `${report.topic} · ${new Date(report.sentAt).toLocaleString()} · ${
+				report.robloxUsername ? `@${report.robloxUsername}` : 'Unverified sender'
+			}`,
+			message: report.message,
 		})),
 
 

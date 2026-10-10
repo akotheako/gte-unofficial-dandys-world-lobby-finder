@@ -9,15 +9,18 @@ const cookieSecret = parseEnv(readFileSync('.env', 'utf8')).COOKIE_SECRET!
 
 // Makes a browser profile verified as a Roblox account, with the same signed "roblox" cookie that
 // the server sets after a real verification, so the tests need no Roblox account. Without
-// ownedBadgeNames, the cookie holds no badges, like right after verifying.
+// ownedBadgeNames, the cookie holds no badges, like right after verifying. Without robloxUserId,
+// the account gets a random one.
 export async function verifyAsRobloxAccount({
 	context,
 	username,
 	ownedBadgeNames,
+	robloxUserId,
 }: {
 	context: BrowserContext
 	username: string
 	ownedBadgeNames?: string[]
+	robloxUserId?: number
 }) {
 	const allBadgeNames = [
 		'Speed Walker',
@@ -38,7 +41,7 @@ export async function verifyAsRobloxAccount({
 	]
 	const cookieSigner = new Hono().get('/', async (c) => {
 		await setSignedCookie(c, 'roblox', JSON.stringify({
-			id: Math.floor(Math.random() * 1e9),
+			id: robloxUserId ?? Math.floor(Math.random() * 1e9),
 			username,
 			badges: ownedBadgeNames && allBadgeNames.map((name) => ({
 				name,
