@@ -831,8 +831,15 @@ createRoot(document.getElementById('root')!).render(
 								cursor: default;
 							}
 							.team-drag-hint {
+								display: flex;
+								align-items: center;
+								justify-content: space-between;
+								gap: 8px;
 								margin-bottom: 4px;
 								color: var(--hint-text);
+								font-size: 11px;
+							}
+							.team-drag-hint button {
 								font-size: 11px;
 							}
 						`}</style>
@@ -844,8 +851,14 @@ createRoot(document.getElementById('root')!).render(
 									className={logic.sideWindowClass}
 								>
 									<div className="window-title">Toons</div>
-									{/* Small grey "Drag onto the table" line above the tiles */}
-									<div className="team-drag-hint">{logic.sideWindowDragHint}</div>
+									{/* Small grey "Drag onto the table" line above the tiles, with the grey
+								"N/N Toons" button on its right */}
+									<div className="team-drag-hint">
+										{logic.sideWindowDragHint}
+										<button onClick={logic.openOwnedToonsWindow}>
+											{logic.ownedToonsButtonText}
+										</button>
+									</div>
 									<div className="team-palette">
 										{/* "(Leave Empty)" text tile before the toon pictures */}
 										<div
@@ -882,8 +895,14 @@ createRoot(document.getElementById('root')!).render(
 										className={logic.sideWindowClass}
 									>
 										<div className="window-title">Trinkets</div>
-										{/* Small grey "Drag onto the table" line above the tiles */}
-										<div className="team-drag-hint">{logic.sideWindowDragHint}</div>
+										{/* Small grey "Drag onto the table" line above the tiles, with the grey
+									"N/N Trinkets" button on its right */}
+										<div className="team-drag-hint">
+											{logic.sideWindowDragHint}
+											<button onClick={logic.openOwnedTrinketsWindow}>
+												{logic.ownedTrinketsButtonText}
+											</button>
+										</div>
 										<div className="team-palette">
 											{logic.trinketsWindowTiles.map((trinket) => (
 												<img
@@ -918,6 +937,82 @@ createRoot(document.getElementById('root')!).render(
 									</div>}
 								</div>
 							</div>
+							{/* My Toons or My Trinkets window in the middle of the screen, with a bold title
+						above each category's grid of tiles. Missing tiles are faded and grey. */}
+							<style>{`
+								#team-owned-pictures-categories {
+									max-height: 70dvh;
+									overflow-y: auto;
+								}
+								.team-owned-pictures-category-title {
+									margin: 6px 0 2px;
+									font-weight: bold;
+								}
+								#team-owned-pictures .team-palette {
+									max-height: none;
+									overflow: visible;
+									grid-template-columns: repeat(6, 48px);
+								}
+								#team-owned-pictures .team-palette img {
+									cursor: pointer;
+								}
+								#team-owned-pictures .team-palette img[data-missing="true"] {
+									opacity: 0.3;
+									filter: grayscale(1);
+								}
+								#team-owned-pictures-show-all {
+									width: 100%;
+									margin-top: 6px;
+								}
+							`}</style>
+							<ModalWindow
+								id="team-owned-pictures"
+								closedby="any"
+								isOpen={logic.isOwnedPicturesWindowOpen}
+								close={logic.closeOwnedPicturesWindow}
+							>
+								{/* Title bar with a grey × button that closes the window */}
+								<div className="window-title">
+									{logic.ownedPicturesWindowTitle}
+									<button
+										className="window-close"
+										aria-label="Close"
+										onClick={logic.closeOwnedPicturesWindow}
+									>
+										×
+									</button>
+								</div>
+								{/* Small grey "Click to mark as missing or owned" line */}
+								<div className="team-drag-hint">{logic.ownedPicturesWindowHint}</div>
+								<div id="team-owned-pictures-categories">
+									{logic.ownedPicturesWindowCategories.map((category) => (
+										<div key={category.title}>
+											<div className="team-owned-pictures-category-title">
+												{category.title}
+											</div>
+											<div className="team-palette">
+												{category.tiles.map((tile) => (
+													<img
+														key={tile.name}
+														className="toon-or-trinket-picture"
+														src={tile.src}
+														title={tile.title}
+														data-missing={tile.isMissing}
+														onClick={tile.toggle}
+													/>
+												))}
+											</div>
+										</div>
+									))}
+								</div>
+								{/* Wide grey "Show all" button that marks every tile as owned */}
+								<button
+									id="team-owned-pictures-show-all"
+									onClick={logic.showAllOwnedPictures}
+								>
+									{logic.ownedPicturesWindowShowAllButtonText}
+								</button>
+							</ModalWindow>
 							{/* Badges window in the middle of the screen, with a checkbox for each owned badge */}
 							<ChecklistWindow
 								id="team-badges"
@@ -1435,28 +1530,38 @@ createRoot(document.getElementById('root')!).render(
 									</button>
 								</div>
 								{logic.showPickWindowTiles ? (
-									<div className="team-palette">
-										{logic.pickWindowTiles.map((tile) => tile.src ? (
-											<img
-												key={tile.key}
-												className="toon-or-trinket-picture"
-												src={tile.src}
-												title={tile.title}
-												data-chosen={tile.isChosen}
-												onClick={tile.pick}
-											/>
-										) : (
-											<div
-												key={tile.key}
-												className="team-text"
-												title={tile.title}
-												data-chosen={tile.isChosen}
-												onClick={tile.pick}
-											>
-												{tile.text}
-											</div>
-										))}
-									</div>
+									<>
+										{/* Small grey line with the "N/N Toons" or "N/N Trinkets" button on
+									its right, above the tiles */}
+										<div className="team-drag-hint">
+											<span />
+											<button onClick={logic.openOwnedPicturesWindowFromPickWindow}>
+												{logic.pickWindowOwnedPicturesButtonText}
+											</button>
+										</div>
+										<div className="team-palette">
+											{logic.pickWindowTiles.map((tile) => tile.src ? (
+												<img
+													key={tile.key}
+													className="toon-or-trinket-picture"
+													src={tile.src}
+													title={tile.title}
+													data-chosen={tile.isChosen}
+													onClick={tile.pick}
+												/>
+											) : (
+												<div
+													key={tile.key}
+													className="team-text"
+													title={tile.title}
+													data-chosen={tile.isChosen}
+													onClick={tile.pick}
+												>
+													{tile.text}
+												</div>
+											))}
+										</div>
+									</>
 								) : (
 									<>
 										<button

@@ -37,11 +37,59 @@ test.describe('before verifying', () => {
 	})
 
 	test('the side windows show "Drag onto the table" and list every picture', async ({ page }) => {
-		await expect(page.locator('#team-toons .team-drag-hint')).toHaveText('Drag onto the table')
-		await expect(page.locator('#team-trinkets .team-drag-hint')).toHaveText('Drag onto the table')
+		await expect(page.locator('#team-toons .team-drag-hint')).toHaveText(
+			'Drag onto the table40/40 Toons',
+		)
+		await expect(page.locator('#team-trinkets .team-drag-hint')).toHaveText(
+			'Drag onto the table57/57 Trinkets',
+		)
 		await expect(page.locator('#team-toons img')).toHaveCount(40)
 		await expect(page.locator('#team-toons img[title="bobette"]')).toBeVisible()
 		await expect(page.locator('#team-trinkets img[title="alarm"]')).toBeVisible()
+	})
+})
+
+test.describe('My Toons and My Trinkets windows', () => {
+	test('My Toons groups the toons under their category titles', async ({ page }) => {
+		await page.locator('#team-toons .team-drag-hint button').click()
+		await expect(page.locator('#team-owned-pictures .window-title')).toContainText('My Toons')
+		await expect(page.locator('.team-owned-pictures-category-title')).toHaveText([
+			'Main Characters',
+			'Secondary Characters',
+			'Christmas Toons',
+			'Halloween Toons',
+			'Easter Toons',
+		])
+		await expect(page.locator('#team-owned-pictures img')).toHaveCount(40)
+	})
+
+	test('a missing toon fades, leaves the side window and lowers the count', async ({ page }) => {
+		await page.locator('#team-toons .team-drag-hint button').click()
+		const bobetteTile = page.locator('#team-owned-pictures img[title="bobette"]')
+		await bobetteTile.click()
+		await expect(bobetteTile).toHaveAttribute('data-missing', 'true')
+		await expect(page.locator('#team-toons img[title="bobette"]')).toHaveCount(0)
+		await expect(page.locator('#team-toons .team-drag-hint button')).toHaveText('39/40 Toons')
+		await bobetteTile.click()
+		await expect(page.locator('#team-toons img[title="bobette"]')).toHaveCount(1)
+	})
+
+	test('Show all brings back every trinket, and missing ones survive a reload', async ({
+		page,
+	}) => {
+		await page.locator('#team-trinkets .team-drag-hint button').click()
+		await page.locator('#team-owned-pictures img[title="alarm"]').click()
+		await page.locator('#team-owned-pictures img[title="bone"]').click()
+		await page.reload()
+		await page.locator('#team-icon').click()
+		await expect(page.locator('#team-trinkets .team-drag-hint button')).toHaveText(
+			'55/57 Trinkets',
+		)
+		await page.locator('#team-trinkets .team-drag-hint button').click()
+		await page.locator('#team-owned-pictures-show-all').click()
+		await expect(page.locator('#team-trinkets .team-drag-hint button')).toHaveText(
+			'57/57 Trinkets',
+		)
 	})
 
 	test('the Reserved window shows ME and UNVERIFIED FRIENDS', async ({ page }) => {
@@ -381,6 +429,8 @@ test.describe('after verifying', () => {
 		])
 	})
 
+	// This test fails on its tooltip check, where the crossed-out badge has no title, although the
+	// tooltip shows up when the same steps are done by hand in the browser. The cause is unknown.
 	test('badges are crossed out until "Verified only" is checked', async ({ page }) => {
 		const firstRow = page.locator('#team-table tbody tr').first()
 		await firstRow.locator('td').nth(3).click()

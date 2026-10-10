@@ -73,3 +73,21 @@ test('on a phone, the boxes of a card open pick windows that fill them', async (
 	await secondCard.click()
 	await expect(secondCard).toContainText('Toon')
 })
+
+test('on a phone, the Toons pick window opens My Toons, which hides missing toons', async ({
+	page,
+}) => {
+	await page.setViewportSize({
+		width: 390,
+		height: 844,
+	})
+	await page.goto('/')
+	await page.locator('#team-icon').click()
+	await page.locator('.team-card').first().locator('.team-card-box').nth(0).click()
+	await page.locator('#team-pick .team-drag-hint button').click()
+	await expect(page.locator('#team-owned-pictures')).toHaveAttribute('open')
+	await page.locator('#team-owned-pictures img[title="bobette"]').click()
+	await page.locator('#team-owned-pictures .window-close').click()
+	await expect(page.locator('#team-pick img[title="bobette"]')).toHaveCount(0)
+	await expect(page.locator('#team-pick .team-drag-hint button')).toHaveText('39/40 Toons')
+})

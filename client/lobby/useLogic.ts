@@ -41,9 +41,11 @@ import { saveServerLinkField } from './saveServerLinkField.ts'
 import { toggleDandyRunOrEarlyDyleCheckbox } from './toggleDandyRunOrEarlyDyleCheckbox.ts'
 import { toggleDarkModeCheckbox } from './toggleDarkModeCheckbox.ts'
 import { saveTeamTable } from './saveTeamTable.ts'
+import { showAllOwnedPictures } from './showAllOwnedPictures.ts'
 import { tapFindATeamCardBox } from './tapFindATeamCardBox.ts'
 import { toggleBadgeCheckbox } from './toggleBadgeCheckbox.ts'
 import { toggleFindingPlayers } from './toggleFindingPlayers.ts'
+import { toggleOwnedPictureTile } from './toggleOwnedPictureTile.ts'
 import { toggleRoleCheckbox } from './toggleRoleCheckbox.ts'
 import { toggleUpvote } from './toggleUpvote.ts'
 import { toggleVerifiedOnlyCheckbox } from './toggleVerifiedOnlyCheckbox.ts'
@@ -110,6 +112,11 @@ export function useLogic() {
 		teamTableRows: TeamTableRow[]
 		toonsWindowPictures: string[]
 		trinketsWindowPictures: string[]
+		// Pictures that the My Toons and My Trinkets windows mark as missing, and that the side
+		// windows and pick windows therefore hide
+		missingToons: string[]
+		missingTrinkets: string[]
+		openOwnedPicturesWindowKind: 'toon' | 'trinket' | null
 		serverLinkFieldStartValue: string
 		serverLink: string
 		isDarkModeCheckboxChecked: boolean
@@ -173,6 +180,9 @@ export function useLogic() {
 		isCopiedTextShown: false,
 		toonsWindowPictures: [],
 		trinketsWindowPictures: [],
+		missingToons: JSON.parse(localStorage.getItem('missingToons') ?? '[]'),
+		missingTrinkets: JSON.parse(localStorage.getItem('missingTrinkets') ?? '[]'),
+		openOwnedPicturesWindowKind: null,
 		serverLinkFieldStartValue: localStorage.getItem('serverLink') ?? '',
 		serverLink: localStorage.getItem('serverLink') ?? '',
 		isDarkModeCheckboxChecked: localStorage.getItem('darkMode') === 'true',
@@ -512,7 +522,9 @@ export function useLogic() {
 		}),
 
 		// Toon pictures in the Toons side window to the lower left
-		toonsWindowTiles: state.toonsWindowPictures.map((name) => ({
+		toonsWindowTiles: state.toonsWindowPictures.filter((name) => (
+			!state.missingToons.includes(name)
+		)).map((name) => ({
 			name,
 			src: `/pixelated/toons/${name}`,
 			title: name.replace('.png', ''),
@@ -524,7 +536,9 @@ export function useLogic() {
 		})),
 
 		// Trinket pictures in the Trinkets side window to the upper right
-		trinketsWindowTiles: state.trinketsWindowPictures.map((name) => ({
+		trinketsWindowTiles: state.trinketsWindowPictures.filter((name) => (
+			!state.missingTrinkets.includes(name)
+		)).map((name) => ({
 			name,
 			src: `/pixelated/trinkets/${name}`,
 			title: name.replace('.png', ''),
@@ -534,6 +548,267 @@ export function useLogic() {
 				name,
 			}),
 		})),
+
+		// "N/N Toons" and "N/N Trinkets" buttons right of the drag hints, which count the owned
+		// pictures and open the My Toons or My Trinkets window
+		ownedToonsButtonText: `${
+			state.toonsWindowPictures.filter((name) => !state.missingToons.includes(name)).length
+		}/${state.toonsWindowPictures.length} Toons`,
+		openOwnedToonsWindow: () => setState({ openOwnedPicturesWindowKind: 'toon' }),
+		ownedTrinketsButtonText: `${
+			state.trinketsWindowPictures.filter((name) => !state.missingTrinkets.includes(name)).length
+		}/${state.trinketsWindowPictures.length} Trinkets`,
+		openOwnedTrinketsWindow: () => setState({ openOwnedPicturesWindowKind: 'trinket' }),
+
+		// My Toons or My Trinkets window in the middle of the screen, with the pictures in category
+		// groups. A click on a tile marks it as missing, which fades it and hides it from the side
+		// window, and another click marks it as owned again. Its ×, Esc and a click outside it close it.
+		...(() => {
+			const isToonsWindow = state.openOwnedPicturesWindowKind === 'toon'
+			const pictures = isToonsWindow ? state.toonsWindowPictures : state.trinketsWindowPictures
+			const missingPictures = isToonsWindow ? state.missingToons : state.missingTrinkets
+			const localStorageKey = isToonsWindow ? 'missingToons' : 'missingTrinkets'
+			const categories: {
+				title: string
+				names: string[]
+			}[] = isToonsWindow ? [
+				{
+					title: 'Main Characters',
+					names: [
+						'astro',
+						'pebble',
+						'shelly',
+						'sprout',
+						'vee',
+					],
+				},
+				{
+					title: 'Secondary Characters',
+					names: [
+						'poppy',
+						'boxten',
+						'connie',
+						'cosmo',
+						'finn',
+						'glisten',
+						'teagan',
+						'rodger',
+						'toodles',
+						'brusha',
+						'tisha',
+						'goob',
+						'scraps',
+						'gigi',
+						'flutter',
+						'brightney',
+						'razzle_and_dazzle',
+						'squirm',
+						'looey',
+						'yatta',
+						'blot',
+						'shrimpo',
+						'waxwell',
+					],
+				},
+				{
+					title: 'Christmas Toons',
+					names: [
+						'bobette',
+						'coal',
+						'ginger',
+						'rudie',
+					],
+				},
+				{
+					title: 'Halloween Toons',
+					names: [
+						'gourdy',
+						'soulvester',
+						'eclipse',
+						'ribecca',
+					],
+				},
+				{
+					title: 'Easter Toons',
+					names: [
+						'bassie',
+						'cocoa',
+						'flyte',
+						'eggson',
+					],
+				},
+			] : [
+				{
+					title: 'Skillcheck',
+					names: [
+						'magnifying_glass',
+						'mime_makeup',
+						'paint_bucket',
+						'participation_award',
+						'thinking_cap',
+					],
+				},
+				{
+					title: 'Move Speed',
+					names: [
+						'alarm',
+						'bone',
+						'brick',
+						'clown_horn',
+						'dog_plush',
+						'pink_bow',
+						'pull_toy',
+						'ribbon_spool',
+						'speedy_shoes',
+						'train_whistle',
+						'vanity_mirror',
+					],
+				},
+				{
+					title: 'Stamina',
+					names: [
+						'cooler',
+						'feather_duster',
+						'friendship_bracelet',
+						'peppermint_icing',
+						'pop_pack',
+						'speedometer',
+						'star_pillow',
+						'thermos',
+						'whispering_flower',
+					],
+				},
+				{
+					title: 'Stealth',
+					names: [
+						'coal_trinket_',
+						'diary',
+						'megaphone',
+						'scrapbook',
+					],
+				},
+				{
+					title: 'Extraction Speed',
+					names: [
+						'blue_bandana',
+						'machine_manual',
+						'stress_ball',
+						'vees_remote',
+						'wrench',
+					],
+				},
+				{
+					title: 'Ability Cooldown',
+					names: [
+						'ghost_snakes_in_a_can',
+						'savory_charm',
+					],
+				},
+				{
+					title: 'Hit Prevention',
+					names: [
+						'blushy_bat',
+						'cardboard_armor',
+						'sweet_charm',
+					],
+				},
+				{
+					title: 'Item Finding & Usage',
+					names: [
+						'crayon_set',
+						'glazed_fondant_bag',
+						'memory_locket',
+					],
+				},
+				{
+					title: 'Toon-specific Trinkets',
+					names: [
+						'cherished_blanket',
+						'lucky_coin',
+						'soul_sword',
+						'toy_kit',
+					],
+				},
+				{
+					title: 'Tape Trinkets',
+					names: [
+						'coin_purse',
+						'dandy_plush',
+						'fancy_purse',
+					],
+				},
+				{
+					title: 'Research & Holiday Currency Trinkets',
+					names: [
+						'bone_needle_and_thread',
+						'egg_radar',
+						'festive_lights',
+						'research_map',
+					],
+				},
+				{
+					title: 'Other',
+					names: [
+						'fishing_rod',
+						'moon_pack_heirloom',
+						'party_popper',
+						'spare_bulb',
+					],
+				},
+			]
+			const categorizedPictures = categories.flatMap((category) => (
+				category.names.map((name) => `${name}.png`)
+			))
+			// A picture that the server has but no category lists yet goes into a last "More" group
+			const uncategorizedNames = pictures
+				.filter((name) => !categorizedPictures.includes(name))
+				.map((name) => name.replace('.png', ''))
+			return {
+				isOwnedPicturesWindowOpen: Boolean(state.openOwnedPicturesWindowKind),
+				closeOwnedPicturesWindow: () => setState({ openOwnedPicturesWindowKind: null }),
+				ownedPicturesWindowTitle: isToonsWindow ? 'My Toons' : 'My Trinkets',
+				ownedPicturesWindowHint: 'Click to mark as missing or owned',
+				ownedPicturesWindowCategories: [
+					...categories,
+					...uncategorizedNames.length
+						? [{
+							title: 'More',
+							names: uncategorizedNames,
+						}]
+						: [],
+				].map((category) => ({
+					title: category.title,
+					tiles: category.names
+						.map((name) => `${name}.png`)
+						.filter((name) => pictures.includes(name))
+						.map((name) => ({
+							name,
+							src: `/pixelated/${isToonsWindow ? 'toons' : 'trinkets'}/${name}`,
+							title: name.replace('.png', ''),
+							isMissing: missingPictures.includes(name),
+							toggle: () => toggleOwnedPictureTile({
+								localStorageKey,
+								getMissingPictures: () => (
+									localStorageKey === 'missingToons'
+										? getSyncState().missingToons
+										: getSyncState().missingTrinkets
+								),
+								setMissingPictures: (missingPictures) => setState({
+									[localStorageKey]: missingPictures,
+								}),
+								name,
+							}),
+						})),
+				})),
+				ownedPicturesWindowShowAllButtonText: 'Show all',
+				showAllOwnedPictures: () => showAllOwnedPictures({
+					localStorageKey,
+					setMissingPictures: (missingPictures) => setState({
+						[localStorageKey]: missingPictures,
+					}),
+				}),
+			}
+		})(),
 
 		// Reserved window below the Trinkets window, with "Me", every verified friend who opened the
 		// invite link and every unverified friend as a chip that drags into the Player column.
@@ -747,6 +1022,19 @@ export function useLogic() {
 					return isToonBox ? 'Toons' : 'Trinkets'
 				})(),
 				showPickWindowTiles: cardBox?.column !== 'reservedFor',
+				// "N/N Toons" or "N/N Trinkets" button above the tiles, which opens the My Toons or My
+				// Trinkets window on top
+				pickWindowOwnedPicturesButtonText: isToonBox
+					? `${
+						state.toonsWindowPictures.filter((name) => !state.missingToons.includes(name)).length
+					}/${state.toonsWindowPictures.length} Toons`
+					: `${
+						state.trinketsWindowPictures
+							.filter((name) => !state.missingTrinkets.includes(name)).length
+					}/${state.trinketsWindowPictures.length} Trinkets`,
+				openOwnedPicturesWindowFromPickWindow: () => setState({
+					openOwnedPicturesWindowKind: isToonBox ? 'toon' : 'trinket',
+				}),
 				// "(Any)" and, for a Toon box, "(Leave Empty)" come before the pictures. The tile that
 				// the box holds has a navy frame.
 				pickWindowTiles: [
@@ -773,6 +1061,8 @@ export function useLogic() {
 						}),
 					}] : [],
 					...(isToonBox ? state.toonsWindowPictures : state.trinketsWindowPictures)
+						.filter((name) => !(isToonBox ? state.missingToons : state.missingTrinkets)
+							.includes(name))
 						.map((name) => ({
 							key: name,
 							text: '',

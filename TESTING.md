@@ -65,7 +65,12 @@ and what should happen.
 - Every Role cell starts with "Extractor".
 - The toons window sits to the lower left, the trinkets window to the upper right, and the Reserved
   window below the trinkets. The toons and trinkets windows show "Drag onto the table" under their
-  titles.
+  titles, with an "N/N Toons" or "N/N Trinkets" button on the right of that line.
+- The Toons and Trinkets pick windows of a narrow screen show the same button above their tiles.
+- That button opens the My Toons or My Trinkets window, which groups the pictures under category
+  titles. Clicking a tile fades it as missing, hides it from the side window and the pick window,
+  and lowers the count, and a second click brings it back. "Show all" brings every tile back, and
+  the missing pictures survive a reload.
 - A new `.png` in `public/toons` or `public/trinkets` appears after a reload.
 
 ## 4. Dragging pictures
