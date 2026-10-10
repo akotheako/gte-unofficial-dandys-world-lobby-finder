@@ -865,7 +865,11 @@ createRoot(document.getElementById('root')!).render(
 								"N/N Toons" button on its right */}
 									<div className="team-drag-hint">
 										{logic.sideWindowDragHint}
-										<button onClick={logic.openOwnedToonsWindow}>
+										<button
+											disabled={logic.areOwnedPicturesButtonsDisabled}
+											title={logic.ownedPicturesButtonsTooltip}
+											onClick={logic.openOwnedToonsWindow}
+										>
 											{logic.ownedToonsButtonText}
 										</button>
 									</div>
@@ -909,7 +913,11 @@ createRoot(document.getElementById('root')!).render(
 									"N/N Trinkets" button on its right */}
 										<div className="team-drag-hint">
 											{logic.sideWindowDragHint}
-											<button onClick={logic.openOwnedTrinketsWindow}>
+											<button
+												disabled={logic.areOwnedPicturesButtonsDisabled}
+												title={logic.ownedPicturesButtonsTooltip}
+												onClick={logic.openOwnedTrinketsWindow}
+											>
 												{logic.ownedTrinketsButtonText}
 											</button>
 										</div>
@@ -1592,7 +1600,11 @@ createRoot(document.getElementById('root')!).render(
 									its right, above the tiles */}
 										<div className="team-drag-hint">
 											<span />
-											<button onClick={logic.openOwnedPicturesWindowFromPickWindow}>
+											<button
+												disabled={logic.areOwnedPicturesButtonsDisabled}
+												title={logic.ownedPicturesButtonsTooltip}
+												onClick={logic.openOwnedPicturesWindowFromPickWindow}
+											>
 												{logic.pickWindowOwnedPicturesButtonText}
 											</button>
 										</div>

@@ -5,6 +5,7 @@ export function checkInWithServer({
 	inviteCode,
 	getTeamTableRows,
 	getRemovedVerifiedFriendUsernames,
+	getMissingPictures,
 	getIsInviteLinkCopied,
 	getTeamSettings,
 	getServerLink,
@@ -24,6 +25,10 @@ export function checkInWithServer({
 	inviteCode: string
 	getTeamTableRows: () => TeamTableRow[]
 	getRemovedVerifiedFriendUsernames: () => string[]
+	getMissingPictures: () => {
+		missingToons: string[]
+		missingTrinkets: string[]
+	}
 	getIsInviteLinkCopied: () => boolean
 	getTeamSettings: () => {
 		isDandyRun: boolean
@@ -66,6 +71,8 @@ export function checkInWithServer({
 					)),
 				})),
 				removedRobloxUsernames: getRemovedVerifiedFriendUsernames(),
+				// The "(Any)" cells of the user's own rows can only become a picture that they own
+				...getMissingPictures(),
 				inviteCode,
 				serverLink: getServerLink(),
 				...getTeamSettings(),

@@ -74,6 +74,8 @@ and what should happen.
 - "Show all" stays pressed in and brings the missing pictures back to the side window and the pick
   window, while the marks in the window and the count stay the same. A second click hides them
   again. The marks and "Show all" survive a reload.
+- While Find Players runs, the "N/N Toons" and "N/N Trinkets" buttons are greyed out, and they
+  work again once the search is cancelled.
 - A new `.png` in `public/toons` or `public/trinkets` appears after a reload.
 
 ## 4. Dragging pictures
@@ -187,6 +189,8 @@ These checks need two or three profiles that search at the same time.
 - The same verified account never ends up twice in one team.
 - A player fits a row only when the toon and trinkets match, where "(Any)" matches anything on
   either side, and when they do every role that the row asks for.
+- An "(Any)" cell on a "Me" row does not match a toon or trinket that the user marked as missing
+  in My Toons or My Trinkets, while an "(Any)" cell on a friend's row still matches anything.
 - A "Verified only" row rejects an unverified player, accepts a harder badge of the same category,
   such as Marathon Runner for Speed Walker, and rejects an easier one.
 - The search with a server link hosts, or the older search when both have one, and a search that

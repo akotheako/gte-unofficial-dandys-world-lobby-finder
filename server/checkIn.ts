@@ -23,6 +23,9 @@ type Team = {
 	roblox_badge_names: string[]
 	// Verified friends whom the host removed, whom the invite link no longer lets in
 	removed_roblox_usernames: string[]
+	// Pictures that the host's My Toons and My Trinkets windows mark as missing
+	missing_toons: string[]
+	missing_trinkets: string[]
 	team_table_rows: TeamTableRow[]
 	server_link: string
 	is_dandy_run: boolean
@@ -158,7 +161,8 @@ function playersOf({
 // Puts every player into a different row of the team, or returns null when they cannot all fit.
 // The team's own players can only take a row reserved for them, and players from other teams can
 // take any row that one of their own reserved rows fits, including a reserved row that the
-// team's own player does not end up in. An empty Toon or Trinket cell means "(Any)" on both sides.
+// team's own player does not end up in. An empty Toon or Trinket cell means "(Any)" on both sides,
+// and on a host's own row it only covers the pictures that the host has not marked as missing.
 function placePlayersInRows({
 	players,
 	team,
@@ -180,15 +184,23 @@ function placePlayersInRows({
 		const row = rows[rowIndex]
 		if (row.isLeftEmpty || playersInRows[rowIndex]) return false
 		if (player.teamId === team.team_id) return player.reservedRowIndexes.includes(rowIndex)
-		const playerRows = teamsById.get(player.teamId)?.team_table_rows ?? []
+		const playerTeam = teamsById.get(player.teamId)
+		const playerRows = playerTeam?.team_table_rows ?? []
+		// Only the host's own page knows which pictures they own, so a friend can be any picture
+		const playerMissingToons = player.isHost ? playerTeam?.missing_toons ?? [] : []
+		const playerMissingTrinkets = player.isHost ? playerTeam?.missing_trinkets ?? [] : []
 		return player.reservedRowIndexes.some((playerRowIndex) => {
 			const playerRow = playerRows[playerRowIndex]
 			const playerTrinkets = [playerRow.trinketAPicture, playerRow.trinketBPicture].filter(Boolean)
 			const missingTrinkets = [row.trinketAPicture, row.trinketBPicture]
 				.filter((trinket) => trinket && !playerTrinkets.includes(trinket))
-			return (!row.toonPicture || !playerRow.toonPicture || row.toonPicture === playerRow.toonPicture)
-				// A player's empty trinket slot can take any trinket that the row asks for
+			return (!row.toonPicture
+				|| row.toonPicture === playerRow.toonPicture
+				|| (!playerRow.toonPicture && !playerMissingToons.includes(row.toonPicture)))
+				// A player's empty trinket slot can take any trinket that the row asks for and that
+				// the player owns
 				&& missingTrinkets.length <= 2 - playerTrinkets.length
+				&& missingTrinkets.every((trinket) => !playerMissingTrinkets.includes(trinket))
 				&& row.roleNames.every((role) => playerRow.roleNames.includes(role))
 				// Badges only count for a verified player, since nobody can confirm the badges of
 				// an unverified one. A harder badge of the same category also counts, such as
@@ -252,6 +264,8 @@ checkIn.use(async (_c, next) => {
 		);
 		ALTER TABLE teams ADD COLUMN IF NOT EXISTS roblox_badge_names jsonb NOT NULL DEFAULT '[]';
 		ALTER TABLE teams ADD COLUMN IF NOT EXISTS removed_roblox_usernames jsonb NOT NULL DEFAULT '[]';
+		ALTER TABLE teams ADD COLUMN IF NOT EXISTS missing_toons jsonb NOT NULL DEFAULT '[]';
+		ALTER TABLE teams ADD COLUMN IF NOT EXISTS missing_trinkets jsonb NOT NULL DEFAULT '[]';
 		ALTER TABLE teams DROP COLUMN IF EXISTS verified_friend_ids;
 		CREATE TABLE IF NOT EXISTS verified_friends (
 			page_id text PRIMARY KEY,
@@ -287,6 +301,9 @@ checkIn.post('/', async (c) => {
 		team: {
 			teamTableRows: TeamTableRow[]
 			removedRobloxUsernames: string[]
+			// Absent from a page that still runs an older version of the site
+			missingToons?: string[]
+			missingTrinkets?: string[]
 			inviteCode: string
 			serverLink: string
 			isDandyRun: boolean
@@ -373,6 +390,8 @@ checkIn.post('/', async (c) => {
 				roblox_username: robloxAccount?.username ?? '',
 				roblox_badge_names: ownedBadgeNames,
 				removed_roblox_usernames: sentTeam.removedRobloxUsernames.slice(0, 100).map(String),
+				missing_toons: (sentTeam.missingToons ?? []).slice(0, 200).map(String),
+				missing_trinkets: (sentTeam.missingTrinkets ?? []).slice(0, 200).map(String),
 				// Only the fields that matching reads are stored, since other players see them
 				team_table_rows: sentTeam.teamTableRows.slice(0, 8).map((row): TeamTableRow => {
 					const reservedFor = String(row.reservedFor)
@@ -411,6 +430,8 @@ checkIn.post('/', async (c) => {
 					roblox_username,
 					roblox_badge_names,
 					removed_roblox_usernames,
+					missing_toons,
+					missing_trinkets,
 					team_table_rows,
 					server_link,
 					is_dandy_run,
@@ -426,6 +447,8 @@ checkIn.post('/', async (c) => {
 					${sqlLiteral(team.roblox_username)},
 					${sqlLiteral(team.roblox_badge_names)},
 					${sqlLiteral(team.removed_roblox_usernames)},
+					${sqlLiteral(team.missing_toons)},
+					${sqlLiteral(team.missing_trinkets)},
 					${sqlLiteral(team.team_table_rows)},
 					${sqlLiteral(team.server_link)},
 					${team.is_dandy_run},
@@ -440,6 +463,8 @@ checkIn.post('/', async (c) => {
 					roblox_username = excluded.roblox_username,
 					roblox_badge_names = excluded.roblox_badge_names,
 					removed_roblox_usernames = excluded.removed_roblox_usernames,
+					missing_toons = excluded.missing_toons,
+					missing_trinkets = excluded.missing_trinkets,
 					team_table_rows = excluded.team_table_rows,
 					server_link = excluded.server_link,
 					is_dandy_run = excluded.is_dandy_run,

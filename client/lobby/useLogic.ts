@@ -273,6 +273,10 @@ export function useLogic() {
 		inviteCode: getSyncState().inviteCode,
 		getTeamTableRows: () => getSyncState().teamTableRows,
 		getRemovedVerifiedFriendUsernames: () => getSyncState().removedVerifiedFriendUsernames,
+		getMissingPictures: () => ({
+			missingToons: getSyncState().missingToons,
+			missingTrinkets: getSyncState().missingTrinkets,
+		}),
 		getIsInviteLinkCopied: () => getSyncState().isInviteLinkCopied,
 		getTeamSettings: () => ({
 			isDandyRun: getSyncState().isDandyRunCheckboxChecked,
@@ -569,6 +573,11 @@ export function useLogic() {
 			state.trinketsWindowPictures.filter((name) => !state.missingTrinkets.includes(name)).length
 		}/${state.trinketsWindowPictures.length} Trinkets`,
 		openOwnedTrinketsWindow: () => setState({ openOwnedPicturesWindowKind: 'trinket' }),
+		// The "N/N" buttons are greyed out, with this tooltip, while a search runs
+		areOwnedPicturesButtonsDisabled: state.isFindingPlayers,
+		ownedPicturesButtonsTooltip: state.isFindingPlayers
+			? 'Cancel the search to change which toons and trinkets you own'
+			: '',
 
 		// My Toons or My Trinkets window in the middle of the screen, with the pictures in category
 		// groups. A click on a tile marks it as missing, which swaps its ✅ for a red X and hides it

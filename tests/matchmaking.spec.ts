@@ -41,6 +41,8 @@ async function startSearch({
 	floorGoalFrom,
 	floorGoalTo,
 	isDandyRun,
+	missingToons,
+	missingTrinkets,
 	prepareBeforeSearch,
 }: {
 	browser: Browser
@@ -53,6 +55,9 @@ async function startSearch({
 	floorGoalFrom?: string
 	floorGoalTo?: string
 	isDandyRun?: boolean
+	// Pictures that My Toons and My Trinkets mark as missing
+	missingToons?: string[]
+	missingTrinkets?: string[]
 	prepareBeforeSearch?: (page: Page) => Promise<void>
 }) {
 	const context = await browser.newContext()
@@ -86,6 +91,8 @@ async function startSearch({
 		floorGoalFrom: floorGoalFrom ?? '50',
 		floorGoalTo: floorGoalTo ?? floorGoalFrom ?? '50',
 		dandyRun: String(isDandyRun ?? false),
+		missingToons: JSON.stringify(missingToons ?? []),
+		missingTrinkets: JSON.stringify(missingTrinkets ?? []),
 	})
 	const page = await context.newPage()
 	await page.goto('/')
@@ -228,6 +235,26 @@ for (const {
 			},
 		},
 		{
+			difference: 'owned toon',
+			first: {
+				rows: [
+					{ reservedFor: 'me' },
+					{ toonPicture: 'bobette.png' },
+				],
+			},
+			second: { missingToons: ['bobette.png'] },
+		},
+		{
+			difference: 'owned trinket',
+			first: {
+				rows: [
+					{ reservedFor: 'me' },
+					{ trinketAPicture: 'alarm.png' },
+				],
+			},
+			second: { missingTrinkets: ['alarm.png'] },
+		},
+		{
 			difference: 'role',
 			first: {
 				rows: [
@@ -291,6 +318,37 @@ for (const {
 					},
 					{},
 				],
+			},
+		},
+		{
+			match: 'an "(Any)" toon on a "Me" row fits a toon that is not marked as missing',
+			first: {
+				rows: [
+					{ reservedFor: 'me' },
+					{ toonPicture: 'bobette.png' },
+				],
+			},
+			second: { missingToons: ['vee.png'] },
+		},
+		{
+			match: 'an "(Any)" toon on a friend\'s row fits a toon that the user marked as missing',
+			first: {
+				rows: [
+					{ reservedFor: 'me' },
+					{},
+					{ toonPicture: 'bobette.png' },
+				],
+			},
+			second: {
+				rows: [
+					{ reservedFor: 'me' },
+					{ reservedFor: 'unverifiedFriend:1' },
+					{},
+				],
+				missingToons: ['bobette.png'],
+				prepareBeforeSearch: async (page: Page) => {
+					await page.getByRole('button', { name: '+ Add unverified friend' }).click()
+				},
 			},
 		},
 		{
@@ -716,4 +774,17 @@ test.describe('Upvote Players', () => {
 		await joinerPage.context().close()
 		await strangerContext.close()
 	})
+})
+
+test('a running search greys out the "N/N Toons" button until it ends', async ({ browser }) => {
+	const page = await startSearch({
+		browser,
+		username: 'SearchingPlayer',
+		rows: meAndOneOpenRow,
+		serverLink: serverLinkA,
+	})
+	await expect(page.locator('.team-drag-hint button').first()).toBeDisabled()
+	await page.locator('#team-find button').click()
+	await expect(page.locator('.team-drag-hint button').first()).toBeEnabled()
+	await page.context().close()
 })
