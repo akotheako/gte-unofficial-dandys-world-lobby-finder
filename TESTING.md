@@ -103,8 +103,10 @@ and what should happen.
   badges that the account owns.
 - The grey lines in the Badges window sit only where two listed badges of different groups meet,
   which needs an account with only some of the badges to check.
-- Checking a badge unchecks the other badges of its category, for each category that has more than
-  one badge.
+- Checking a badge makes the earlier badges of its category look checked and greyed out, and the
+  cell leaves them out.
+- An earlier badge that was checked before a later one stays checked after the later one is
+  unchecked.
 - The badges of a row are crossed out, with their tooltip, while its "Verified only" checkbox is
   unchecked.
 - Paste stays greyed out until Copy was clicked in the same window.

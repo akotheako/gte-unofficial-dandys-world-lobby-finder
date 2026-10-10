@@ -424,16 +424,41 @@ test.describe('after verifying', () => {
 		])
 	})
 
-	test('a badge unchecks the other badge of its category', async ({ page }) => {
+	test('an earlier badge stays checked after the later badge that proved it is unchecked', async ({
+		page,
+	}) => {
 		const badgesCell = page.locator('#team-table tbody tr').first().locator('td').nth(3)
 		await badgesCell.click()
 		await page.locator('#team-badges label', { hasText: 'Speed Walker' }).click()
 		await page.locator('#team-badges label', { hasText: 'Long Distance Runner' }).click()
+		await expect(badgesCell.locator('.team-badge-or-role')).toHaveText(['Long Distance Runner'])
+		await page.locator('#team-badges label', { hasText: 'Long Distance Runner' }).click()
+		const speedWalker = page.locator('#team-badges label', { hasText: 'Speed Walker' })
+		await expect(speedWalker.locator('input')).toBeChecked()
+		await expect(speedWalker.locator('input')).toBeEnabled()
+		await expect(badgesCell.locator('.team-badge-or-role')).toHaveText(['Speed Walker'])
+	})
+
+	test('a badge makes the earlier badges of its category look checked and greyed out', async ({
+		page,
+	}) => {
+		const badgesCell = page.locator('#team-table tbody tr').first().locator('td').nth(3)
+		await badgesCell.click()
+		await page.locator('#team-badges label', { hasText: 'Long Distance Runner' }).click()
 		await page.locator('#team-badges label', { hasText: 'Overtime' }).click()
+		const speedWalker = page.locator('#team-badges label', { hasText: 'Speed Walker' })
+		await expect(speedWalker.locator('input')).toBeChecked()
+		await expect(speedWalker.locator('input')).toBeDisabled()
+		const hissyFit = page.locator('#team-badges label', { hasText: 'Hissy Fit' })
+		await expect(hissyFit.locator('input')).not.toBeChecked()
+		await expect(hissyFit.locator('input')).toBeEnabled()
 		await expect(badgesCell.locator('.team-badge-or-role')).toHaveText([
 			'Long Distance Runner',
 			'Overtime',
 		])
+		await page.locator('#team-badges label', { hasText: 'Long Distance Runner' }).click()
+		await expect(speedWalker.locator('input')).not.toBeChecked()
+		await expect(speedWalker.locator('input')).toBeEnabled()
 	})
 
 	// This test fails on its tooltip check, where the crossed-out badge has no title, although the

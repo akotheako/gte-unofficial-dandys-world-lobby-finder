@@ -9,3 +9,17 @@ export const badgeCategories = [
 	['Just Keep Swimming'],
 	['Double Digits!', 'Skilled Toon!', 'Super Skilled Pro!', 'Twisteds Fear Me.'],
 ]
+
+export function isBadgeProvenByLaterCheckedBadge({
+	badgeName,
+	checkedBadgeNames,
+}: {
+	badgeName: string
+	checkedBadgeNames: string[]
+}) {
+	return badgeCategories.some((category) => (
+		category.includes(badgeName) && category
+			.slice(category.indexOf(badgeName) + 1)
+			.some((laterBadge) => checkedBadgeNames.includes(laterBadge))
+	))
+}

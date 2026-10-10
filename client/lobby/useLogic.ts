@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { isBadgeProvenByLaterCheckedBadge } from '../../shared/badgeCategories.ts'
 import type {
 	CheckInAnswer,
 	LastFoundTeam,
@@ -939,8 +940,17 @@ export function useLogic() {
 				].filter((group) => (
 					group.includes(badge.name) || group.includes(ownedBadges[index - 1].name)
 				)).length === 2,
+				// A checked later badge of the same category proves this badge, so this badge then
+				// looks checked and greyed out, whether or not it is checked itself
 				isChecked: state.teamTableRows[state.rowIndexInBadgesWindow].badgeNames
-					.includes(badge.name),
+					.includes(badge.name) || isBadgeProvenByLaterCheckedBadge({
+					badgeName: badge.name,
+					checkedBadgeNames: state.teamTableRows[state.rowIndexInBadgesWindow].badgeNames,
+				}),
+				isGreyedOut: isBadgeProvenByLaterCheckedBadge({
+					badgeName: badge.name,
+					checkedBadgeNames: state.teamTableRows[state.rowIndexInBadgesWindow].badgeNames,
+				}),
 				toggleCheckbox: (isChecked: boolean) => toggleBadgeCheckbox({
 					getBadgeNames: () => (
 						getSyncState().teamTableRows[getSyncState().rowIndexInBadgesWindow].badgeNames
@@ -992,6 +1002,7 @@ export function useLogic() {
 			name,
 			hasLineAbove: false,
 			isChecked: state.teamTableRows[state.rowIndexInRolesWindow].roleNames.includes(name),
+			isGreyedOut: false,
 			toggleCheckbox: (isChecked: boolean) => toggleRoleCheckbox({
 				getRoleNames: () => (
 					getSyncState().teamTableRows[getSyncState().rowIndexInRolesWindow].roleNames
@@ -1262,8 +1273,12 @@ export function useLogic() {
 			noRolesText: row.roleNames.length ? '' : '(none required)',
 
 			// Badge names stacked in the Badges cell, the fourth column, shown only once verified.
-			// They are crossed out while "Verified only" is unchecked.
-			badges: row.badgeNames.map((name) => ({
+			// They are crossed out while "Verified only" is unchecked. A badge that a checked later
+			// badge of its category proves is left out.
+			badges: row.badgeNames.filter((name) => !isBadgeProvenByLaterCheckedBadge({
+				badgeName: name,
+				checkedBadgeNames: row.badgeNames,
+			})).map((name) => ({
 				name,
 				isCrossedOut: !row.isVerifiedPlayerRequired,
 			})),
@@ -1638,7 +1653,11 @@ Verify your account in Roblox Verification, and the players of the last team tha
 					} : null,
 				})),
 			noBadgesText: row.badgeNames.length ? '' : '(none required)',
-			badgeNames: row.badgeNames,
+			// A badge that a checked later badge of its category proves is left out, as in Find a Team
+			badgeNames: row.badgeNames.filter((name) => !isBadgeProvenByLaterCheckedBadge({
+				badgeName: name,
+				checkedBadgeNames: row.badgeNames,
+			})),
 			noRolesText: row.roleNames.length ? '' : '(none required)',
 			// Solar Support only counts for Bobette, as in Find a Team
 			roleNames: row.roleNames.filter((role) => (

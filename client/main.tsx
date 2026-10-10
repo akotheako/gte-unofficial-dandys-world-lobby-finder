@@ -314,6 +314,7 @@ function ChecklistWindow({
 		name: string
 		hasLineAbove: boolean
 		isChecked: boolean
+		isGreyedOut: boolean
 		toggleCheckbox: (isChecked: boolean) => void
 	}[]
 	isOpen: boolean
@@ -343,7 +344,7 @@ function ChecklistWindow({
 				</button>
 			</div>
 			{/* White sunken list with one checkbox per line, with grey lines that split the badges
-			into groups */}
+			into groups, and greyed-out checked lines for the badges that a checked later badge proves */}
 			<style>{`
 				.team-checklist {
 					min-width: 180px;
@@ -369,16 +370,25 @@ function ChecklistWindow({
 					padding-top: 2px;
 					border-top: 1px solid var(--window-face);
 				}
+				.team-checklist label[data-greyed-out="true"] {
+					color: var(--bevel-shadow);
+					cursor: default;
+				}
+				.team-checklist label[data-greyed-out="true"]:hover {
+					background: none;
+				}
 			`}</style>
 			<div className="team-checklist">
 				{checkboxes.map((checkbox) => (
 					<label
 						key={checkbox.name}
 						data-has-line-above={checkbox.hasLineAbove}
+						data-greyed-out={checkbox.isGreyedOut}
 					>
 						<input
 							type="checkbox"
 							checked={checkbox.isChecked}
+							disabled={checkbox.isGreyedOut}
 							onChange={(event) => checkbox.toggleCheckbox(event.target.checked)}
 						/>
 						{checkbox.name}

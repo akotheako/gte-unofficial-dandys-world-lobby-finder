@@ -1,5 +1,3 @@
-import { badgeCategories } from '../../shared/badgeCategories.ts'
-
 export function toggleBadgeCheckbox({
 	getBadgeNames,
 	setBadgeNames,
@@ -11,14 +9,10 @@ export function toggleBadgeCheckbox({
 	isChecked: boolean
 	name: string
 }) {
-	if (!isChecked) {
-		setBadgeNames(getBadgeNames().filter((badge) => badge !== name))
-		return
-	}
-	// A row holds one badge per category, so a checked badge unchecks its category's other badges
-	const category = badgeCategories.find((names) => names.includes(name)) ?? [name]
-	setBadgeNames([
-		...getBadgeNames().filter((badge) => !category.includes(badge)),
-		name,
-	])
+	setBadgeNames(isChecked
+		? [
+			...getBadgeNames(),
+			name,
+		]
+		: getBadgeNames().filter((badge) => badge !== name))
 }
