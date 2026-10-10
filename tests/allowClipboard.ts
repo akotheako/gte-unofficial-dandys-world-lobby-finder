@@ -1,17 +1,11 @@
 import type { BrowserContext } from '@playwright/test'
 
-// Lets the pages of a browser profile copy text and the test read it back. Chromium grants the
-// real clipboard. Firefox and WebKit refuse a script that reads the clipboard, so their pages get a
-// stand-in that keeps the copied text until the page reloads. The stand-in only reaches pages that
-// load after this call.
+// Lets the pages of a browser profile copy text and the test read it back, through a stand-in for
+// the clipboard that keeps the copied text until the page reloads. The real clipboard is shared
+// with the rest of the computer, and Edge only lets a page write to it while its window has focus,
+// so a test that shows its window could read back something else. The stand-in only reaches pages
+// that load after this call.
 export async function allowClipboard(context: BrowserContext) {
-	if (context.browser()?.browserType().name() === 'chromium') {
-		await context.grantPermissions([
-			'clipboard-read',
-			'clipboard-write',
-		])
-		return
-	}
 	await context.addInitScript(() => {
 		let copiedText = ''
 		Object.defineProperty(navigator, 'clipboard', {

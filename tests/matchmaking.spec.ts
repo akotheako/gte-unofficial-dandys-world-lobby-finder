@@ -38,7 +38,8 @@ async function startSearch({
 	rows,
 	serverLink,
 	region,
-	floorGoal,
+	floorGoalFrom,
+	floorGoalTo,
 	isDandyRun,
 	prepareBeforeSearch,
 }: {
@@ -48,7 +49,9 @@ async function startSearch({
 	rows: Partial<TeamTableRow>[]
 	serverLink?: string
 	region?: string
-	floorGoal?: string
+	// The "to" dropdown of the Floor goal starts on the same floor as "from" unless it is given
+	floorGoalFrom?: string
+	floorGoalTo?: string
 	isDandyRun?: boolean
 	prepareBeforeSearch?: (page: Page) => Promise<void>
 }) {
@@ -80,7 +83,8 @@ async function startSearch({
 		team: JSON.stringify(teamTable),
 		serverLink: serverLink ?? '',
 		region: region ?? 'Any',
-		floorGoal: floorGoal ?? '50',
+		floorGoalFrom: floorGoalFrom ?? '50',
+		floorGoalTo: floorGoalTo ?? floorGoalFrom ?? '50',
 		dandyRun: String(isDandyRun ?? false),
 	})
 	const page = await context.newPage()
@@ -176,8 +180,14 @@ for (const {
 } of [
 		{
 			difference: 'Floor goal',
-			first: { floorGoal: '50' },
-			second: { floorGoal: '60' },
+			first: {
+				floorGoalFrom: '40',
+				floorGoalTo: '50',
+			},
+			second: {
+				floorGoalFrom: '60',
+				floorGoalTo: '100+',
+			},
 		},
 		{
 			difference: 'Region',
@@ -441,7 +451,7 @@ test('"looking for a team" counts searches that did not join a team', async ({ b
 		browser,
 		username: 'FirstPlayer',
 		rows: meAndOneOpenRow,
-		floorGoal: '10',
+		floorGoalFrom: '10',
 	})
 	// A page of an earlier test can still check in once, so the counts are compared with this one.
 	// "Finding player" comes with the first answer that counts this search.
@@ -455,7 +465,7 @@ test('"looking for a team" counts searches that did not join a team', async ({ b
 		browser,
 		username: 'SecondPlayer',
 		rows: meAndOneOpenRow,
-		floorGoal: '20',
+		floorGoalFrom: '20',
 	})
 	await expect(secondPage.locator('#counters'))
 		.toContainText(`${startingCount + 1} looking for a team`, { timeout: 20_000 })
@@ -510,17 +520,20 @@ test.describe('Upvote Players', () => {
 				{},
 			],
 			serverLink: serverLinkA,
-			floorGoal: '70',
+			floorGoalFrom: '60',
+			floorGoalTo: '80',
 		})
+		// Floor goals that only share floor 80 still merge
 		const joinerPage = await startSearch({
 			browser,
 			username: 'JoinerPlayer',
 			rows: meAndOneOpenRow,
-			floorGoal: '70',
+			floorGoalFrom: '80',
+			floorGoalTo: '100+',
 		})
 		await closeTeamFoundWindow(hostPage)
 		await openUpvotePlayers(hostPage)
-		await expect(hostPage.locator('#upvote-settings')).toContainText('Floor goal: 70')
+		await expect(hostPage.locator('#upvote-settings')).toContainText('Floor goal: 60 to 80')
 		await expect(hostPage.locator('#upvote-settings a')).toHaveText(serverLinkA)
 		const recordRows = hostPage.locator('#upvote-table tbody tr')
 		await expect(recordRows.nth(0).locator('img')).toHaveAttribute('title', 'bobette')

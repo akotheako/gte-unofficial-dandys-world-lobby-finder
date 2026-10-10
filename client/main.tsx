@@ -1651,17 +1651,41 @@ createRoot(document.getElementById('root')!).render(
 												))}
 											</select>
 										</label>
+										{/* Floor goal as two dropdowns, "from" and "to" */}
+										<style>{`
+										#team-floor-goal-range {
+											display: flex;
+											align-items: center;
+											gap: 4px;
+										}
+									`}</style>
 										<label>
 											Floor goal:
-											<select
-												value={logic.chosenFloorGoalDropdownOption}
-												disabled={logic.areRegionAndFloorGoalDropdownsLocked}
-												onChange={(event) => logic.chooseFloorGoalDropdownOption(event.target.value)}
-											>
-												{logic.floorGoalDropdownOptions.map((option) => (
-													<option key={option}>{option}</option>
-												))}
-											</select>
+											<span id="team-floor-goal-range">
+												<select
+													value={logic.chosenFloorGoalFromDropdownOption}
+													disabled={logic.areRegionAndFloorGoalDropdownsLocked}
+													onChange={(event) => (
+														logic.chooseFloorGoalFromDropdownOption(event.target.value)
+													)}
+												>
+													{logic.floorGoalFromDropdownOptions.map((option) => (
+														<option key={option}>{option}</option>
+													))}
+												</select>
+												to
+												<select
+													value={logic.chosenFloorGoalToDropdownOption}
+													disabled={logic.areRegionAndFloorGoalDropdownsLocked}
+													onChange={(event) => (
+														logic.chooseFloorGoalToDropdownOption(event.target.value)
+													)}
+												>
+													{logic.floorGoalToDropdownOptions.map((option) => (
+														<option key={option}>{option}</option>
+													))}
+												</select>
+											</span>
 										</label>
 									</div>
 								</fieldset>

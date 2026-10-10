@@ -116,7 +116,8 @@ export function useLogic() {
 		isDandyRunCheckboxChecked: boolean
 		isEarlyDyleCheckboxChecked: boolean
 		chosenRegionDropdownOption: string
-		chosenFloorGoalDropdownOption: string
+		chosenFloorGoalFromDropdownOption: string
+		chosenFloorGoalToDropdownOption: string
 		findPlayersError: string
 		isFindingPlayers: boolean
 		pageId: string
@@ -178,7 +179,8 @@ export function useLogic() {
 		isDandyRunCheckboxChecked: localStorage.getItem('dandyRun') === 'true',
 		isEarlyDyleCheckboxChecked: localStorage.getItem('earlyDyle') === 'true',
 		chosenRegionDropdownOption: localStorage.getItem('region') ?? 'Any',
-		chosenFloorGoalDropdownOption: localStorage.getItem('floorGoal') ?? '50',
+		chosenFloorGoalFromDropdownOption: localStorage.getItem('floorGoalFrom') ?? '50',
+		chosenFloorGoalToDropdownOption: localStorage.getItem('floorGoalTo') ?? '50',
 		findPlayersError: '',
 		isFindingPlayers: false,
 		pageId: sessionStorage.getItem('pageId') ?? crypto.randomUUID(),
@@ -260,7 +262,9 @@ export function useLogic() {
 			isDandyRun: getSyncState().isDandyRunCheckboxChecked,
 			isEarlyDyle: getSyncState().isEarlyDyleCheckboxChecked,
 			region: getSyncState().chosenRegionDropdownOption,
-			floorGoal: getSyncState().chosenFloorGoalDropdownOption,
+			floorGoal: `${getSyncState().chosenFloorGoalFromDropdownOption} to ${
+				getSyncState().chosenFloorGoalToDropdownOption
+			}`,
 		}),
 		getServerLink: () => getSyncState().serverLink,
 		getIsFindingPlayers: () => getSyncState().isFindingPlayers,
@@ -330,7 +334,8 @@ export function useLogic() {
 		state.isDandyRunCheckboxChecked,
 		state.isEarlyDyleCheckboxChecked,
 		state.chosenRegionDropdownOption,
-		state.chosenFloorGoalDropdownOption,
+		state.chosenFloorGoalFromDropdownOption,
+		state.chosenFloorGoalToDropdownOption,
 		setState,
 	])
 
@@ -379,6 +384,25 @@ export function useLogic() {
 		setCardBoxInPickWindow: (cardBoxInPickWindow) => setState({ cardBoxInPickWindow }),
 		pick,
 	})
+
+	const floorGoalDropdownOptions = [
+		'10',
+		'20',
+		'25',
+		'30',
+		'40',
+		'50',
+		'60',
+		'70',
+		'80',
+		'90',
+		'100',
+		'100+',
+	]
+	// The server sends an inviting team's floor goal as "40 to 60"
+	const [chosenFloorGoalFromDropdownOption, chosenFloorGoalToDropdownOption] = invitingTeam
+		? invitingTeam.floorGoal.split(' to ')
+		: [state.chosenFloorGoalFromDropdownOption, state.chosenFloorGoalToDropdownOption]
 
 	return {
 
@@ -1098,28 +1122,34 @@ export function useLogic() {
 			}),
 			chosenOption,
 		}),
-		floorGoalDropdownOptions: [
-			'10',
-			'20',
-			'25',
-			'30',
-			'40',
-			'50',
-			'60',
-			'70',
-			'80',
-			'90',
-			'100',
-			'100+',
-		],
-		chosenFloorGoalDropdownOption: invitingTeam?.floorGoal ?? state.chosenFloorGoalDropdownOption,
-		chooseFloorGoalDropdownOption: (chosenOption: string) => chooseRegionOrFloorGoalDropdownOption({
-			localStorageKey: 'floorGoal',
-			setChosenOption: (chosenFloorGoalDropdownOption) => setState({
-				chosenFloorGoalDropdownOption,
-			}),
-			chosenOption,
-		}),
+		// Each dropdown of the Floor goal offers only the floors that keep "from" at or below "to"
+		floorGoalFromDropdownOptions: floorGoalDropdownOptions.slice(
+			0,
+			floorGoalDropdownOptions.indexOf(chosenFloorGoalToDropdownOption) + 1,
+		),
+		chosenFloorGoalFromDropdownOption,
+		chooseFloorGoalFromDropdownOption: (chosenOption: string) => (
+			chooseRegionOrFloorGoalDropdownOption({
+				localStorageKey: 'floorGoalFrom',
+				setChosenOption: (chosenFloorGoalFromDropdownOption) => setState({
+					chosenFloorGoalFromDropdownOption,
+				}),
+				chosenOption,
+			})
+		),
+		floorGoalToDropdownOptions: floorGoalDropdownOptions.slice(
+			floorGoalDropdownOptions.indexOf(chosenFloorGoalFromDropdownOption),
+		),
+		chosenFloorGoalToDropdownOption,
+		chooseFloorGoalToDropdownOption: (chosenOption: string) => (
+			chooseRegionOrFloorGoalDropdownOption({
+				localStorageKey: 'floorGoalTo',
+				setChosenOption: (chosenFloorGoalToDropdownOption) => setState({
+					chosenFloorGoalToDropdownOption,
+				}),
+				chosenOption,
+			})
+		),
 
 		// Find Players button at the bottom right of Find a Team, with its spinner and the red
 		// error line below it. An invited friend only watches, so they get no button.

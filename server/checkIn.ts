@@ -539,21 +539,49 @@ checkIn.post('/', async (c) => {
 		}))
 
 		const myTeam = teamsById.get(pageId)
+		// A floor goal reads "40 to 60", and "100+" counts as floor 101
+		const floorGoalRangeOf = (team: Team) => {
+			const [from, to = from] = team.floor_goal.split(' to ').map((option) => (
+				parseInt(option) + (option.endsWith('+') ? 1 : 0)
+			))
+			return {
+				from,
+				to,
+			}
+		}
 		if (myTeam?.is_searching && !myTeam.joined_team_id) {
+			const myFloorGoal = floorGoalRangeOf(myTeam)
+			// Search as the server log names it, such as "@name (1a2b3c4d)", with the start of its
+			// page id, since a host who did not verify has no name
+			const logNameOf = (team: Team) => (
+				`${team.roblox_username ? `@${team.roblox_username}` : 'unverified host'} (${
+					team.team_id.slice(0, 8)
+				})`
+			)
 			for (const other of teams) {
-				const areSettingsCompatible = other !== myTeam
-					&& other.is_searching
-					&& !other.joined_team_id
-					&& other.is_dandy_run === myTeam.is_dandy_run
-					&& other.is_early_dyle === myTeam.is_early_dyle
-					&& other.floor_goal === myTeam.floor_goal
-					&& (other.region === 'Any' || myTeam.region === 'Any' || other.region === myTeam.region)
-					&& Boolean(other.server_link || myTeam.server_link)
+				if (other === myTeam || !other.is_searching || other.joined_team_id) continue
+				const otherFloorGoal = floorGoalRangeOf(other)
+				const differences = [
+					other.is_dandy_run !== myTeam.is_dandy_run && 'Dandy Run differs',
+					other.is_early_dyle !== myTeam.is_early_dyle && 'Early Dyle differs',
+					// The two floor goal ranges share at least one floor
+					(otherFloorGoal.from > myFloorGoal.to || myFloorGoal.from > otherFloorGoal.to)
+						&& `floor goals ${myTeam.floor_goal} and ${other.floor_goal} share no floor`,
+					other.region !== 'Any' && myTeam.region !== 'Any' && other.region !== myTeam.region
+						&& 'Region differs',
+					!other.server_link && !myTeam.server_link && 'neither has a server link',
 					// Both teams want the same number of players, counting every row that is not
 					// "(Leave Empty)"
-					&& other.team_table_rows.filter((row) => !row.isLeftEmpty).length
-						=== myTeam.team_table_rows.filter((row) => !row.isLeftEmpty).length
-				if (!areSettingsCompatible) continue
+					other.team_table_rows.filter((row) => !row.isLeftEmpty).length
+						!== myTeam.team_table_rows.filter((row) => !row.isLeftEmpty).length
+						&& 'number of rows differs',
+				].filter(Boolean)
+				if (differences.length) {
+					console.log(`No merge of ${logNameOf(myTeam)} with ${logNameOf(other)}: ${
+						differences.join(', ')
+					}`)
+					continue
+				}
 				// The host is the search whose server link everyone uses, so it needs a link. The
 				// older search hosts when both ways fit, and a search that others already joined can
 				// only host.
@@ -588,7 +616,11 @@ checkIn.post('/', async (c) => {
 								teamsById,
 							}))
 					})
-				if (!merge) continue
+				if (!merge) {
+					console.log(`No merge of ${logNameOf(myTeam)} with ${logNameOf(other)}: the players do not fit the rows, a verified player is in both, or the only side with a server link would have to join, while others already joined the other side`)
+					continue
+				}
+				console.log(`Merged ${logNameOf(merge.joiner)} into ${logNameOf(merge.host)}`)
 				merge.joiner.joined_team_id = merge.host.team_id
 				changedTeams.add(merge.host)
 				changedTeams.add(merge.joiner)

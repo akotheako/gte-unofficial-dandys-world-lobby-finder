@@ -29,18 +29,13 @@ export default defineConfig({
 	],
 	use: {
 		baseURL: 'http://localhost:3100',
-		permissions: [
-			'clipboard-read',
-			'clipboard-write',
-		],
 		// Every click, request, answer and console line of a failed test, which
 		// npx playwright show-trace opens
 		trace: 'retain-on-failure',
 	},
 	// "fast" runs without a window, and the npm scripts that show the tests use "visible". "firefox"
 	// and "webkit" run without a window in the engines of Firefox and Safari, which
-	// npx playwright install firefox webkit downloads. Their engines reject the clipboard permission
-	// names of Chromium, so they grant none, and tests/allowClipboard.ts fakes the clipboard there.
+	// npx playwright install firefox webkit downloads.
 	projects: [
 		{
 			name: 'fast',
@@ -49,17 +44,11 @@ export default defineConfig({
 		},
 		{
 			name: 'firefox',
-			use: {
-				browserName: 'firefox',
-				permissions: [],
-			},
+			use: { browserName: 'firefox' },
 		},
 		{
 			name: 'webkit',
-			use: {
-				browserName: 'webkit',
-				permissions: [],
-			},
+			use: { browserName: 'webkit' },
 		},
 		{
 			name: 'visible',
@@ -81,15 +70,17 @@ export default defineConfig({
 			},
 		},
 	],
-	// The server writes its output into server.log, and the run fails when that log holds an error,
-	// since a failed check-in can go unnoticed by the test that caused it
+	// The server writes its log into server.log and its errors into server-errors.log, and the run
+	// fails when it logged any error, since a failed check-in can go unnoticed by the test that
+	// caused it
 	webServer: {
 		command: `npm run build && node --env-file=.env --env-file=.env.test server/main.ts > ${
 			runFolder
-		}/server.log 2>&1`,
+		}/server.log 2> ${runFolder}/server-errors.log`,
 		url: 'http://localhost:3100',
 		env: { PORT: '3100' },
 		timeout: 120_000,
 	},
+	globalSetup: './tests/emptySearchTables.ts',
 	globalTeardown: './tests/failOnServerErrors.ts',
 })

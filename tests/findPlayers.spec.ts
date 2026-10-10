@@ -48,7 +48,7 @@ test.describe('with "Me" on the first row', () => {
 		await page.locator('#team-find button').click()
 		await expect(page.locator('#team-form-error')).toHaveText('The server link is invalid!')
 		await expect(page.locator('#team-find button')).toHaveText('Find Players')
-		await page.locator('#team-settings select').nth(1).selectOption('60')
+		await page.locator('#team-settings select').nth(2).selectOption('60')
 		await expect(page.locator('#team-form-error')).toHaveText('')
 	})
 
@@ -97,6 +97,8 @@ test.describe('with "Me" on the first row', () => {
 
 	test('a reload ends the search and keeps the table and settings', async ({ page }) => {
 		await page.locator('#team-settings select').first().selectOption('Asia')
+		// "to" goes up first, since "from" only offers floors up to "to"
+		await page.locator('#team-settings select').nth(2).selectOption('80')
 		await page.locator('#team-settings select').nth(1).selectOption('70')
 		await page.locator('#team-settings label', { hasText: 'Dandy Run' }).click()
 		await page.locator('#team-server-link-row input')
@@ -108,6 +110,7 @@ test.describe('with "Me" on the first row', () => {
 		await expect(page.locator('#team-table tbody tr').first().locator('.team-chip')).toHaveText('Me')
 		await expect(page.locator('#team-settings select').first()).toHaveValue('Asia')
 		await expect(page.locator('#team-settings select').nth(1)).toHaveValue('70')
+		await expect(page.locator('#team-settings select').nth(2)).toHaveValue('80')
 		await expect(page.locator('#team-settings label', { hasText: 'Dandy Run' }).locator('input'))
 			.toBeChecked()
 		await expect(page.locator('#team-server-link-row input'))
@@ -118,6 +121,7 @@ test.describe('with "Me" on the first row', () => {
 test('TEAM SETTINGS start on Any and 50, with the checkbox tooltips', async ({ page }) => {
 	await expect(page.locator('#team-settings select').first()).toHaveValue('Any')
 	await expect(page.locator('#team-settings select').nth(1)).toHaveValue('50')
+	await expect(page.locator('#team-settings select').nth(2)).toHaveValue('50')
 	await expect(page.locator('#team-settings label', { hasText: 'Dandy Run' }))
 		.toHaveAttribute('title', 'Don\'t buy anything in Dandy\'s shop!!')
 	await expect(page.locator('#team-settings label', { hasText: 'Early Dyle' }))
@@ -160,7 +164,7 @@ test('a check-in cannot give the host badges that the cookie does not hold', asy
 				isDandyRun: false,
 				isEarlyDyle: false,
 				region: 'Any',
-				floorGoal: '50',
+				floorGoal: '50 to 50',
 				isFindingPlayers: false,
 				robloxBadgeNames: ['THE Machine'],
 				robloxUsername: 'Impostor',
