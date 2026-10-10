@@ -110,6 +110,9 @@ roblox.get('/badges', async (c) => {
 			if (!canView) return 'private'
 			// Dandy's World badges, read from the inventory API, because the badge API needs a login.
 			// The badges are checked one at a time, because Roblox answers 429 to bursts.
+			// The IDs of all of the game's badges are listed, without a login, at
+			// https://badges.roblox.com/v1/universes/5569032992/badges?limit=100, where 5569032992 is
+			// the universe of Dandy's World, and the nextPageCursor of each answer gives the next page.
 			const badges = []
 			for (const [badgeId, name] of [
 				[877623959683599, 'Speed Walker'],
@@ -121,6 +124,7 @@ roblox.get('/badges', async (c) => {
 				[3784664997676455, 'Clocked In'],
 				[1455062180787768, 'Overtime'],
 				[2656794558205839, 'Hissy Fit'],
+				[614575770108336, 'Quick Reaction Time'],
 				[2571896086842758, 'Just Keep Swimming'],
 				[1032245889618935, 'Double Digits!'],
 				[4450190261193609, 'Skilled Toon!'],

@@ -926,7 +926,10 @@ export function useLogic() {
 						'Overtime',
 						'Hissy Fit',
 					],
-					['Just Keep Swimming'],
+					[
+						'Quick Reaction Time',
+						'Just Keep Swimming',
+					],
 					[
 						'Double Digits!',
 						'Skilled Toon!',

@@ -5,6 +5,7 @@ export const badgeCategories = [
 	['Machine Enthusiast', 'Machine Master', 'THE Machine'],
 	['Clocked In', 'Overtime'],
 	['Hissy Fit'],
+	['Quick Reaction Time'],
 	['Just Keep Swimming'],
 	['Double Digits!', 'Skilled Toon!', 'Super Skilled Pro!', 'Twisteds Fear Me.'],
 ]

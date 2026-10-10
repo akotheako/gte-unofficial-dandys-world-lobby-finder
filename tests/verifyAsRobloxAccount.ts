@@ -29,6 +29,7 @@ export async function verifyAsRobloxAccount({
 		'Clocked In',
 		'Overtime',
 		'Hissy Fit',
+		'Quick Reaction Time',
 		'Just Keep Swimming',
 		'Double Digits!',
 		'Skilled Toon!',
