@@ -1391,7 +1391,9 @@ createRoot(document.getElementById('root')!).render(
 									var(--bevel-shadow);
 							}
 							.team-card-box {
-								flex: 1 1 110px;
+								flex: 1 1 140px;
+								min-width: 0;
+								overflow-wrap: anywhere;
 								display: flex;
 								flex-direction: column;
 								align-items: center;
@@ -1403,7 +1405,7 @@ createRoot(document.getElementById('root')!).render(
 								text-align: center;
 							}
 							.team-card-box.team-card-picture-box {
-								flex: 0 0 64px;
+								flex: 1 0 64px;
 							}
 							.team-card-box.team-clickable {
 								cursor: pointer;
