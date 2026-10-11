@@ -603,6 +603,11 @@ function ToonsAndTrinketsSideWindows({
 	logic: ReturnType<typeof useLogic>
 	children?: ReactNode
 }) {
+	const ownedToons = logic.toonsWindowTiles.filter((toon) => toon.isOwned)
+	const missingToons = logic.toonsWindowTiles.filter((toon) => !toon.isOwned)
+	const ownedTrinkets = logic.trinketsWindowTiles.filter((trinket) => trinket.isOwned)
+	const missingTrinkets = logic.trinketsWindowTiles.filter((trinket) => !trinket.isOwned)
+
 	return (
 		<>
 			<style>{`
@@ -651,6 +656,13 @@ function ToonsAndTrinketsSideWindows({
 					align-items: center;
 					justify-content: center;
 					font-size: 11px;
+				}
+				.team-palette-section-title {
+					grid-column: 1 / -1;
+					cursor: default;
+					font-weight: bold;
+					padding: 4px 2px 0;
+					border-bottom: 1px solid #999;
 				}
 				.team-locked .window-title {
 					background: #808080;
@@ -709,17 +721,38 @@ function ToonsAndTrinketsSideWindows({
 								(Leave Empty)
 							</div>
 						)}
-						{logic.toonsWindowTiles.map((toon) => (
-							<img
-								key={toon.name}
-								className="toon-or-trinket-picture"
-								src={toon.src}
-								title={toon.title}
-								draggable
-								onDragStart={toon.dragFromSideWindow}
-								onDragEnd={logic.endDragFromSideWindow}
-							/>
-						))}
+						{ownedToons.length > 0 && (
+							<>
+								<div className="team-palette-section-title">Owned</div>
+								{ownedToons.map((toon) => (
+									<img
+										key={toon.name}
+										className="toon-or-trinket-picture"
+										src={toon.src}
+										title={toon.title}
+										draggable
+										onDragStart={toon.dragFromSideWindow}
+										onDragEnd={logic.endDragFromSideWindow}
+									/>
+								))}
+							</>
+						)}
+						{missingToons.length > 0 && (
+							<>
+								<div className="team-palette-section-title">Missing</div>
+								{missingToons.map((toon) => (
+									<img
+										key={toon.name}
+										className="toon-or-trinket-picture"
+										src={toon.src}
+										title={toon.title}
+										draggable
+										onDragStart={toon.dragFromSideWindow}
+										onDragEnd={logic.endDragFromSideWindow}
+									/>
+								))}
+							</>
+						)}
 					</div>
 				</div>
 				{/* Column to the right with the Trinkets window above the children */}
@@ -748,17 +781,38 @@ function ToonsAndTrinketsSideWindows({
 							</button>
 						</div>
 						<div className="team-palette">
-							{logic.trinketsWindowTiles.map((trinket) => (
-								<img
-									key={trinket.name}
-									className="toon-or-trinket-picture"
-									src={trinket.src}
-									title={trinket.title}
-									draggable
-									onDragStart={trinket.dragFromSideWindow}
-									onDragEnd={logic.endDragFromSideWindow}
-								/>
-							))}
+							{ownedTrinkets.length > 0 && (
+								<>
+									<div className="team-palette-section-title">Owned</div>
+									{ownedTrinkets.map((trinket) => (
+										<img
+											key={trinket.name}
+											className="toon-or-trinket-picture"
+											src={trinket.src}
+											title={trinket.title}
+											draggable
+											onDragStart={trinket.dragFromSideWindow}
+											onDragEnd={logic.endDragFromSideWindow}
+										/>
+									))}
+								</>
+							)}
+							{missingTrinkets.length > 0 && (
+								<>
+									<div className="team-palette-section-title">Missing</div>
+									{missingTrinkets.map((trinket) => (
+										<img
+											key={trinket.name}
+											className="toon-or-trinket-picture"
+											src={trinket.src}
+											title={trinket.title}
+											draggable
+											onDragStart={trinket.dragFromSideWindow}
+											onDragEnd={logic.endDragFromSideWindow}
+										/>
+									))}
+								</>
+							)}
 						</div>
 					</div>
 					{children}
@@ -2723,7 +2777,14 @@ createRoot(document.getElementById('root')!).render(
 									</button>
 								</div>
 								<div className="team-palette">
-									{logic.pickWindowTiles.map((tile) => tile.src ? (
+									{logic.pickWindowTiles.map((tile) => 'isSectionHeader' in tile ? (
+										<div
+											key={tile.key}
+											className="team-palette-section-title"
+										>
+											{tile.text}
+										</div>
+									) : tile.src ? (
 										<img
 											key={tile.key}
 											className="toon-or-trinket-picture"

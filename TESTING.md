@@ -79,10 +79,12 @@ and what should happen.
 - The Toons and Trinkets pick windows of a narrow screen show the same button above their tiles.
 - That button opens the My Toons or My Trinkets window, which groups the pictures under category
   titles. Every tile is tinted light grey and slightly see-through, with a big ✅ behind an owned
-  tile's picture. Clicking a tile swaps its ✅ for a red X, hides it from the side window and the
-  pick window, and lowers the count, and a second click brings it back.
-- A fresh profile starts with Poppy and Boxten owned and no trinkets owned. Missing pictures stay
-  out of the side and pick windows; their marks and counts survive a reload.
+  tile's picture. Clicking a tile swaps its ✅ for a red X, and lowers the count. All pictures remain available in both side and pick windows. The marks and counts survive a reload.
+- The Toons and Trinkets side windows and pick windows divide choices into separate "Owned" and
+  "Missing" sections, omitting either section when it has no choices. Every option remains
+  available and draggable/selectable when some are missing.
+- A fresh profile starts with Poppy and Boxten owned and no trinkets owned. Missing toons and
+  trinkets can still be dragged or selected for other players.
 - The My Toons and My Trinkets windows have no "Show all" control.
 - While Find Players runs, the "N/N Toons" and "N/N Trinkets" buttons are greyed out, and they
   work again once the search is cancelled.

@@ -98,7 +98,7 @@ test('on a phone, the boxes of a card open pick windows that fill them', async (
 	await expect(secondCard).toContainText('Toon')
 })
 
-test('on a phone, the Toons pick window opens My Toons, which hides missing toons', async ({
+test('on a phone, a missing toon remains in the Toons pick window', async ({
 	page,
 }) => {
 	await page.addInitScript(() => localStorage.setItem('missingToons', '[]'))
@@ -113,6 +113,24 @@ test('on a phone, the Toons pick window opens My Toons, which hides missing toon
 	await expect(page.locator('#team-owned-pictures')).toHaveAttribute('open')
 	await page.locator('#team-owned-pictures img[title="bobette"]').click()
 	await page.locator('#team-owned-pictures .window-close').click()
-	await expect(page.locator('#team-pick img[title="bobette"]')).toHaveCount(0)
+	await expect(page.locator('#team-pick .team-palette-section-title'))
+		.toHaveText(['Owned', 'Missing'])
+	await expect(page.locator('#team-pick img[title="bobette"]')).toHaveCount(1)
 	await expect(page.locator('#team-pick .team-drag-hint button')).toHaveText('39/40 Toons')
+	await expect(page.locator('#team-pick img').last()).toHaveAttribute('title', 'bobette')
+	await page.locator('#team-pick img[title="bobette"]').click()
+	await expect(page.locator('.team-card').first().locator('.team-card-box').nth(0)
+		.locator('img')).toHaveAttribute('title', 'bobette')
+})
+
+test('on a phone, the Trinkets picker separates missing choices', async ({ page }) => {
+	await page.setViewportSize({
+		width: 390,
+		height: 844,
+	})
+	await page.goto('/')
+	await page.locator('#team-icon').click()
+	await page.locator('.team-card').first().locator('.team-card-box').nth(1).click()
+	await expect(page.locator('#team-pick .team-palette-section-title')).toHaveText(['Missing'])
+	await expect(page.locator('#team-pick img').first()).toHaveAttribute('title', 'alarm')
 })

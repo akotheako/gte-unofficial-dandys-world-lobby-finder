@@ -52,6 +52,16 @@ test.describe('before verifying', () => {
 		await expect(page.locator('#team-toons img')).toHaveCount(40)
 		await expect(page.locator('#team-toons img[title="bobette"]')).toBeVisible()
 		await expect(page.locator('#team-trinkets img[title="alarm"]')).toBeVisible()
+		await page.locator('#team-toons .team-drag-hint button').click()
+		await page.locator('#team-owned-pictures img[title="bobette"]').click()
+		await page.locator('#team-owned-pictures .window-close').click()
+		await page.locator('#team-trinkets .team-drag-hint button').click()
+		await page.locator('#team-owned-pictures img[title="alarm"]').click()
+		await page.locator('#team-owned-pictures .window-close').click()
+		await expect(page.locator('#team-toons .team-palette-section-title'))
+			.toHaveText(['Owned', 'Missing'])
+		await expect(page.locator('#team-trinkets .team-palette-section-title'))
+			.toHaveText(['Owned', 'Missing'])
 	})
 })
 
@@ -69,7 +79,7 @@ test.describe('My Toons and My Trinkets windows', () => {
 		await expect(page.locator('#team-owned-pictures img')).toHaveCount(40)
 	})
 
-	test('a missing toon loses its check mark, leaves the side window and lowers the count', async ({
+	test('a missing toon stays selectable and lowers the owned count', async ({
 		page,
 	}) => {
 		await page.locator('#team-toons .team-drag-hint button').click()
@@ -78,13 +88,18 @@ test.describe('My Toons and My Trinkets windows', () => {
 		await expect(bobetteTile).toHaveAttribute('data-missing', 'true')
 		await expect(page.locator('.team-owned-pictures-owned-mark')).toHaveCount(39)
 		await expect(page.locator('.team-owned-pictures-missing-mark')).toHaveCount(1)
-		await expect(page.locator('#team-toons img[title="bobette"]')).toHaveCount(0)
+		await expect(page.locator('#team-toons img[title="bobette"]')).toHaveCount(1)
 		await expect(page.locator('#team-toons .team-drag-hint button')).toHaveText('39/40 Toons')
+		await page.locator('#team-owned-pictures .window-close').click()
+		const firstToonCell = page.locator('#team-table tbody tr').first().locator('td').first()
+		await page.locator('#team-toons img[title="bobette"]').dragTo(firstToonCell)
+		await expect(firstToonCell.locator('img')).toHaveAttribute('title', 'bobette')
+		await page.locator('#team-toons .team-drag-hint button').click()
 		await bobetteTile.click()
 		await expect(page.locator('#team-toons img[title="bobette"]')).toHaveCount(1)
 	})
 
-	test('missing trinkets stay hidden after reload and remain marked missing', async ({
+	test('missing trinkets stay selectable after reload and remain marked missing', async ({
 		page,
 	}) => {
 		await page.locator('#team-trinkets .team-drag-hint button').click()
@@ -93,13 +108,26 @@ test.describe('My Toons and My Trinkets windows', () => {
 		await page.evaluate(() => sessionStorage.setItem('preserveOwnership', 'true'))
 		await page.reload()
 		await page.locator('#team-icon').click()
-		await expect(page.locator('#team-trinkets img')).toHaveCount(55)
+		await expect(page.locator('#team-trinkets img')).toHaveCount(57)
+		const trinketTitles = await page.locator('#team-trinkets img').evaluateAll((images) => (
+			images.map((image) => image.getAttribute('title'))
+		))
+		expect(trinketTitles.indexOf('magnifying_glass'))
+			.toBeLessThan(trinketTitles.indexOf('alarm'))
+		expect(trinketTitles.indexOf('magnifying_glass'))
+			.toBeLessThan(trinketTitles.indexOf('bone'))
 		await expect(page.locator('#team-owned-pictures-show-all')).toHaveCount(0)
 		await expect(page.locator('#team-trinkets .team-drag-hint button')).toHaveText(
 			'55/57 Trinkets',
 		)
 		await page.locator('#team-trinkets .team-drag-hint button').click()
 		await expect(page.locator('.team-owned-pictures-missing-mark')).toHaveCount(2)
+		await expect(page.locator('#team-trinkets img[title="alarm"]')).toBeVisible()
+		await page.locator('#team-owned-pictures .window-close').click()
+		await page.locator('#team-trinkets img[title="alarm"]')
+			.dragTo(page.locator('#team-table tbody tr').first().locator('td').nth(1))
+		await expect(page.locator('#team-table tbody tr').first().locator('td').nth(1).locator('img'))
+			.toHaveAttribute('title', 'alarm')
 	})
 
 	test(
@@ -114,10 +142,23 @@ test.describe('My Toons and My Trinkets windows', () => {
 			await page.locator('#team-icon').click()
 			await expect(page.locator('#team-toons .team-drag-hint button')).toHaveText('2/40 Toons')
 			await expect(page.locator('#team-trinkets .team-drag-hint button')).toHaveText('0/57 Trinkets')
-			await expect(page.locator('#team-toons img')).toHaveCount(2)
+			await expect(page.locator('#team-toons img')).toHaveCount(40)
 			await expect(page.locator('#team-toons img[title="poppy"]')).toBeVisible()
 			await expect(page.locator('#team-toons img[title="boxten"]')).toBeVisible()
-			await expect(page.locator('#team-trinkets img')).toHaveCount(0)
+			await expect(page.locator('#team-trinkets img')).toHaveCount(57)
+			const toonTitles = await page.locator('#team-toons img').evaluateAll((images) => (
+				images.map((image) => image.getAttribute('title'))
+			))
+			expect(Math.max(toonTitles.indexOf('poppy'), toonTitles.indexOf('boxten')))
+				.toBeLessThan(toonTitles.indexOf('astro'))
+			await page.locator('#team-toons .team-drag-hint button').click()
+			await expect(page.locator('.team-owned-pictures-category-title')).toHaveText([
+				'Main Characters',
+				'Secondary Characters',
+				'Christmas Toons',
+				'Halloween Toons',
+				'Easter Toons',
+			])
 		},
 	)
 

@@ -109,6 +109,13 @@ type TeamSettingsChosenOptions = {
 	floorGoalTo: string
 }
 
+function ownedPicturesFirst(pictures: string[], missingPictures: string[]) {
+	return [
+		...pictures.filter((picture) => !missingPictures.includes(picture)),
+		...pictures.filter((picture) => missingPictures.includes(picture)),
+	]
+}
+
 // Team whose Join button the user clicked in Browse Teams, with the table that the join searches
 // with, while it waits for the team to fill up
 export type JoinedBrowsedTeam = {
@@ -670,10 +677,6 @@ export function useLogic() {
 	}
 
 
-	// Pictures that the side windows and the pick windows leave out
-	const hiddenToons = state.missingToons
-	const hiddenTrinkets = state.missingTrinkets
-
 	// Bugs in the game and players are reported on the official Discord server instead
 	const isReportTopicForDiscord = [
 		'Report a bug in the game',
@@ -788,12 +791,11 @@ export function useLogic() {
 		}),
 
 		// Toon pictures in the Toons side window to the lower left
-		toonsWindowTiles: state.toonsWindowPictures.filter((name) => (
-			!hiddenToons.includes(name)
-		)).map((name) => ({
+		toonsWindowTiles: ownedPicturesFirst(state.toonsWindowPictures, state.missingToons).map((name) => ({
 			name,
 			src: `/pixelated/toons/${name}`,
 			title: name.replace('.png', ''),
+			isOwned: !state.missingToons.includes(name),
 			dragFromSideWindow: () => dragFromSideWindow({
 				setDraggedItem: (draggedItem) => setState({ draggedItem }),
 				kind: 'toon',
@@ -802,12 +804,14 @@ export function useLogic() {
 		})),
 
 		// Trinket pictures in the Trinkets side window to the upper right
-		trinketsWindowTiles: state.trinketsWindowPictures.filter((name) => (
-			!hiddenTrinkets.includes(name)
-		)).map((name) => ({
+		trinketsWindowTiles: ownedPicturesFirst(
+			state.trinketsWindowPictures,
+			state.missingTrinkets,
+		).map((name) => ({
 			name,
 			src: `/pixelated/trinkets/${name}`,
 			title: name.replace('.png', ''),
+			isOwned: !state.missingTrinkets.includes(name),
 			dragFromSideWindow: () => dragFromSideWindow({
 				setDraggedItem: (draggedItem) => setState({ draggedItem }),
 				kind: 'trinket',
@@ -833,9 +837,8 @@ export function useLogic() {
 			: '',
 
 		// My Toons or My Trinkets window in the middle of the screen, with the pictures in category
-		// groups. A click on a tile marks it as missing, which swaps its ✅ for a red X and hides it
-		// from the side window, and another click marks it as owned again. Its ×, Esc and a click
-		// outside it close it.
+		// groups. Clicking a tile changes its owned or missing status. All pictures stay available in
+		// the side and pick windows. Its close controls work as usual.
 		...(() => {
 			const isToonsWindow = state.openOwnedPicturesWindowKind === 'toon'
 			const pictures = isToonsWindow ? state.toonsWindowPictures : state.trinketsWindowPictures
@@ -1298,6 +1301,29 @@ export function useLogic() {
 			const chosenName = cardBox ? state[cardBox.tableRowsKey][cardBox.index][cardBox.column] : ''
 			const isToonBox = cardBox?.column === 'toonPicture'
 			const pictureFolder = isToonBox ? 'toons' : 'trinkets'
+			const pictures = isToonBox ? state.toonsWindowPictures : state.trinketsWindowPictures
+			const missingPictures = isToonBox ? state.missingToons : state.missingTrinkets
+			const ownedPictures = pictures.filter((name) => !missingPictures.includes(name))
+			const missingPictureChoices = pictures.filter((name) => missingPictures.includes(name))
+			const sectionHeader = (name: 'Owned' | 'Missing') => ({
+				key: `section-${name.toLowerCase()}`,
+				text: name,
+				src: '',
+				title: '',
+				isChosen: false,
+				isSectionHeader: true as const,
+			})
+			const pictureTile = (name: string) => ({
+				key: name,
+				text: '',
+				src: `/pixelated/${pictureFolder}/${name}`,
+				title: name.replace('.png', ''),
+				isChosen: name === chosenName,
+				pick: () => pick({
+					kind: 'picture' as const,
+					name,
+				}),
+			})
 			return {
 				isPickWindowOpen: Boolean(cardBox),
 				closePickWindow: () => setState({ cardBoxInPickWindow: null }),
@@ -1344,19 +1370,10 @@ export function useLogic() {
 							name: '',
 						}),
 					}] : [],
-					...(isToonBox ? state.toonsWindowPictures : state.trinketsWindowPictures)
-						.filter((name) => !(isToonBox ? hiddenToons : hiddenTrinkets).includes(name))
-						.map((name) => ({
-							key: name,
-							text: '',
-							src: `/pixelated/${pictureFolder}/${name}`,
-							title: name.replace('.png', ''),
-							isChosen: name === chosenName,
-							pick: () => pick({
-								kind: 'picture',
-								name,
-							}),
-						})),
+					...(ownedPictures.length ? [sectionHeader('Owned'), ...ownedPictures.map(pictureTile)] : []),
+					...(missingPictureChoices.length
+						? [sectionHeader('Missing'), ...missingPictureChoices.map(pictureTile)]
+						: []),
 				],
 				pickWindowFindAPlayerButtonText: '(Find a player)',
 				pickFindAPlayer: () => pick({
