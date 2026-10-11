@@ -192,7 +192,7 @@ test('Browse Teams side windows only show owned choices', async ({ browser }) =>
 	})
 	await expect(page.locator('#browse-toons img[title="vee"]')).toHaveCount(0)
 	await expect(page.locator('#browse-toons img[title="poppy"]')).toHaveCount(1)
-	await expect(page.locator('#browse-toons .team-palette-section-title')).toHaveText(['Owned'])
+	await expect(page.locator('#browse-toons .team-palette-section-title')).toHaveCount(0)
 	await expect(page.locator('#browse-trinkets img')).toHaveCount(0)
 	await expect(page.locator('#browse-trinkets .team-palette-section-title')).toHaveCount(0)
 	await page.context().close()
@@ -349,7 +349,7 @@ test('on a narrow screen, YOUR SLOT is a card whose boxes open the pick window',
 	// A single slot cannot be left empty
 	await expect(page.locator('#team-pick')).not.toContainText('(Leave Empty)')
 	await expect(page.locator('#team-pick img[title="vee"]')).toHaveCount(0)
-	await expect(page.locator('#team-pick .team-palette-section-title')).toHaveText(['Owned'])
+	await expect(page.locator('#team-pick .team-palette-section-title')).toHaveCount(0)
 	await page.locator('#team-pick img[title="poppy"]').click()
 	await expect(slotCard.locator('.team-card-box').first().locator('img'))
 		.toHaveAttribute('title', 'poppy')

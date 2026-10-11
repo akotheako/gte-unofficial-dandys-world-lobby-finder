@@ -79,7 +79,8 @@ and what should happen.
 - The Toons and Trinkets pick windows of a narrow screen show the same button above their tiles.
 - That button opens the My Toons or My Trinkets window, which groups the pictures under category
   titles. Every tile is tinted light grey and slightly see-through, with a big ✅ behind an owned
-  tile's picture. Clicking a tile swaps its ✅ for a red X, and lowers the count. All pictures remain available in both side and pick windows. The marks and counts survive a reload.
+  tile's picture. Clicking a tile swaps its ✅ for a red X and lowers the count. The marks and the
+  counts survive a reload.
 - The Toons and Trinkets side windows and pick windows divide choices into separate "Owned" and
   "Missing" sections, omitting either section when it has no choices. Every option remains
   available and draggable/selectable when some are missing.
@@ -237,7 +238,7 @@ These checks need two or three profiles that search at the same time.
 - The Browse Teams icon is third in the row, and its window opens with YOUR SLOT, TEAM SETTINGS and
   "Looking for teams...".
 - The Toon and Trinket side windows and pickers of YOUR SLOT show only owned pictures, with "(Any)"
-  in the picker. They show the chosen picture beside them and keep the slot after a reload.
+  in the picker, and the slot survives a reload.
 - TEAM SETTINGS of Browse Teams and of Find a Team are kept apart, and both survive a reload.
 - A card lists a searching team with a server link whose free slot the user fits, with its toons
   and a tag for every TEAM SETTING that is not Any.
@@ -250,8 +251,7 @@ These checks need two or three profiles that search at the same time.
 - A card disappears within a few seconds once its team stops searching or fills up.
 - With more than 20 fitting teams, the list shows 20 with "Loading more teams..." at its end, and
   scrolling to the end loads the rest.
-- Clicking a card shows "← All teams", the host and TEAM SETTINGS line, and the team's table with
-  "(Free slot)" on its free rows.
+- The team details show the host's name and the team's table with "(Free slot)" on its free rows.
 - Join merges the user into that team only, greys out Find Players and locks YOUR SLOT and TEAM
   SETTINGS, and "Team found!" opens once every row has a player, even while Find a Team is closed.
 - Closing "Team found!" ends the join and unlocks YOUR SLOT.

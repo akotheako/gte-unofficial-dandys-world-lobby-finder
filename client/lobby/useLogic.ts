@@ -160,8 +160,8 @@ export function useLogic() {
 		teamTableRows: TeamTableRow[]
 		toonsWindowPictures: string[]
 		trinketsWindowPictures: string[]
-		// Pictures that the My Toons and My Trinkets windows mark as missing, and that the side
-		// windows and pick windows therefore hide
+		// Pictures that the My Toons and My Trinkets windows mark as missing, which the side windows
+		// and pick windows of Find a Team list under "Missing", and those of Browse Teams leave out
 		missingToons: string[]
 		missingTrinkets: string[]
 		openOwnedPicturesWindowKind: 'toon' | 'trinket' | null
@@ -346,6 +346,7 @@ export function useLogic() {
 	useEffect(() => loadSideWindowPictures({
 		setToonsWindowPictures: (toonsWindowPictures) => {
 			setState({ toonsWindowPictures })
+			// A new player owns only the two toons that the game gives for free, and no trinkets
 			if (localStorage.getItem('missingToons') === null) {
 				const missingToons = toonsWindowPictures.filter((picture) => (
 					!['poppy.png', 'boxten.png'].includes(picture)
@@ -2001,7 +2002,9 @@ That is a row without a chip, or an extra row that shares a chip.`
 			})()
 			return {
 				showOpenedBrowsedTeam: Boolean(state.openedBrowsedHostTeamId),
-				closeOpenedBrowsedTeam: () => setState({ openedBrowsedHostTeamId: null }),
+				closeOpenedBrowsedTeam: () => setState({
+					openedBrowsedHostTeamId: null,
+				}),
 				// Line above the table with the host's name and the TEAM SETTINGS, or why the team
 				// is gone
 				openedBrowsedTeamHostText: openedBrowsedTeam
