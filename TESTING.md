@@ -198,6 +198,9 @@ These checks need two or three profiles that search at the same time.
 - No merge happens when the Region differs and neither side is Any, when the Floor goal ranges share
   no floor, when Dandy Run or Early Dyle differs and neither side is Any, when the number of rows differs, or when neither side has a link.
 - The same verified account never ends up twice in one team.
+- A search with 0 upvotes waiting next to one with 0 upvotes and one with many upvotes merges with
+  the 0-upvote search first. A 0-upvote search and a search with many upvotes, alone in the queue,
+  still merge within 60 seconds.
 - A player fits a row only when the toon and trinkets match, where "(Any)" matches anything on
   either side, and when they do every role that the row asks for.
 - An "(Any)" cell on a "Me" row does not match a toon or trinket that the user marked as missing

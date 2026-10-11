@@ -34,6 +34,7 @@ test.beforeEach(async ({ request }) => {
 async function startSearch({
 	browser,
 	username,
+	robloxUserId,
 	ownedBadgeNames,
 	rows,
 	serverLink,
@@ -48,6 +49,7 @@ async function startSearch({
 }: {
 	browser: Browser
 	username?: string
+	robloxUserId?: number
 	ownedBadgeNames?: string[]
 	rows: Partial<TeamTableRow>[]
 	serverLink?: string
@@ -69,6 +71,7 @@ async function startSearch({
 			context,
 			username,
 			ownedBadgeNames: ownedBadgeNames ?? [],
+			robloxUserId,
 		})
 	}
 	const teamTable: TeamTableRow[] = Array.from({ length: 8 }, (_, index) => ({
@@ -145,6 +148,58 @@ test('two fitting searches merge, and the older one hosts with its link', async 
 	await expect(joinerPage.locator('#team-table tbody tr').nth(1)).toContainText('Verified only')
 	await hostPage.context().close()
 	await joinerPage.context().close()
+})
+
+test('searches with close upvotes merge first, and any upvotes merge after a wait', async ({
+	browser,
+}) => {
+	// The lone search with 500 upvotes needs about 54 seconds of waiting
+	test.setTimeout(120_000)
+	const veteranUserId = Math.floor(Math.random() * 1e9)
+	const testDatabase = connectToTestDatabase()
+	await testDatabase.query(`
+		INSERT INTO upvotes (voter_roblox_user_id, receiver_roblox_user_id)
+		SELECT 'test-voter-' || voter_number, $1 FROM generate_series(1, 500) AS voter_number
+	`, [String(veteranUserId)])
+	await testDatabase.end()
+	const newHostPage = await startSearch({
+		browser,
+		username: 'NewHost',
+		rows: meAndOneOpenRow,
+		serverLink: serverLinkA,
+	})
+	const veteranPage = await startSearch({
+		browser,
+		username: 'VeteranPlayer',
+		robloxUserId: veteranUserId,
+		rows: meAndOneOpenRow,
+	})
+	const newJoinerPage = await startSearch({
+		browser,
+		username: 'NewJoiner',
+		rows: meAndOneOpenRow,
+	})
+	await expect(newHostPage.locator('#team-found')).toHaveAttribute('open', '', {
+		timeout: 20_000,
+	})
+	await expect(newHostPage.locator('#team-table tbody tr').nth(1)).toContainText('(@NewJoiner)')
+	await expect(veteranPage.locator('#team-find button'))
+		.toHaveText('Finding Players (Click to Cancel)')
+	const lateHostPage = await startSearch({
+		browser,
+		username: 'LateHost',
+		rows: meAndOneOpenRow,
+		serverLink: serverLinkB,
+	})
+	await expect(veteranPage.locator('#team-found')).toHaveAttribute('open', '', {
+		timeout: 90_000,
+	})
+	await expect(lateHostPage.locator('#team-table tbody tr').nth(1))
+		.toContainText('(@VeteranPlayer)')
+	await newHostPage.context().close()
+	await veteranPage.context().close()
+	await newJoinerPage.context().close()
+	await lateHostPage.context().close()
 })
 
 test('"Team found!" waits until every row has a player', async ({ browser }) => {

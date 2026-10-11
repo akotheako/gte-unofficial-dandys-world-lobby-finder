@@ -306,6 +306,15 @@ checkIn.use(async (_c, next) => {
 			found_team jsonb NOT NULL
 		);
 		ALTER TABLE found_teams DROP COLUMN IF EXISTS page_ids;
+		-- Same table as in upvotes.ts, since matching counts the upvotes of every searching player
+		-- before anyone may have upvoted
+		CREATE TABLE IF NOT EXISTS upvotes (
+			voter_roblox_user_id text NOT NULL,
+			receiver_roblox_user_id text NOT NULL,
+			upvoted_at timestamptz NOT NULL DEFAULT now(),
+			PRIMARY KEY (voter_roblox_user_id, receiver_roblox_user_id)
+		);
+		CREATE INDEX IF NOT EXISTS upvotes_receiver ON upvotes (receiver_roblox_user_id);
 		DROP TABLE IF EXISTS invited_friends;
 		DROP TABLE IF EXISTS searching_teams;
 	`).catch((error) => {
@@ -382,17 +391,34 @@ checkIn.post('/', async (c) => {
 			SELECT now() AS "transactionTime", count(*)::int AS "onThisPageCount" FROM open_pages;
 			SELECT * FROM teams ORDER BY started_at;
 			SELECT * FROM verified_friends;
+			SELECT receiver_roblox_user_id AS "robloxUserId", count(*)::int AS "upvoteCount"
+			FROM upvotes
+			WHERE receiver_roblox_user_id IN (
+				SELECT roblox_user_id FROM teams
+				UNION SELECT roblox_user_id FROM verified_friends
+				UNION SELECT ${sqlLiteral(robloxAccount ? String(robloxAccount.id) : '')}
+			)
+			GROUP BY receiver_roblox_user_id;
 		`) as unknown as QueryResult[]
-		const [{ rows: [{
-			transactionTime,
-			onThisPageCount,
-		}] }, { rows: teams }, { rows: verifiedFriends }] = readResults.slice(-3) as [
+		const [
+			{ rows: [{
+				transactionTime,
+				onThisPageCount,
+			}] },
+			{ rows: teams },
+			{ rows: verifiedFriends },
+			{ rows: upvoteCounts },
+		] = readResults.slice(-4) as [
 			QueryResult<{
 				transactionTime: Date
 				onThisPageCount: number
 			}>,
 			QueryResult<Team>,
 			QueryResult<VerifiedFriend>,
+			QueryResult<{
+				robloxUserId: string
+				upvoteCount: number
+			}>,
 		]
 
 		const sentTeam = body.team
@@ -624,7 +650,24 @@ checkIn.post('/', async (c) => {
 					team.team_id.slice(0, 8)
 				})`
 			)
-			for (const other of teams) {
+			// Upvote level of a search together with the searches that joined it, which is
+			// log2(average upvotes + 1), so that 0 against 10 upvotes is a wide gap and 490 against
+			// 500 a narrow one. An unverified player counts as 0 upvotes.
+			const upvoteLevelOf = (host: Team) => {
+				const players = allPlayersOf(mergedTeamOf(host))
+				const upvoteSum = players.reduce((sum, player) => sum + (upvoteCounts.find((upvoteCount) => (
+					upvoteCount.robloxUserId === player.robloxUserId
+				))?.upvoteCount ?? 0), 0)
+				return Math.log2(upvoteSum / Math.max(players.length, 1) + 1)
+			}
+			const myUpvoteLevel = upvoteLevelOf(myTeam)
+			const upvoteGaps = new Map(teams.map((team) => [
+				team,
+				Math.abs(upvoteLevelOf(team) - myUpvoteLevel),
+			]))
+			// The closest upvote level is tried first, and the oldest search among equal ones
+			const otherTeamsByUpvoteGap = [...teams].sort((a, b) => upvoteGaps.get(a)! - upvoteGaps.get(b)!)
+			for (const other of otherTeamsByUpvoteGap) {
 				if (
 					other === myTeam
 					|| !other.is_searching
@@ -648,6 +691,16 @@ checkIn.post('/', async (c) => {
 					other.team_table_rows.filter((row) => !row.isLeftEmpty).length
 						!== myTeam.team_table_rows.filter((row) => !row.isLeftEmpty).length
 						&& 'number of rows differs',
+					// The allowed upvote gap widens by one level for every 6 seconds that the older of
+					// the two searches has waited, and any gap fits after 60 seconds, so that two lone
+					// searches always match
+					(() => {
+						const waitedSeconds = (transactionTime.getTime() - Math.min(
+							other.started_at.getTime(),
+							myTeam.started_at.getTime(),
+						)) / 1000
+						return waitedSeconds < 60 && upvoteGaps.get(other)! > waitedSeconds / 6
+					})() && 'upvotes differ too much for the time waited',
 				].filter(Boolean)
 				if (differences.length) {
 					console.log(`No merge of ${logNameOf(myTeam)} with ${logNameOf(other)}: ${
