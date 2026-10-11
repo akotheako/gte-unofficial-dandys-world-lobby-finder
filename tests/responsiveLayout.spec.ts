@@ -48,6 +48,30 @@ for (const screen of [
 	})
 }
 
+test('side windows use viewport vertical positions beside both team windows', async ({
+	page,
+}) => {
+	await page.setViewportSize({
+		width: 1600,
+		height: 900,
+	})
+	await page.goto('/')
+	for (const windowId of ['team', 'browse']) {
+		await page.locator(`#${windowId}-icon`).click()
+		await page.waitForTimeout(250)
+		const mainWindow = (await page.locator(`#${windowId}`).boundingBox())!
+		const toonsWindow = (await page.locator(`#${windowId}-toons`).boundingBox())!
+		const trinketsWindow = (await page.locator(`#${windowId}-trinkets`).boundingBox())!
+		expect(toonsWindow.y).toBeCloseTo(180, 0)
+		expect(trinketsWindow.y).toBeCloseTo(20, 0)
+		// Horizontal placement remains tied to the main window's left and right edges.
+		expect(Math.abs(toonsWindow.x + toonsWindow.width - mainWindow.x + 24)).toBeLessThan(3)
+		expect(Math.abs(trinketsWindow.x - mainWindow.x - mainWindow.width - 24)).toBeLessThan(3)
+		await page.locator(`#${windowId} .window-close`).first().click()
+		await expect(page.locator(`#${windowId}`)).not.toHaveAttribute('open')
+	}
+})
+
 test('on a phone, the boxes of a card open pick windows that fill them', async ({ page }) => {
 	await page.setViewportSize({
 		width: 390,

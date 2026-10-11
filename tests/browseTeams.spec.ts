@@ -256,6 +256,60 @@ test('only fitting teams are listed, and a team that stops searching disappears'
 	await page.context().close()
 })
 
+test('a pending join can be cancelled and unlocks YOUR SLOT', async ({
+	browser,
+	request,
+}) => {
+	await startHostSearchWithoutBrowser({
+		request,
+		pageId: 'browse-cancel-join',
+		rows: [
+			{ reservedFor: 'me' },
+			{},
+		],
+	})
+	const page = await openBrowseTeams({ browser })
+	await page.locator('.browse-card').click()
+	const joinButton = page.locator('#browse-join button')
+	await joinButton.click()
+	await expect(joinButton).toHaveText('Waiting for the team to fill up (Click to Cancel)')
+	await expect(page.locator('#browse-toons')).toHaveClass(/team-locked/)
+	await joinButton.click()
+	await expect(joinButton).toHaveText('Join')
+	await expect(page.locator('#browse-toons')).not.toHaveClass(/team-locked/)
+	await expect(page.locator('#team-found')).not.toHaveAttribute('open', '')
+	await page.context().close()
+})
+
+test('joining a team that stopped searching after it was opened shows an error', async ({
+	browser,
+	request,
+}) => {
+	await startHostSearchWithoutBrowser({
+		request,
+		pageId: 'browse-stopped-before-join',
+		rows: [
+			{ reservedFor: 'me' },
+			{},
+		],
+	})
+	const page = await openBrowseTeams({ browser })
+	await page.locator('.browse-card').click()
+	await expect(page.locator('#browse-join button')).toHaveText('Join')
+
+	// The card is still open in this page, but the server has ended the host's search.
+	await request.post('/api/check-in/leave', {
+		data: { pageId: 'browse-stopped-before-join' },
+	})
+	await page.locator('#browse-join button').click()
+	await expect(page.locator('#browse-error')).toHaveText('This team stopped searching or filled up', {
+		timeout: 10_000,
+	})
+	await expect(page.locator('#browse-join')).toHaveCount(0)
+	await expect(page.locator('#team-found')).not.toHaveAttribute('open', '')
+	await page.context().close()
+})
+
 test('on a narrow screen, YOUR SLOT is a card whose boxes open the pick window', async ({
 	browser,
 }) => {

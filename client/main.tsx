@@ -620,11 +620,11 @@ function ToonsAndTrinketsSideWindows({
 				}
 				.team-toons-side-window {
 					right: calc(100% + 24px);
-					top: 180px;
+					top: calc(180px - 50vh + 50%);
 				}
 				.team-right-side-windows {
 					left: calc(100% + 24px);
-					top: 20px;
+					top: calc(20px - 50vh + 50%);
 					display: flex;
 					flex-direction: column;
 					gap: 24px;
