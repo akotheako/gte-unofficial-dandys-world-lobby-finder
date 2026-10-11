@@ -9,12 +9,15 @@ export function toggleJoiningBrowsedTeam({
 	setJoinedBrowsedTeam,
 	setBrowseTeamsError,
 	browsedTeam,
+	hostRowIndex,
 	browseTeamsSlot,
 }: {
 	getJoinedBrowsedTeam: () => JoinedBrowsedTeam | null
 	setJoinedBrowsedTeam: (joinedBrowsedTeam: JoinedBrowsedTeam | null) => void
 	setBrowseTeamsError: (browseTeamsError: string) => void
 	browsedTeam: CheckInAnswer['browsedTeams'][number]
+	// Row of the host's table whose Join button was clicked
+	hostRowIndex: number
 	// The row of YOUR SLOT
 	browseTeamsSlot: TeamTableRow
 }) {
@@ -25,6 +28,7 @@ export function toggleJoiningBrowsedTeam({
 	}
 	setJoinedBrowsedTeam({
 		hostTeamId: browsedTeam.hostTeamId,
+		hostRowIndex,
 		// The server tells a new join apart from an earlier one with the same team
 		searchId: crypto.randomUUID(),
 		teamTableRows: browseTeamsJoinTableRows({

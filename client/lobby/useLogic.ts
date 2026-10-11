@@ -120,6 +120,8 @@ function ownedPicturesFirst(pictures: string[], missingPictures: string[]) {
 // with, while it waits for the team to fill up
 export type JoinedBrowsedTeam = {
 	hostTeamId: string
+	// Row of the host's table whose Join button the user clicked
+	hostRowIndex: number
 	searchId: string
 	teamTableRows: TeamTableRow[]
 	dandyRun: string
@@ -1631,6 +1633,10 @@ export function useLogic() {
 						}),
 						findAPlayerText: !isTableLocked && !row.reservedFor ? '(Find a player)' : '',
 						showFindingPlayerText,
+						// "Player found!" above the name of a player who took the row with a Join button
+						// of Browse Teams, while the team keeps searching
+						showPlayerFoundText: isSearching
+						&& Boolean(shownTeamStatus?.browseTeamsPlayerRowIndexes.includes(index)),
 						showPlayerName: isTableLocked && !showFindingPlayerText,
 						playerName: `(${playerInRowName || (() => {
 							if (row.reservedFor) return reservationChipText(row.reservedFor)
@@ -1991,10 +1997,13 @@ That is a row without a chip, or an extra row that shares a chip.`
 			const openedBrowsedTeam = state.browsedTeams?.find((browsedTeam) => (
 				browsedTeam.hostTeamId === state.openedBrowsedHostTeamId
 			))
-			const isOpenedBrowsedTeamJoined = Boolean(openedBrowsedTeam)
-				&& openedBrowsedTeam?.hostTeamId === state.joinedBrowsedTeam?.hostTeamId
-			const browsedTeamJoinButtonTooltip = (() => {
-				if (isOpenedBrowsedTeamJoined) return ''
+			// Row of the opened team that the user's running join takes, or -1
+			const joinedRowIndex = openedBrowsedTeam
+				&& openedBrowsedTeam.hostTeamId === state.joinedBrowsedTeam?.hostTeamId
+				? state.joinedBrowsedTeam.hostRowIndex
+				: -1
+			// Tooltip of a greyed-out Join button of a free slot
+			const joinButtonBlockedTooltip = (() => {
 				if (state.joinedBrowsedTeam) return 'Cancel the join of the other team first.'
 				if (state.isFindingPlayers) return 'Cancel Find Players in Find a Team first.'
 				if (isInvitedFriend) return 'You are in the team of the friend who invited you.'
@@ -2069,27 +2078,31 @@ That is a row without a chip, or an extra row that shares a chip.`
 						roleNames: row.roleNames,
 						playerName: `(${playerNameOf(openedBrowsedTeam!.playersInRows[index] ?? null)
 							|| 'Free slot'})`,
+						// Join button in the Player cell of a free slot that the user fits, which reads
+						// "Waiting for the team to fill up (Click to Cancel)" while its join runs, and is
+						// greyed out with a tooltip while the user cannot join. The other rows show the
+						// player's name instead.
+						joinButton: index === joinedRowIndex
+							|| openedBrowsedTeam!.joinableRowIndexes.includes(index)
+							? {
+								text: index === joinedRowIndex
+									? 'Waiting for the team to fill up (Click to Cancel)'
+									: 'Join',
+								tooltip: index === joinedRowIndex ? '' : joinButtonBlockedTooltip,
+								isDisabled: index !== joinedRowIndex && Boolean(joinButtonBlockedTooltip),
+								toggleJoining: () => toggleJoiningBrowsedTeam({
+									getJoinedBrowsedTeam: () => getSyncState().joinedBrowsedTeam,
+									setJoinedBrowsedTeam: (joinedBrowsedTeam) => setState({ joinedBrowsedTeam }),
+									setBrowseTeamsError: (browseTeamsError) => setState({ browseTeamsError }),
+									browsedTeam: openedBrowsedTeam!,
+									hostRowIndex: index,
+									browseTeamsSlot: getSyncState().browseTeamsTableRows[0],
+								}),
+							}
+							: null,
 					}]
 				)),
-				// Join button, which reads "Waiting for the team to fill up (Click to Cancel)" while
-				// the join runs, greyed out with a tooltip while the user cannot join, and followed by a
-				// red line when the server ended the join
-				showBrowsedTeamJoinButton: Boolean(openedBrowsedTeam),
-				browsedTeamJoinButtonText: isOpenedBrowsedTeamJoined
-					? 'Waiting for the team to fill up (Click to Cancel)'
-					: 'Join',
-				isBrowsedTeamJoinButtonDisabled: Boolean(browsedTeamJoinButtonTooltip),
-				browsedTeamJoinButtonTooltip,
-				toggleJoiningBrowsedTeam: () => {
-					if (!openedBrowsedTeam) return
-					toggleJoiningBrowsedTeam({
-						getJoinedBrowsedTeam: () => getSyncState().joinedBrowsedTeam,
-						setJoinedBrowsedTeam: (joinedBrowsedTeam) => setState({ joinedBrowsedTeam }),
-						setBrowseTeamsError: (browseTeamsError) => setState({ browseTeamsError }),
-						browsedTeam: openedBrowsedTeam,
-						browseTeamsSlot: getSyncState().browseTeamsTableRows[0],
-					})
-				},
+				// Red line below the table when the server ended the join
 				browseTeamsError: state.browseTeamsError,
 			}
 		})(),

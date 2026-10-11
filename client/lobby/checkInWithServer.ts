@@ -108,6 +108,7 @@ export function checkInWithServer({
 					isFindingPlayers: true,
 					searchId: joinedBrowsedTeam.searchId,
 					chosenHostTeamId: joinedBrowsedTeam.hostTeamId,
+					chosenHostRowIndex: joinedBrowsedTeam.hostRowIndex,
 				}
 			}
 			return isFindingPlayers || getIsInviteLinkCopied() ? {

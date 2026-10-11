@@ -168,8 +168,11 @@ test('a card shows the toons and tags of a fitting team, and Join gets its serve
 	])
 	await card.click()
 	await expect(page.locator('#browse-team-table tbody tr')).toHaveCount(2)
-	await expect(page.locator('#browse-team-table tbody tr').nth(1)).toContainText('(Free slot)')
-	await page.locator('#browse-join button').click()
+	// The free slot that the user fits has a Join button in its Player cell
+	const freeSlotJoinButton = page.locator('#browse-team-table tbody tr').nth(1)
+		.locator('.browse-join button')
+	await expect(freeSlotJoinButton).toHaveText('Join')
+	await freeSlotJoinButton.click()
 	await expect(page.locator('#team-found')).toHaveAttribute('open', '', { timeout: 10_000 })
 	await expect(page.locator('#team-found')).toContainText('You joined a team! Join its server:')
 	await expect(page.locator('#team-found-join')).toHaveAttribute('href', serverLinkA)
@@ -283,7 +286,7 @@ test('a pending join can be cancelled and unlocks YOUR SLOT', async ({
 	})
 	const page = await openBrowseTeams({ browser })
 	await page.locator('.browse-card').click()
-	const joinButton = page.locator('#browse-join button')
+	const joinButton = page.locator('#browse-team-table .browse-join button')
 	await joinButton.click()
 	await expect(joinButton).toHaveText('Waiting for the team to fill up (Click to Cancel)')
 	await expect(page.locator('#browse-toons')).toHaveClass(/team-locked/)
@@ -291,6 +294,113 @@ test('a pending join can be cancelled and unlocks YOUR SLOT', async ({
 	await expect(joinButton).toHaveText('Join')
 	await expect(page.locator('#browse-toons')).not.toHaveClass(/team-locked/)
 	await expect(page.locator('#team-found')).not.toHaveAttribute('open', '')
+	await page.context().close()
+})
+
+test('only the free slots that the user fits have a Join button, which takes that slot', async ({
+	browser,
+	request,
+}) => {
+	await startHostSearchWithoutBrowser({
+		request,
+		pageId: 'browse-join-chosen-slot',
+		rows: [
+			{ reservedFor: 'me' },
+			{ toonPicture: 'vee.png' },
+			{},
+			{},
+		],
+	})
+	const page = await openBrowseTeams({
+		browser,
+		browseTeamsSlot: { toonPicture: 'astro.png' },
+	})
+	await page.locator('.browse-card').click()
+	const rows = page.locator('#browse-team-table tbody tr')
+	// An Astro slot does not fit the Vee row
+	await expect(rows.nth(1).locator('.browse-join')).toHaveCount(0)
+	await expect(rows.nth(1)).toContainText('(Free slot)')
+	await expect(rows.nth(2).locator('.browse-join button')).toHaveText('Join')
+	await rows.nth(3).locator('.browse-join button').click()
+	await expect(rows.nth(3).locator('.browse-join button'))
+		.toHaveText('Waiting for the team to fill up (Click to Cancel)')
+	// While the join runs, the other free slot shows its name instead of a Join button
+	await expect(rows.nth(2).locator('.browse-join')).toHaveCount(0)
+
+	// Another page that browses sees the user in the fourth row, and the third one still free
+	await expect.poll(async () => {
+		const answer = await (await request.post('/api/check-in', {
+			data: {
+				pageId: 'browse-join-chosen-slot-observer',
+				team: null,
+				invite: null,
+				browse: {
+					toonPicture: '',
+					trinketAPicture: '',
+					trinketBPicture: '',
+					roleNames: [],
+					missingToons: [],
+					missingTrinkets: [],
+					dandyRun: 'Any',
+					earlyDyle: 'Any',
+					region: 'Any',
+					floorGoal: '50 to 50',
+					browsedTeamCount: 20,
+				},
+			},
+		})).json()
+		return answer.browsedTeams[0]?.playersInRows.map(Boolean)
+	}, { timeout: 10_000 }).toEqual([
+		true,
+		false,
+		false,
+		true,
+		false,
+		false,
+		false,
+		false,
+	])
+	await page.context().close()
+})
+
+test('the host sees "Player found!" in the row that a Browse Teams player joined', async ({
+	browser,
+}) => {
+	const hostContext = await browser.newContext()
+	await hostContext.addInitScript((serverLink) => {
+		if (sessionStorage.getItem('isSeeded')) return
+		sessionStorage.setItem('isSeeded', 'true')
+		localStorage.setItem('missingToons', '[]')
+		localStorage.setItem('missingTrinkets', '[]')
+		localStorage.setItem('serverLink', serverLink)
+		localStorage.setItem('floorGoalFrom', '50')
+		localStorage.setItem('floorGoalTo', '50')
+		localStorage.setItem('team', JSON.stringify(Array.from({ length: 8 }, (_, index) => ({
+			toonPicture: '',
+			trinketAPicture: '',
+			trinketBPicture: '',
+			badgeNames: [],
+			roleNames: [],
+			isVerifiedPlayerRequired: false,
+			reservedFor: index === 0 ? 'me' : '',
+			isLeftEmpty: index >= 3,
+		}))))
+	}, serverLinkA)
+	const hostPage = await hostContext.newPage()
+	await hostPage.goto('/')
+	await hostPage.locator('#team-icon').click()
+	await hostPage.locator('#team-find button').click()
+
+	const page = await openBrowseTeams({ browser })
+	await page.locator('.browse-card').click({ timeout: 10_000 })
+	await page.locator('#browse-team-table tbody tr').nth(2).locator('.browse-join button').click()
+
+	const hostRows = hostPage.locator('#team-table tbody tr')
+	await expect(hostRows.nth(2).locator('td').last()).toContainText('Player found!', {
+		timeout: 10_000,
+	})
+	await expect(hostRows.nth(1).locator('td').last()).toContainText('Finding player')
+	await hostContext.close()
 	await page.context().close()
 })
 
@@ -308,17 +418,18 @@ test('joining a team that stopped searching after it was opened shows an error',
 	})
 	const page = await openBrowseTeams({ browser })
 	await page.locator('.browse-card').click()
-	await expect(page.locator('#browse-join button')).toHaveText('Join')
+	const joinButton = page.locator('#browse-team-table .browse-join button')
+	await expect(joinButton).toHaveText('Join')
 
 	// The card is still open in this page, but the server has ended the host's search.
 	await request.post('/api/check-in/leave', {
 		data: { pageId: 'browse-stopped-before-join' },
 	})
-	await page.locator('#browse-join button').click()
+	await joinButton.click()
 	await expect(page.locator('#browse-error')).toHaveText('This team stopped searching or filled up', {
 		timeout: 10_000,
 	})
-	await expect(page.locator('#browse-join')).toHaveCount(0)
+	await expect(page.locator('.browse-join')).toHaveCount(0)
 	await expect(page.locator('#team-found')).not.toHaveAttribute('open', '')
 	await page.context().close()
 })

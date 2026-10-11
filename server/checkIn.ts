@@ -39,6 +39,9 @@ type Team = {
 	// Host whose card the user joined in Browse Teams, which is the only team that the search
 	// merges with, or empty for a search of Find a Team
 	chosen_host_team_id: string
+	// Row of the chosen host's table whose Join button the user clicked, which is the only row that
+	// the user takes there, or -1 for a search of Find a Team
+	chosen_host_row_index: number
 	joined_team_id: string | null
 	// Status of the search's table as it was when every row of its merged team got a player, which
 	// ends the search. The check-ins answer with it from then on, so that a page that only checks in
@@ -204,6 +207,13 @@ function placePlayersInRows({
 		if (row.isLeftEmpty || playersInRows[rowIndex]) return false
 		if (player.teamId === team.team_id) return player.reservedRowIndexes.includes(rowIndex)
 		const playerTeam = teamsById.get(player.teamId)
+		// A user who clicked Join on a slot in Browse Teams takes only that slot of that host's table
+		if (
+			player.isHost
+			&& playerTeam?.chosen_host_team_id === team.team_id
+			&& playerTeam.chosen_host_row_index !== -1
+			&& playerTeam.chosen_host_row_index !== rowIndex
+		) return false
 		const playerRows = playerTeam?.team_table_rows ?? []
 		// Only the host's own page knows which pictures they own, so a friend can be any picture
 		const playerMissingToons = player.isHost ? playerTeam?.missing_toons ?? [] : []
@@ -363,6 +373,7 @@ checkIn.use(async (_c, next) => {
 		ALTER TABLE teams DROP COLUMN IF EXISTS is_dandy_run;
 		ALTER TABLE teams DROP COLUMN IF EXISTS is_early_dyle;
 		ALTER TABLE teams ADD COLUMN IF NOT EXISTS chosen_host_team_id text NOT NULL DEFAULT '';
+		ALTER TABLE teams ADD COLUMN IF NOT EXISTS chosen_host_row_index int NOT NULL DEFAULT -1;
 		-- Record of every team that got together, which Upvote Players shows
 		CREATE TABLE IF NOT EXISTS found_teams (
 			found_team_id text PRIMARY KEY,
@@ -411,6 +422,7 @@ checkIn.post('/', async (c) => {
 			searchId: string
 			// Absent from a page that still runs an older version of the site
 			chosenHostTeamId?: string
+			chosenHostRowIndex?: number
 		} | null
 		// The invite link that the page was opened with
 		invite: { inviteCode: string } | null
@@ -556,6 +568,9 @@ checkIn.post('/', async (c) => {
 				is_searching: Boolean(sentTeam.isFindingPlayers),
 				search_id: searchId,
 				chosen_host_team_id: String(sentTeam.chosenHostTeamId ?? ''),
+				chosen_host_row_index: Number.isInteger(sentTeam.chosenHostRowIndex)
+					? Number(sentTeam.chosenHostRowIndex)
+					: -1,
 				joined_team_id: null,
 				found_status: null,
 				// now() is the time at which the transaction started, in both round trips
@@ -582,7 +597,8 @@ checkIn.post('/', async (c) => {
 					floor_goal,
 					is_searching,
 					search_id,
-					chosen_host_team_id
+					chosen_host_team_id,
+					chosen_host_row_index
 				)
 				VALUES (
 					${sqlLiteral(team.team_id)},
@@ -601,7 +617,8 @@ checkIn.post('/', async (c) => {
 					${sqlLiteral(team.floor_goal)},
 					${team.is_searching},
 					${sqlLiteral(team.search_id)},
-					${sqlLiteral(team.chosen_host_team_id)}
+					${sqlLiteral(team.chosen_host_team_id)},
+					${team.chosen_host_row_index}
 				)
 				ON CONFLICT (team_id) DO UPDATE SET
 					invite_code = excluded.invite_code,
@@ -620,6 +637,7 @@ checkIn.post('/', async (c) => {
 					is_searching = excluded.is_searching,
 					search_id = excluded.search_id,
 					chosen_host_team_id = excluded.chosen_host_team_id,
+					chosen_host_row_index = excluded.chosen_host_row_index,
 					joined_team_id = NULL,
 					found_status = NULL,
 					started_at = now()
@@ -913,16 +931,32 @@ checkIn.post('/', async (c) => {
 
 		// Browse Teams lists the host that the user's join there chose, then every other search that
 		// another one could join, that agrees with the user's TEAM SETTINGS, and that still has a slot
-		// that the user fits once every player of its merged team has a row
+		// that the user fits once every player of its merged team has a row. Each listed team comes
+		// with the free rows of its table whose Join button the user can click.
 		const browse = body.browse
-		const browsedHosts: Team[] = []
+		const playersInRowsOf = (host: Team) => (placePlayersInRows({
+			players: allPlayersOf(mergedTeamOf(host)),
+			team: host,
+			teamsById,
+		}) ?? []).map((player) => player?.playerInRow ?? null)
+		const browsedTeams: {
+			host: Team
+			playersInRows: (PlayerInRow | null)[]
+			joinableRowIndexes: number[]
+		}[] = []
 		let hasMoreBrowsedTeams = false
 		if (browse) {
 			const browsedTeamCount = Math.min(Number(browse.browsedTeamCount) || 0, 200)
 			const chosenHost = myTeam?.chosen_host_team_id
 				? teamsById.get(finalChosenHostIdOf(myTeam))
 				: undefined
-			if (chosenHost?.is_searching) browsedHosts.push(chosenHost)
+			if (chosenHost?.is_searching) {
+				browsedTeams.push({
+					host: chosenHost,
+					playersInRows: playersInRowsOf(chosenHost),
+					joinableRowIndexes: [],
+				})
+			}
 			for (const host of teams) {
 				if (
 					host === chosenHost
@@ -942,47 +976,57 @@ checkIn.post('/', async (c) => {
 						},
 					}).length
 				) continue
-				const userTeam: Team = {
-					team_id: pageId,
-					invite_code: '',
-					roblox_user_id: robloxAccount ? String(robloxAccount.id) : '',
-					roblox_username: robloxAccount?.username ?? '',
-					roblox_badge_names: ownedBadgeNames,
-					removed_roblox_usernames: [],
-					missing_toons: browse.missingToons.slice(0, 200).map(String),
-					missing_trinkets: browse.missingTrinkets.slice(0, 200).map(String),
-					team_table_rows: browseTeamsJoinTableRows({
-						browseTeamsSlot: {
-							toonPicture: String(browse.toonPicture),
-							trinketAPicture: String(browse.trinketAPicture),
-							trinketBPicture: String(browse.trinketBPicture),
-							roleNames: browse.roleNames.map(String),
-						},
-						rowCount: host.team_table_rows.filter((row) => !row.isLeftEmpty).length,
-					}),
-					server_link: '',
-					dandy_run: host.dandy_run,
-					early_dyle: host.early_dyle,
-					region: host.region,
-					floor_goal: host.floor_goal,
-					is_searching: true,
-					search_id: '',
-					chosen_host_team_id: host.team_id,
-					joined_team_id: host.team_id,
-					found_status: null,
-					started_at: transactionTime,
-				}
-				const mergedTeam = [...mergedTeamOf(host), userTeam]
-				if (!doPlayersFitMergedTeam({
-					mergedTeam,
-					players: allPlayersOf(mergedTeam),
-					teamsById: new Map(teamsById).set(pageId, userTeam),
-				})) continue
-				if (browsedHosts.length - (chosenHost?.is_searching ? 1 : 0) === browsedTeamCount) {
+				const playersInRows = playersInRowsOf(host)
+				const joinableRowIndexes = host.team_table_rows.flatMap((row, rowIndex) => {
+					if (row.isLeftEmpty || playersInRows[rowIndex]) return []
+					const userTeam: Team = {
+						team_id: pageId,
+						invite_code: '',
+						roblox_user_id: robloxAccount ? String(robloxAccount.id) : '',
+						roblox_username: robloxAccount?.username ?? '',
+						roblox_badge_names: ownedBadgeNames,
+						removed_roblox_usernames: [],
+						missing_toons: browse.missingToons.slice(0, 200).map(String),
+						missing_trinkets: browse.missingTrinkets.slice(0, 200).map(String),
+						team_table_rows: browseTeamsJoinTableRows({
+							browseTeamsSlot: {
+								toonPicture: String(browse.toonPicture),
+								trinketAPicture: String(browse.trinketAPicture),
+								trinketBPicture: String(browse.trinketBPicture),
+								roleNames: browse.roleNames.map(String),
+							},
+							rowCount: host.team_table_rows.filter((row) => !row.isLeftEmpty).length,
+						}),
+						server_link: '',
+						dandy_run: host.dandy_run,
+						early_dyle: host.early_dyle,
+						region: host.region,
+						floor_goal: host.floor_goal,
+						is_searching: true,
+						search_id: '',
+						chosen_host_team_id: host.team_id,
+						chosen_host_row_index: rowIndex,
+						joined_team_id: host.team_id,
+						found_status: null,
+						started_at: transactionTime,
+					}
+					const mergedTeam = [...mergedTeamOf(host), userTeam]
+					return doPlayersFitMergedTeam({
+						mergedTeam,
+						players: allPlayersOf(mergedTeam),
+						teamsById: new Map(teamsById).set(pageId, userTeam),
+					}) ? [rowIndex] : []
+				})
+				if (!joinableRowIndexes.length) continue
+				if (browsedTeams.length - (chosenHost?.is_searching ? 1 : 0) === browsedTeamCount) {
 					hasMoreBrowsedTeams = true
 					break
 				}
-				browsedHosts.push(host)
+				browsedTeams.push({
+					host,
+					playersInRows,
+					joinableRowIndexes,
+				})
 			}
 		}
 
@@ -1023,6 +1067,7 @@ checkIn.post('/', async (c) => {
 				...shownTeam.found_status ? {
 					playersInRows: shownTeam.found_status.playersInRows,
 					hostRowIndex: shownTeam.found_status.hostRowIndex,
+					browseTeamsPlayerRowIndexes: [],
 					isSearching: false,
 					hasJoinedATeam: shownTeam.found_status.hasJoinedATeam,
 					hostRobloxUsername: shownTeam.found_status.hostRobloxUsername,
@@ -1034,13 +1079,20 @@ checkIn.post('/', async (c) => {
 					hostRowIndex: playersInShownRows?.findIndex((player) => (
 						player?.isHost && player.teamId === shownTeam.team_id
 					)) ?? -1,
+					browseTeamsPlayerRowIndexes: (playersInShownRows ?? []).flatMap((player, rowIndex) => (
+						player && teamsById.get(player.teamId)?.chosen_host_team_id ? [rowIndex] : []
+					)),
 					isSearching: shownTeam.is_searching,
 					hasJoinedATeam: Boolean(shownTeam.joined_team_id),
 					hostRobloxUsername: finalHost.roblox_username,
 					teamServerLink: '',
 				},
 			} : null,
-			browsedTeams: browsedHosts.map((host) => ({
+			browsedTeams: browsedTeams.map(({
+				host,
+				playersInRows,
+				joinableRowIndexes,
+			}) => ({
 				hostTeamId: host.team_id,
 				hostRobloxUsername: host.roblox_username,
 				dandyRun: host.dandy_run,
@@ -1048,11 +1100,8 @@ checkIn.post('/', async (c) => {
 				region: host.region,
 				floorGoal: host.floor_goal,
 				teamTableRows: host.team_table_rows,
-				playersInRows: (placePlayersInRows({
-					players: allPlayersOf(mergedTeamOf(host)),
-					team: host,
-					teamsById,
-				}) ?? []).map((player) => player?.playerInRow ?? null),
+				playersInRows,
+				joinableRowIndexes,
 			})),
 			hasMoreBrowsedTeams,
 		} satisfies CheckInAnswer)

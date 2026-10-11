@@ -294,7 +294,28 @@ function ModalWindow({
 	)
 }
 
-// Modal with the selected Browse Teams card's settings, roster and Join action
+// Join button in the Player cell or Player box of a free slot of Team Details, which shows its
+// tooltip on hover even while it is greyed out
+function BrowsedTeamJoinButton({ joinButton }: {
+	joinButton: NonNullable<
+		ReturnType<typeof useLogic>['openedBrowsedTeamRows'][number]['joinButton']
+	>
+}) {
+	return (
+		<span
+			className="browse-join"
+			title={joinButton.tooltip}>
+			<button
+				disabled={joinButton.isDisabled}
+				onClick={joinButton.toggleJoining}>
+				{joinButton.text}
+			</button>
+		</span>
+	)
+}
+
+// Modal with the selected Browse Teams card's settings and roster, with a Join button on each free
+// slot that the user fits
 function BrowseTeamDetailsModal({ logic }: { logic: ReturnType<typeof useLogic> }) {
 	return (
 		<>
@@ -371,7 +392,6 @@ function BrowseTeamDetailsModal({ logic }: { logic: ReturnType<typeof useLogic> 
 					vertical-align: middle;
 				}
 				#browse-team-details-cards { display: none; }
-				#browse-team-details-join { display: flex; justify-content: flex-end; }
 				#browse-team-gone,
 				#browse-error {
 					margin: 0;
@@ -459,7 +479,13 @@ function BrowseTeamDetailsModal({ logic }: { logic: ReturnType<typeof useLogic> 
 													)}
 													{row.roleNames.map((name) => <div key={name}>{name}</div>)}
 												</td>
-												<td className="team-placeholder">{row.playerName}</td>
+												{row.joinButton ? (
+													<td>
+														<BrowsedTeamJoinButton joinButton={row.joinButton} />
+													</td>
+												) : (
+													<td className="team-placeholder">{row.playerName}</td>
+												)}
 											</tr>
 										))}
 									</tbody>
@@ -498,26 +524,17 @@ function BrowseTeamDetailsModal({ logic }: { logic: ReturnType<typeof useLogic> 
 											</div>
 											<div className="team-card-box">
 												<span className="team-card-label">Player</span>
-												<span className="team-placeholder">{row.playerName}</span>
+												{row.joinButton ? (
+													<BrowsedTeamJoinButton joinButton={row.joinButton} />
+												) : (
+													<span className="team-placeholder">{row.playerName}</span>
+												)}
 											</div>
 										</div>
 									</div>
 								))}
 							</div>
 						</>
-					)}
-					{logic.showBrowsedTeamJoinButton && (
-						<div id="browse-team-details-join">
-							<span
-								id="browse-join"
-								title={logic.browsedTeamJoinButtonTooltip}>
-								<button
-									disabled={logic.isBrowsedTeamJoinButtonDisabled}
-									onClick={logic.toggleJoiningBrowsedTeam}>
-									{logic.browsedTeamJoinButtonText}
-								</button>
-							</span>
-						</div>
 					)}
 					{logic.browseTeamsError && <p id="browse-error">{logic.browseTeamsError}</p>}
 				</div>
@@ -1328,6 +1345,8 @@ function TeamTable({
 											Finding player<span>...</span>
 										</span>
 									)}
+									{/* "Player found!" above the name of a player who joined from Browse Teams */}
+									{row.showPlayerFoundText && <div className="team-finding">Player found!</div>}
 									{row.showPlayerName && (
 										<span className="team-finding team-placeholder">
 											{row.playerName}
@@ -1550,6 +1569,8 @@ function TeamCards({
 											Finding player<span>...</span>
 										</span>
 									)}
+									{/* "Player found!" above the name of a player who joined from Browse Teams */}
+									{row.showPlayerFoundText && <div className="team-finding">Player found!</div>}
 									{row.showPlayerName && (
 										<span className="team-placeholder">{row.playerName}</span>
 									)}

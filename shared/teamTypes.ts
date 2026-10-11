@@ -67,6 +67,8 @@ export type CheckInAnswer = {
 		// Row of the shown team's host, who is the page's own player unless an invite link brought
 		// the page in, or -1
 		hostRowIndex: number
+		// Rows whose player clicked their Join button in Browse Teams, while the team searches
+		browseTeamsPlayerRowIndexes: number[]
 		// Verified friends who opened the invite link of the shown team
 		verifiedFriendRobloxUsernames: string[]
 		isSearching: boolean
@@ -87,6 +89,9 @@ export type CheckInAnswer = {
 		// The host's own table, with the players of the whole merged team in its rows
 		teamTableRows: TeamTableRow[]
 		playersInRows: (PlayerInRow | null)[]
+		// Free rows that the user fits, whose Player cell shows a Join button. Empty for the team
+		// that the user joined.
+		joinableRowIndexes: number[]
 	}[]
 	// More teams fit than Browse Teams asked for, so scrolling to the end of its list loads more
 	hasMoreBrowsedTeams: boolean
