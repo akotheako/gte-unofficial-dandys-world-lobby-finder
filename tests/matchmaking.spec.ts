@@ -704,7 +704,8 @@ test.describe('Upvote Players', () => {
 		})
 		await closeTeamFoundWindow(hostPage)
 		await openUpvotePlayers(hostPage)
-		await expect(hostPage.locator('#upvote-settings')).toContainText('Floor goal: 60 to 80')
+		// The record holds the floors that both ranges share
+		await expect(hostPage.locator('#upvote-settings')).toContainText('Floor goal: 80 to 80')
 		await expect(hostPage.locator('#upvote-settings a')).toHaveText(serverLinkA)
 		const recordRows = hostPage.locator('#upvote-table tbody tr')
 		await expect(recordRows.nth(0).locator('img')).toHaveAttribute('title', 'bobette')

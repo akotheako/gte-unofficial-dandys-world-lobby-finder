@@ -288,25 +288,48 @@ function doPlayersFitMergedTeam({
 		}))
 }
 
+type TeamSettings = Pick<Team, 'dandy_run' | 'early_dyle' | 'region' | 'floor_goal'>
+
+// A floor goal reads "40 to 60", and "100+" counts as floor 101
+function floorGoalRangeOf(floorGoal: string) {
+	const [fromOption, toOption = fromOption] = floorGoal.split(' to ')
+	const floorOf = (option: string) => parseInt(option) + (option.endsWith('+') ? 1 : 0)
+	return {
+		fromOption,
+		toOption,
+		from: floorOf(fromOption),
+		to: floorOf(toOption),
+	}
+}
+
+// TEAM SETTINGS of a merged team, which hold the most specific choice of its searches, so that a
+// search that joins has to agree with every search of the team and not only with its host. Yes or
+// No wins over Any, a region wins over Any, and the floor goal is the floors that every range
+// shares. The merges keep the searches in agreement, so no two of them choose differently.
+function mergedTeamSettingsOf(mergedTeam: TeamSettings[]): TeamSettings {
+	const mostSpecificChoiceOf = (choices: string[]) => (
+		choices.find((choice) => choice !== 'Any') ?? 'Any'
+	)
+	const floorGoalRanges = mergedTeam.map((team) => floorGoalRangeOf(team.floor_goal))
+	const highestFrom = floorGoalRanges.reduce((a, b) => (b.from > a.from ? b : a))
+	const lowestTo = floorGoalRanges.reduce((a, b) => (b.to < a.to ? b : a))
+	return {
+		dandy_run: mostSpecificChoiceOf(mergedTeam.map((team) => team.dandy_run)),
+		early_dyle: mostSpecificChoiceOf(mergedTeam.map((team) => team.early_dyle)),
+		region: mostSpecificChoiceOf(mergedTeam.map((team) => team.region)),
+		floor_goal: `${highestFrom.fromOption} to ${lowestTo.toOption}`,
+	}
+}
+
 // TEAM SETTINGS on which two searches disagree, as the server log names them. Any agrees with
 // every choice, and two floor goals agree when their ranges share at least one floor.
 function teamSettingsDifferences({
 	teamA,
 	teamB,
 }: {
-	teamA: Pick<Team, 'dandy_run' | 'early_dyle' | 'region' | 'floor_goal'>
-	teamB: Pick<Team, 'dandy_run' | 'early_dyle' | 'region' | 'floor_goal'>
+	teamA: TeamSettings
+	teamB: TeamSettings
 }) {
-	// A floor goal reads "40 to 60", and "100+" counts as floor 101
-	const floorGoalRangeOf = (floorGoal: string) => {
-		const [from, to = from] = floorGoal.split(' to ').map((option) => (
-			parseInt(option) + (option.endsWith('+') ? 1 : 0)
-		))
-		return {
-			from,
-			to,
-		}
-	}
 	const floorGoalA = floorGoalRangeOf(teamA.floor_goal)
 	const floorGoalB = floorGoalRangeOf(teamB.floor_goal)
 	return [
@@ -783,8 +806,8 @@ checkIn.post('/', async (c) => {
 				)
 				const differences = [
 					...teamSettingsDifferences({
-						teamA: myTeam,
-						teamB: other,
+						teamA: mergedTeamSettingsOf(mergedTeamOf(myTeam)),
+						teamB: mergedTeamSettingsOf(mergedTeamOf(other)),
 					}),
 					!other.server_link && !myTeam.server_link && 'neither has a server link',
 					// Both teams want the same number of players, counting every row that is not
@@ -854,12 +877,13 @@ checkIn.post('/', async (c) => {
 						teamId: player.teamId,
 					}] : []
 				))
+				const mergedTeamSettings = mergedTeamSettingsOf(mergedTeam)
 				const foundTeam: FoundTeam = {
 					serverLink: merge.host.server_link,
-					dandyRun: merge.host.dandy_run,
-					earlyDyle: merge.host.early_dyle,
-					region: merge.host.region,
-					floorGoal: merge.host.floor_goal,
+					dandyRun: mergedTeamSettings.dandy_run,
+					earlyDyle: mergedTeamSettings.early_dyle,
+					region: mergedTeamSettings.region,
+					floorGoal: mergedTeamSettings.floor_goal,
 					tables: mergedTeam.map((team) => ({
 						teamId: team.team_id,
 						teamTableRows: team.team_table_rows,
@@ -946,6 +970,13 @@ checkIn.post('/', async (c) => {
 		}[] = []
 		let hasMoreBrowsedTeams = false
 		if (browse) {
+			// TEAM SETTINGS of Browse Teams, which a join there sends as its own
+			const browseTeamSettings: TeamSettings = {
+				dandy_run: String(browse.dandyRun),
+				early_dyle: String(browse.earlyDyle),
+				region: String(browse.region),
+				floor_goal: String(browse.floorGoal),
+			}
 			const browsedTeamCount = Math.min(Number(browse.browsedTeamCount) || 0, 200)
 			const chosenHost = myTeam?.chosen_host_team_id
 				? teamsById.get(finalChosenHostIdOf(myTeam))
@@ -979,10 +1010,7 @@ checkIn.post('/', async (c) => {
 						rowCount: host.team_table_rows.filter((row) => !row.isLeftEmpty).length,
 					}),
 					server_link: '',
-					dandy_run: host.dandy_run,
-					early_dyle: host.early_dyle,
-					region: host.region,
-					floor_goal: host.floor_goal,
+					...browseTeamSettings,
 					is_searching: true,
 					search_id: '',
 					chosen_host_team_id: host.team_id,
@@ -1022,13 +1050,8 @@ checkIn.post('/', async (c) => {
 					|| host.chosen_host_team_id
 					|| !host.server_link
 					|| teamSettingsDifferences({
-						teamA: host,
-						teamB: {
-							dandy_run: String(browse.dandyRun),
-							early_dyle: String(browse.earlyDyle),
-							region: String(browse.region),
-							floor_goal: String(browse.floorGoal),
-						},
+						teamA: mergedTeamSettingsOf(mergedTeamOf(host)),
+						teamB: browseTeamSettings,
 					}).length
 				) continue
 				const playersInRows = playersInRowsOf(host)
@@ -1114,10 +1137,15 @@ checkIn.post('/', async (c) => {
 			}) => ({
 				hostTeamId: host.team_id,
 				hostRobloxUsername: host.roblox_username,
-				dandyRun: host.dandy_run,
-				earlyDyle: host.early_dyle,
-				region: host.region,
-				floorGoal: host.floor_goal,
+				...(() => {
+					const mergedTeamSettings = mergedTeamSettingsOf(mergedTeamOf(host))
+					return {
+						dandyRun: mergedTeamSettings.dandy_run,
+						earlyDyle: mergedTeamSettings.early_dyle,
+						region: mergedTeamSettings.region,
+						floorGoal: mergedTeamSettings.floor_goal,
+					}
+				})(),
 				teamTableRows: host.team_table_rows,
 				playersInRows,
 				joinableRowIndexes,

@@ -2100,6 +2100,14 @@ That is a row without a chip, or an extra row that shares a chip.`
 									browsedTeam: openedBrowsedTeam!,
 									hostRowIndex: index,
 									browseTeamsSlot: getSyncState().browseTeamsTableRows[0],
+									browseTeamSettings: {
+										dandyRun: getSyncState().browseTeamsChosenSettings.dandyRun,
+										earlyDyle: getSyncState().browseTeamsChosenSettings.earlyDyle,
+										region: getSyncState().browseTeamsChosenSettings.region,
+										floorGoal: `${getSyncState().browseTeamsChosenSettings.floorGoalFrom} to ${
+											getSyncState().browseTeamsChosenSettings.floorGoalTo
+										}`,
+									},
 								}),
 							}
 							: null,

@@ -368,6 +368,68 @@ test('only the free slots that the user fits have a Join button, which takes tha
 	await page.context().close()
 })
 
+test('a merged team keeps the most specific TEAM SETTINGS of its searches', async ({ request }) => {
+	const threeRows = [
+		{ reservedFor: 'me' as const },
+		{},
+		{},
+	]
+	await startHostSearchWithoutBrowser({
+		request,
+		pageId: 'settings-any-host',
+		rows: threeRows,
+	})
+	await startHostSearchWithoutBrowser({
+		request,
+		pageId: 'settings-yes-joiner',
+		rows: threeRows,
+		earlyDyle: 'Yes',
+	})
+	// No agrees with the Any host, but not with the Yes search that joined it
+	await startHostSearchWithoutBrowser({
+		request,
+		pageId: 'settings-no-search',
+		rows: threeRows,
+		earlyDyle: 'No',
+	})
+	const answer = await (await request.post('/api/check-in', {
+		data: {
+			pageId: 'settings-observer',
+			team: null,
+			invite: null,
+			browse: {
+				toonPicture: '',
+				trinketAPicture: '',
+				trinketBPicture: '',
+				roleNames: [],
+				missingToons: [],
+				missingTrinkets: [],
+				dandyRun: 'Any',
+				earlyDyle: 'Any',
+				region: 'Any',
+				floorGoal: '50 to 50',
+				browsedTeamCount: 20,
+			},
+		},
+	})).json()
+	expect(answer.browsedTeams.map((browsedTeam: {
+		earlyDyle: string
+		playersInRows: unknown[]
+	}) => ({
+		earlyDyle: browsedTeam.earlyDyle,
+		playerCount: browsedTeam.playersInRows.filter(Boolean).length,
+	}))).toEqual([
+		{
+			earlyDyle: 'Yes',
+			playerCount: 2,
+		},
+		{
+			earlyDyle: 'No',
+			playerCount: 1,
+		},
+	])
+})
+
 test('the host sees "Player found!" in the row that a Browse Teams player joined', async ({
 	browser,
 }) => {

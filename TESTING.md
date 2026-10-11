@@ -201,6 +201,10 @@ These checks need two or three profiles that search at the same time.
   link.
 - Floor goal ranges that share at least one floor, such as 60 to 80 and 80 to 100+, merge.
 - A Region, Dandy Run or Early Dyle of Any merges with every other choice of that setting.
+- A merged team takes the most specific choice of its searches: after an Early Dyle Yes search
+  joins an Any host, an Early Dyle No search no longer merges with that team, and the Floor goal
+  narrows to the floors that every range shares. Browse Teams and Upvote Players show these
+  settings, and a Browse Teams join adds the TEAM SETTINGS of Browse Teams to them.
 - No merge happens when the Region differs and neither side is Any, when the Floor goal ranges share
   no floor, when Dandy Run or Early Dyle differs and neither side is Any, when the number of rows differs, or when neither side has a link.
 - The same verified account never ends up twice in one team.

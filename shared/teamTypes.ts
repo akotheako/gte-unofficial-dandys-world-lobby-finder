@@ -82,6 +82,8 @@ export type CheckInAnswer = {
 	browsedTeams: {
 		hostTeamId: string
 		hostRobloxUsername: string
+		// TEAM SETTINGS of the whole merged team, which hold the most specific choice of its
+		// searches
 		dandyRun: string
 		earlyDyle: string
 		region: string

@@ -11,6 +11,7 @@ export function joinBrowsedTeamSlot({
 	browsedTeam,
 	hostRowIndex,
 	browseTeamsSlot,
+	browseTeamSettings,
 }: {
 	setJoinedBrowsedTeam: (joinedBrowsedTeam: JoinedBrowsedTeam) => void
 	setBrowseTeamsError: (browseTeamsError: string) => void
@@ -19,6 +20,14 @@ export function joinBrowsedTeamSlot({
 	hostRowIndex: number
 	// The row of YOUR SLOT
 	browseTeamsSlot: TeamTableRow
+	// TEAM SETTINGS of Browse Teams, which the join searches with, so that a more specific choice of
+	// the user tightens the settings of the team that it joins
+	browseTeamSettings: {
+		dandyRun: string
+		earlyDyle: string
+		region: string
+		floorGoal: string
+	}
 }) {
 	setBrowseTeamsError('')
 	setJoinedBrowsedTeam({
@@ -30,9 +39,6 @@ export function joinBrowsedTeamSlot({
 			browseTeamsSlot,
 			rowCount: browsedTeam.teamTableRows.filter((row) => !row.isLeftEmpty).length,
 		}),
-		dandyRun: browsedTeam.dandyRun,
-		earlyDyle: browsedTeam.earlyDyle,
-		region: browsedTeam.region,
-		floorGoal: browsedTeam.floorGoal,
+		...browseTeamSettings,
 	})
 }
