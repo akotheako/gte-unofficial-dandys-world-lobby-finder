@@ -2389,7 +2389,6 @@ createRoot(document.getElementById('root')!).render(
 								}
 								#contact-report-discord {
 									margin: 0;
-									color: var(--error);
 								}
 								#contact-report-discord a {
 									color: var(--link);

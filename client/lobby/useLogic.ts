@@ -1912,7 +1912,7 @@ Verify your account in Roblox Verification, and the players of the last team tha
 On an iPhone, add this site to the Home Screen first.`
 						}
 						return state.notificationCheckboxError
-						|| 'Clicking the notification joins the server.'
+						|| 'Clicking the notification directly join the server'
 					})(),
 					isError: Boolean(state.notificationCheckboxError),
 					isDisabled: !canShowNotifications,
@@ -1930,7 +1930,7 @@ On an iPhone, add this site to the Home Screen first.`
 			})(),
 			{
 				label: 'Join the server automatically',
-				hint: 'The browser may block this the first time. Allow pop-ups for this site to fix it.',
+				hint: 'Experimental, might not work, sorry',
 				isError: false,
 				isDisabled: false,
 				isChecked: state.isJoinAutomaticallyCheckboxChecked,
