@@ -51,10 +51,35 @@ test('Dark mode swaps the wallpaper and the window colors, also after a reload',
 	await page.goto('/')
 	await expect(page.locator('body')).toHaveCSS('background-image', /Gardenview_Rainbow_Print/)
 	await expect(page.locator('#account')).toHaveCSS('background-color', 'rgb(192, 192, 192)')
+	await page.locator('#options-icon').click()
 	await page.locator('#dark-mode input').check()
 	await expect(page.locator('body')).toHaveCSS('background-image', /Astro_Pattern_Print/)
 	await expect(page.locator('#account')).toHaveCSS('background-color', 'rgb(52, 48, 74)')
 	await page.reload()
 	await expect(page.locator('#dark-mode input')).toBeChecked()
 	await expect(page.locator('body')).toHaveCSS('background-image', /Astro_Pattern_Print/)
+})
+
+test('Options remembers its checkboxes, and a refused notification stays unchecked', async ({
+	page,
+}) => {
+	await page.goto('/')
+	await page.locator('#options-icon').click()
+	const teamFoundBox = page.locator('#options-team-found')
+	await teamFoundBox.getByLabel('Play a "Ding!" sound').check()
+	await teamFoundBox.getByLabel('Join the server automatically').check()
+	await page.reload()
+	await expect(teamFoundBox.getByLabel('Play a "Ding!" sound')).toBeChecked()
+	await expect(teamFoundBox.getByLabel('Join the server automatically')).toBeChecked()
+	await expect(teamFoundBox.getByLabel('Flash the browser tab')).not.toBeChecked()
+
+	await page.evaluate(() => {
+		Notification.requestPermission = async () => 'denied'
+	})
+	await page.locator('#options-icon').click()
+	await teamFoundBox.getByLabel('Show a notification').click()
+	await expect(teamFoundBox.getByLabel('Show a notification')).not.toBeChecked()
+	await expect(teamFoundBox.locator('.options-error')).toHaveText(
+		'Notifications are blocked for this site in the browser settings.',
+	)
 })

@@ -2441,7 +2441,74 @@ createRoot(document.getElementById('root')!).render(
 								</div>
 							</form>
 						</DesktopWindow>
-						{/* Reports icon, sixth in the row, which only the owner of the site sees */}
+						{/* Options icon, sixth in the row */}
+						<DesktopWindow
+							id="options"
+							iconId="options-icon"
+							title="Options"
+							image="/options.webp"
+							{...logic.optionsWindow}
+						>
+							{/* "Dark mode" checkbox, which swaps the Gardenview wallpaper for the Astro
+							one and turns the grey windows dark */}
+							<label id="dark-mode">
+								<input
+									type="checkbox"
+									checked={logic.isDarkModeCheckboxChecked}
+									onChange={(event) => logic.toggleDarkModeCheckbox(event.target.checked)}
+								/>
+								Dark mode
+							</label>
+							{/* Etched "WHEN A TEAM IS FOUND" group box with a checkbox per line, and a small
+							grey line, or a red one for an error, below some of them */}
+							<style>{`
+								#options-team-found {
+									width: 360px;
+									max-width: 100%;
+									margin: 8px 0 0;
+									padding: 6px 10px 10px;
+									box-sizing: border-box;
+									border: 2px groove var(--bevel-light);
+								}
+								#options-team-found legend {
+									padding: 0 4px;
+									font-weight: bold;
+								}
+								#options-team-found label {
+									display: block;
+									margin-top: 4px;
+								}
+								#options-team-found p {
+									margin: 0 0 0 22px;
+									color: var(--hint-text);
+									font-size: 11px;
+									white-space: pre-line;
+								}
+								#options-team-found p.options-error {
+									color: var(--error);
+								}
+							`}</style>
+							<fieldset id="options-team-found">
+								<legend>WHEN A TEAM IS FOUND</legend>
+								{logic.teamFoundOptionsCheckboxes.map((checkbox) => (
+									<div key={checkbox.label}>
+										<label>
+											<input
+												type="checkbox"
+												checked={checkbox.isChecked}
+												disabled={checkbox.isDisabled}
+												onChange={(event) => checkbox.toggle(event.target.checked)}
+											/>
+											{checkbox.label}
+										</label>
+										{checkbox.hint && (
+											<p className={checkbox.isError ? 'options-error' : ''}>{checkbox.hint}</p>
+										)}
+									</div>
+								))}
+							</fieldset>
+						</DesktopWindow>
+						{/* Reports icon, seventh in the row, which only the owner of the site sees */}
 						{logic.showReportsIcon && (
 							<DesktopWindow
 								id="reports"
@@ -2529,9 +2596,8 @@ createRoot(document.getElementById('root')!).render(
 						<span>{logic.onlineCounterText}</span>
 						<span>{logic.findingPlayersCounterText}</span>
 					</div>
-					{/* White-on-black "Dark mode" checkbox at the bottom right of the screen. Checking
-					it swaps the Gardenview wallpaper for the Astro one and turns the grey windows
-					dark. */}
+					{/* Window colors and wallpaper, which the "Dark mode" checkbox of Options swaps
+					for the Astro wallpaper and dark purple windows */}
 					<style>{`
 						:root {
 							--window-face: #c0c0c0;
@@ -2570,29 +2636,7 @@ createRoot(document.getElementById('root')!).render(
 						body:has(#dark-mode input:checked) {
 							background-image: url(/Astro_Pattern_Print.webp);
 						}
-						#dark-mode {
-							position: fixed;
-							bottom: 12px;
-							right: 12px;
-							display: flex;
-							align-items: center;
-							gap: 4px;
-							padding: 1px 3px;
-							background: rgba(0, 0, 0, 0.6);
-							color: #fff;
-							font: bold 13px monospace;
-							text-shadow: 1px 1px #000;
-							cursor: pointer;
-						}
 					`}</style>
-					<label id="dark-mode">
-						<input
-							type="checkbox"
-							checked={logic.isDarkModeCheckboxChecked}
-							onChange={(event) => logic.toggleDarkModeCheckbox(event.target.checked)}
-						/>
-						Dark mode
-					</label>
 				</>
 			)
 		})}

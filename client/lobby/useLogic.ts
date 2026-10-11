@@ -10,6 +10,7 @@ import type {
 import { reportsReaderRobloxUserId, type Report } from '../../shared/reports.ts'
 import { useSyncState } from '../useSyncState.ts'
 import { addUnverifiedFriend } from './addUnverifiedFriend.ts'
+import { announceTeamFound } from './announceTeamFound.ts'
 import { checkInWithServer } from './checkInWithServer.ts'
 import { closeTeamFoundWindow } from './closeTeamFoundWindow.ts'
 import {
@@ -43,12 +44,13 @@ import { readSavedTeamTable } from './readSavedTeamTable.ts'
 import { removeFriendFromReservedWindow } from './removeFriendFromReservedWindow.ts'
 import { saveServerLinkField } from './saveServerLinkField.ts'
 import { sendReport } from './sendReport.ts'
-import { toggleDarkModeCheckbox } from './toggleDarkModeCheckbox.ts'
 import { saveTeamTable } from './saveTeamTable.ts'
 import { showAllOwnedPictures } from './showAllOwnedPictures.ts'
 import { tapFindATeamCardBox } from './tapFindATeamCardBox.ts'
 import { toggleBadgeCheckbox } from './toggleBadgeCheckbox.ts'
 import { toggleFindingPlayers } from './toggleFindingPlayers.ts'
+import { toggleNotificationCheckbox } from './toggleNotificationCheckbox.ts'
+import { toggleOptionsCheckbox } from './toggleOptionsCheckbox.ts'
 import { toggleOwnedPictureTile } from './toggleOwnedPictureTile.ts'
 import { toggleRoleCheckbox } from './toggleRoleCheckbox.ts'
 import { toggleUpvote } from './toggleUpvote.ts'
@@ -81,6 +83,7 @@ export type DesktopWindowName =
 	| 'Upvote Players'
 	| 'This is a fan project'
 	| 'Contact/Report'
+	| 'Options'
 	| 'Reports'
 
 // Tile, picture or chip that is being dragged. fromTableCell is '' for a side window, and otherwise
@@ -133,6 +136,11 @@ export function useLogic() {
 		serverLinkFieldStartValue: string
 		serverLink: string
 		isDarkModeCheckboxChecked: boolean
+		isDingSoundCheckboxChecked: boolean
+		isFlashTabCheckboxChecked: boolean
+		isNotificationCheckboxChecked: boolean
+		notificationCheckboxError: string
+		isJoinAutomaticallyCheckboxChecked: boolean
 		chosenDandyRunDropdownOption: string
 		chosenEarlyDyleDropdownOption: string
 		chosenRegionDropdownOption: string
@@ -209,6 +217,14 @@ export function useLogic() {
 		serverLinkFieldStartValue: localStorage.getItem('serverLink') ?? '',
 		serverLink: localStorage.getItem('serverLink') ?? '',
 		isDarkModeCheckboxChecked: localStorage.getItem('darkMode') === 'true',
+		isDingSoundCheckboxChecked: localStorage.getItem('dingSound') === 'true',
+		isFlashTabCheckboxChecked: localStorage.getItem('flashTab') === 'true',
+		// The browser's permission can be taken back in its settings at any time
+		isNotificationCheckboxChecked: localStorage.getItem('notification') === 'true'
+			&& 'Notification' in window
+			&& Notification.permission === 'granted',
+		notificationCheckboxError: '',
+		isJoinAutomaticallyCheckboxChecked: localStorage.getItem('joinAutomatically') === 'true',
 		chosenDandyRunDropdownOption: localStorage.getItem('dandyRunOption') ?? 'Any',
 		chosenEarlyDyleDropdownOption: localStorage.getItem('earlyDyleOption') ?? 'Any',
 		chosenRegionDropdownOption: localStorage.getItem('region') ?? 'Any',
@@ -365,11 +381,20 @@ export function useLogic() {
 			: `@${username} (left the team)`
 	}
 
-	// Opens the team found window as soon as the server link of the team arrives
+	// Opens the team found window as soon as the server link of the team arrives, together with the
+	// Ding!, the flashing tab, the notification and the automatic join that Options turned on
 	const teamServerLink = shownTeamStatus?.teamServerLink ?? ''
 	useEffect(() => {
-		if (teamServerLink) setState({ isTeamFoundWindowOpen: true })
-	}, [teamServerLink, setState])
+		if (!teamServerLink) return
+		setState({ isTeamFoundWindowOpen: true })
+		return announceTeamFound({
+			teamServerLink,
+			isDingSoundCheckboxChecked: getSyncState().isDingSoundCheckboxChecked,
+			isFlashTabCheckboxChecked: getSyncState().isFlashTabCheckboxChecked,
+			isNotificationCheckboxChecked: getSyncState().isNotificationCheckboxChecked,
+			isJoinAutomaticallyCheckboxChecked: getSyncState().isJoinAutomaticallyCheckboxChecked,
+		})
+	}, [teamServerLink, getSyncState, setState])
 
 	// Clears the red error below Find Players once the user changes what it complained about.
 	// mutateState keeps the rows array's identity, so the rows are compared as text.
@@ -1831,7 +1856,96 @@ Verify your account in Roblox Verification, and the players of the last team tha
 		reportStatusText: state.reportStatusText,
 
 
-		// Reports icon, sixth in the row at the top of the screen, which only @akotheakotheako sees,
+		// Options icon, sixth in the row at the top of the screen, and its window
+		optionsWindow: {
+			isOpen: state.openDesktopWindowName === 'Options',
+			openFromIcon: () => openWindowFromIcon({
+				getOpenDesktopWindowName: () => getSyncState().openDesktopWindowName,
+				setOpenDesktopWindowName: (openDesktopWindowName) => setState({ openDesktopWindowName }),
+				closeFindATeamWindow,
+				desktopWindowName: 'Options',
+			}),
+			close: () => setState({ openDesktopWindowName: null }),
+		},
+		// "Dark mode" checkbox at the top of Options, which swaps the wallpaper and the window colors
+		isDarkModeCheckboxChecked: state.isDarkModeCheckboxChecked,
+		toggleDarkModeCheckbox: (isChecked: boolean) => toggleOptionsCheckbox({
+			localStorageKey: 'darkMode',
+			setIsChecked: (isDarkModeCheckboxChecked) => setState({ isDarkModeCheckboxChecked }),
+			isChecked,
+		}),
+		// Checkboxes of the "WHEN A TEAM IS FOUND" group box below it, each with a grey or red line
+		// below it when it needs one
+		teamFoundOptionsCheckboxes: [
+			{
+				label: 'Play a "Ding!" sound',
+				hint: '',
+				isError: false,
+				isDisabled: false,
+				isChecked: state.isDingSoundCheckboxChecked,
+				toggle: (isChecked: boolean) => toggleOptionsCheckbox({
+					localStorageKey: 'dingSound',
+					setIsChecked: (isDingSoundCheckboxChecked) => setState({ isDingSoundCheckboxChecked }),
+					isChecked,
+				}),
+			},
+			{
+				label: 'Flash the browser tab',
+				hint: '',
+				isError: false,
+				isDisabled: false,
+				isChecked: state.isFlashTabCheckboxChecked,
+				toggle: (isChecked: boolean) => toggleOptionsCheckbox({
+					localStorageKey: 'flashTab',
+					setIsChecked: (isFlashTabCheckboxChecked) => setState({ isFlashTabCheckboxChecked }),
+					isChecked,
+				}),
+			},
+			// iPhones only offer notifications to a site that was added to the Home Screen
+			...(() => {
+				const canShowNotifications = 'Notification' in window && 'serviceWorker' in navigator
+				return [{
+					label: 'Show a notification',
+					hint: (() => {
+						if (!canShowNotifications) {
+							return `This browser cannot show notifications here.
+On an iPhone, add this site to the Home Screen first.`
+						}
+						return state.notificationCheckboxError
+						|| 'Clicking the notification joins the server.'
+					})(),
+					isError: Boolean(state.notificationCheckboxError),
+					isDisabled: !canShowNotifications,
+					isChecked: state.isNotificationCheckboxChecked,
+					toggle: (isChecked: boolean) => toggleNotificationCheckbox({
+						setIsChecked: (isNotificationCheckboxChecked) => setState({
+							isNotificationCheckboxChecked,
+						}),
+						setNotificationCheckboxError: (notificationCheckboxError) => setState({
+							notificationCheckboxError,
+						}),
+						isChecked,
+					}),
+				}]
+			})(),
+			{
+				label: 'Join the server automatically',
+				hint: 'The browser may block this the first time. Allow pop-ups for this site to fix it.',
+				isError: false,
+				isDisabled: false,
+				isChecked: state.isJoinAutomaticallyCheckboxChecked,
+				toggle: (isChecked: boolean) => toggleOptionsCheckbox({
+					localStorageKey: 'joinAutomatically',
+					setIsChecked: (isJoinAutomaticallyCheckboxChecked) => setState({
+						isJoinAutomaticallyCheckboxChecked,
+					}),
+					isChecked,
+				}),
+			},
+		],
+
+
+		// Reports icon, seventh in the row at the top of the screen, which only @akotheakotheako sees,
 		// and its window, which loads every report whenever it opens
 		showReportsIcon: state.verifiedRobloxAccount?.id === reportsReaderRobloxUserId,
 		reportsWindow: {
@@ -1871,14 +1985,5 @@ Verify your account in Roblox Verification, and the players of the last team tha
 		// Two counters at the bottom middle of the screen
 		onlineCounterText: `${state.onThisPageCount ?? '…'} online`,
 		findingPlayersCounterText: `${state.findingPlayersCount ?? '…'} looking for a team`,
-
-
-		// Dark mode checkbox at the bottom right of the screen, which swaps the wallpaper and the
-		// window colors
-		isDarkModeCheckboxChecked: state.isDarkModeCheckboxChecked,
-		toggleDarkModeCheckbox: (isChecked: boolean) => toggleDarkModeCheckbox({
-			setIsChecked: (isDarkModeCheckboxChecked) => setState({ isDarkModeCheckboxChecked }),
-			isChecked,
-		}),
 	}
 }

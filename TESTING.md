@@ -22,8 +22,18 @@ and what should happen.
 - Opening one window closes any other open window.
 - The page has no dark backdrop, so the rest of it stays clickable while a window is open.
 - Both counters at the bottom show "…" until the first check-in answers, and numbers afterwards.
-- The "Dark mode" checkbox at the bottom right swaps the Gardenview wallpaper for the Astro one
+- The "Dark mode" checkbox of the Options window swaps the Gardenview wallpaper for the Astro one
   and turns the windows dark purple, and it stays checked after a reload.
+- Every checkbox of "WHEN A TEAM IS FOUND" in Options stays as it was after a reload. With each of
+  them checked, a found team then:
+  - plays one of the four bell sounds, picked at random each time,
+  - makes the tab title switch between "Team found!" and the page's title while another tab is in
+    front, until the user comes back to the tab,
+  - shows a "Team found!" notification, also on Android, and clicking it opens the server in
+    Roblox,
+  - opens the server in a new tab once pop-ups are allowed for the site.
+- Checking "Show a notification" asks the browser for permission, and when that is refused, the
+  box stays unchecked with a red line below it.
 - At 1920x1080, a tablet size such as 1024x768, and a phone size such as 390x844, every window
   and every side window of Find a Team fits on the screen, and the page never scrolls sideways.
 - At 1320px of width or less, the open window covers the desktop icons, and Find a Team shows one
@@ -41,7 +51,7 @@ and what should happen.
 - While Find Players searches, the boxes of the cards open nothing.
 - At 1320px of width or less, Upvote Players shows the last found team as read-only cards, each
   with "Player Slot #N" above it, instead of the table.
-- At 640px of width or less, TEAM SETTINGS is one column, and the counters stack in the bottom left corner, clear of the "Dark mode" checkbox.
+- At 640px of width or less, TEAM SETTINGS is one column, and the counters stack in the bottom left corner.
 
 ## 2. Roblox Verification
 
