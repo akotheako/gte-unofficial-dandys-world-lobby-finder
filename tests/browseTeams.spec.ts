@@ -185,6 +185,19 @@ test('a card shows the toons and tags of a fitting team, and Join gets its serve
 	await page.context().close()
 })
 
+test('Browse Teams side windows only show owned choices', async ({ browser }) => {
+	const page = await openBrowseTeams({
+		browser,
+		missingToons: ['vee.png'],
+	})
+	await expect(page.locator('#browse-toons img[title="vee"]')).toHaveCount(0)
+	await expect(page.locator('#browse-toons img[title="poppy"]')).toHaveCount(1)
+	await expect(page.locator('#browse-toons .team-palette-section-title')).toHaveText(['Owned'])
+	await expect(page.locator('#browse-trinkets img')).toHaveCount(0)
+	await expect(page.locator('#browse-trinkets .team-palette-section-title')).toHaveCount(0)
+	await page.context().close()
+})
+
 // The teams differ in Dandy Run or Early Dyle, so that no two of them merge with each other
 test('only fitting teams are listed, and a team that stops searching disappears', async ({
 	browser,
@@ -313,7 +326,10 @@ test('joining a team that stopped searching after it was opened shows an error',
 test('on a narrow screen, YOUR SLOT is a card whose boxes open the pick window', async ({
 	browser,
 }) => {
-	const page = await openBrowseTeams({ browser })
+	const page = await openBrowseTeams({
+		browser,
+		missingToons: ['vee.png'],
+	})
 	await page.setViewportSize({
 		width: 600,
 		height: 900,
@@ -332,9 +348,14 @@ test('on a narrow screen, YOUR SLOT is a card whose boxes open the pick window',
 	await expect(page.locator('#team-pick')).toHaveAttribute('open')
 	// A single slot cannot be left empty
 	await expect(page.locator('#team-pick')).not.toContainText('(Leave Empty)')
-	await page.locator('#team-pick img[title="vee"]').click()
+	await expect(page.locator('#team-pick img[title="vee"]')).toHaveCount(0)
+	await expect(page.locator('#team-pick .team-palette-section-title')).toHaveText(['Owned'])
+	await page.locator('#team-pick img[title="poppy"]').click()
 	await expect(slotCard.locator('.team-card-box').first().locator('img'))
-		.toHaveAttribute('title', 'vee')
+		.toHaveAttribute('title', 'poppy')
+	await slotCard.locator('.team-card-box').nth(1).click()
+	await expect(page.locator('#team-pick img')).toHaveCount(0)
+	await expect(page.locator('#team-pick .team-palette-section-title')).toHaveCount(0)
 	await page.context().close()
 })
 

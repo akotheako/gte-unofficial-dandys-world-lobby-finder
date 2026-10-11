@@ -236,8 +236,8 @@ These checks need two or three profiles that search at the same time.
 
 - The Browse Teams icon is third in the row, and its window opens with YOUR SLOT, TEAM SETTINGS and
   "Looking for teams...".
-- The Toon and Trinket dropdowns of YOUR SLOT offer "(Any)" and only the owned pictures, show the
-  chosen picture beside them, and keep the slot after a reload.
+- The Toon and Trinket side windows and pickers of YOUR SLOT show only owned pictures, with "(Any)"
+  in the picker. They show the chosen picture beside them and keep the slot after a reload.
 - TEAM SETTINGS of Browse Teams and of Find a Team are kept apart, and both survive a reload.
 - A card lists a searching team with a server link whose free slot the user fits, with its toons
   and a tag for every TEAM SETTING that is not Any.

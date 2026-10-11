@@ -593,6 +593,7 @@ function ToonsAndTrinketsSideWindows({
 	trinketsWindowId,
 	sideWindowClass,
 	showLeaveEmptyTile,
+	showMissingChoices,
 	logic,
 	children,
 }: {
@@ -600,13 +601,18 @@ function ToonsAndTrinketsSideWindows({
 	trinketsWindowId: string
 	sideWindowClass: string
 	showLeaveEmptyTile: boolean
+	showMissingChoices: boolean
 	logic: ReturnType<typeof useLogic>
 	children?: ReactNode
 }) {
 	const ownedToons = logic.toonsWindowTiles.filter((toon) => toon.isOwned)
-	const missingToons = logic.toonsWindowTiles.filter((toon) => !toon.isOwned)
+	const missingToons = showMissingChoices
+		? logic.toonsWindowTiles.filter((toon) => !toon.isOwned)
+		: []
 	const ownedTrinkets = logic.trinketsWindowTiles.filter((trinket) => trinket.isOwned)
-	const missingTrinkets = logic.trinketsWindowTiles.filter((trinket) => !trinket.isOwned)
+	const missingTrinkets = showMissingChoices
+		? logic.trinketsWindowTiles.filter((trinket) => !trinket.isOwned)
+		: []
 
 	return (
 		<>
@@ -723,7 +729,9 @@ function ToonsAndTrinketsSideWindows({
 						)}
 						{ownedToons.length > 0 && (
 							<>
-								<div className="team-palette-section-title">Owned</div>
+								{showMissingChoices && (
+									<div className="team-palette-section-title">Owned</div>
+								)}
 								{ownedToons.map((toon) => (
 									<img
 										key={toon.name}
@@ -783,7 +791,9 @@ function ToonsAndTrinketsSideWindows({
 						<div className="team-palette">
 							{ownedTrinkets.length > 0 && (
 								<>
-									<div className="team-palette-section-title">Owned</div>
+									{showMissingChoices && (
+										<div className="team-palette-section-title">Owned</div>
+									)}
 									{ownedTrinkets.map((trinket) => (
 										<img
 											key={trinket.name}
@@ -1692,6 +1702,7 @@ createRoot(document.getElementById('root')!).render(
 								trinketsWindowId="team-trinkets"
 								sideWindowClass={logic.sideWindowClass}
 								showLeaveEmptyTile
+								showMissingChoices
 								logic={logic}
 							>
 								{/* Reserved window below the Trinkets window, whose chips drag into the
@@ -2028,6 +2039,7 @@ createRoot(document.getElementById('root')!).render(
 									trinketsWindowId="browse-trinkets"
 									sideWindowClass={logic.browseTeamsSideWindowClass}
 									showLeaveEmptyTile={false}
+									showMissingChoices={false}
 									logic={logic}
 								/>
 								{/* YOUR SLOT as a table with one row, or as one card on a narrow screen, followed

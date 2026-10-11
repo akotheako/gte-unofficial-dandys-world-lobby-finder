@@ -1301,10 +1301,13 @@ export function useLogic() {
 			const chosenName = cardBox ? state[cardBox.tableRowsKey][cardBox.index][cardBox.column] : ''
 			const isToonBox = cardBox?.column === 'toonPicture'
 			const pictureFolder = isToonBox ? 'toons' : 'trinkets'
+			const isBrowseTeamsSlot = cardBox?.tableRowsKey === 'browseTeamsTableRows'
 			const pictures = isToonBox ? state.toonsWindowPictures : state.trinketsWindowPictures
 			const missingPictures = isToonBox ? state.missingToons : state.missingTrinkets
 			const ownedPictures = pictures.filter((name) => !missingPictures.includes(name))
-			const missingPictureChoices = pictures.filter((name) => missingPictures.includes(name))
+			const missingPictureChoices = isBrowseTeamsSlot
+				? []
+				: pictures.filter((name) => missingPictures.includes(name))
 			const sectionHeader = (name: 'Owned' | 'Missing') => ({
 				key: `section-${name.toLowerCase()}`,
 				text: name,
@@ -1370,7 +1373,12 @@ export function useLogic() {
 							name: '',
 						}),
 					}] : [],
-					...(ownedPictures.length ? [sectionHeader('Owned'), ...ownedPictures.map(pictureTile)] : []),
+					...(ownedPictures.length
+						? [
+							...(isBrowseTeamsSlot ? [] : [sectionHeader('Owned')]),
+							...ownedPictures.map(pictureTile),
+						]
+						: []),
 					...(missingPictureChoices.length
 						? [sectionHeader('Missing'), ...missingPictureChoices.map(pictureTile)]
 						: []),
