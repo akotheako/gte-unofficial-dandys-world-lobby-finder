@@ -584,6 +584,837 @@ function ReservedSlotsGroupBoxes({
 	)
 }
 
+// Toons window to the lower left of Find a Team or Browse Teams, whose toons drag into the Toon
+// column, and a column to the right with the Trinkets window, whose trinkets drag into the Trinket
+// columns, above any windows that the children add. They hang outside the window's edges, and a
+// screen too narrow for them shows the cards instead, whose boxes open the pick windows.
+function ToonsAndTrinketsSideWindows({
+	toonsWindowId,
+	trinketsWindowId,
+	sideWindowClass,
+	showLeaveEmptyTile,
+	logic,
+	children,
+}: {
+	toonsWindowId: string
+	trinketsWindowId: string
+	sideWindowClass: string
+	showLeaveEmptyTile: boolean
+	logic: ReturnType<typeof useLogic>
+	children?: ReactNode
+}) {
+	return (
+		<>
+			<style>{`
+				.team-side-windows {
+					display: contents;
+				}
+				@media (max-width: 1320px) {
+					.team-side-windows {
+						display: none;
+					}
+				}
+				.team-toons-side-window,
+				.team-right-side-windows {
+					position: absolute;
+				}
+				.team-toons-side-window {
+					right: calc(100% + 24px);
+					top: 180px;
+				}
+				.team-right-side-windows {
+					left: calc(100% + 24px);
+					top: 20px;
+					display: flex;
+					flex-direction: column;
+					gap: 24px;
+				}
+				.team-palette {
+					max-height: 360px;
+					overflow-y: auto;
+					display: grid;
+					grid-template-columns: repeat(5, 48px);
+					gap: 4px;
+					padding: 4px;
+					background: var(--field);
+					border: 2px solid;
+					border-color: var(--bevel-shadow) var(--bevel-light) var(--bevel-light) var(--bevel-shadow);
+				}
+				.team-palette img,
+				.team-palette .team-text {
+					width: 48px;
+					height: 48px;
+					cursor: grab;
+				}
+				.team-text {
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					font-size: 11px;
+				}
+				.team-locked .window-title {
+					background: #808080;
+					color: #c0c0c0;
+				}
+				.team-locked .team-palette {
+					opacity: 0.5;
+					filter: grayscale(1);
+					pointer-events: none;
+				}
+				.team-placeholder {
+					color: var(--faded-text);
+					cursor: default;
+				}
+				.team-drag-hint {
+					display: flex;
+					align-items: center;
+					justify-content: space-between;
+					gap: 8px;
+					margin-bottom: 4px;
+					color: var(--hint-text);
+					font-size: 11px;
+				}
+				.team-drag-hint button {
+					font-size: 11px;
+				}
+			`}</style>
+			<div className="team-side-windows">
+				{/* Toons window */}
+				<div
+					id={toonsWindowId}
+					className={`${sideWindowClass} team-toons-side-window`}
+				>
+					<div className="window-title">Toons</div>
+					{/* Small grey "Drag onto the table" line above the tiles, with the grey "N/N Toons"
+					button on its right */}
+					<div className="team-drag-hint">
+						{logic.sideWindowDragHint}
+						<button
+							disabled={logic.areOwnedPicturesButtonsDisabled}
+							title={logic.ownedPicturesButtonsTooltip}
+							onClick={logic.openOwnedToonsWindow}
+						>
+							{logic.ownedToonsButtonText}
+						</button>
+					</div>
+					<div className="team-palette">
+						{/* "(Leave Empty)" text tile before the toon pictures */}
+						{showLeaveEmptyTile && (
+							<div
+								className="team-text"
+								draggable
+								onDragStart={logic.dragLeaveEmptyTile}
+								onDragEnd={logic.endDragFromSideWindow}
+							>
+								(Leave Empty)
+							</div>
+						)}
+						{logic.toonsWindowTiles.map((toon) => (
+							<img
+								key={toon.name}
+								className="toon-or-trinket-picture"
+								src={toon.src}
+								title={toon.title}
+								draggable
+								onDragStart={toon.dragFromSideWindow}
+								onDragEnd={logic.endDragFromSideWindow}
+							/>
+						))}
+					</div>
+				</div>
+				{/* Column to the right with the Trinkets window above the children */}
+				<div className="team-right-side-windows">
+					{/* Trinkets window */}
+					<style>{`
+						.team-trinkets-side-window .team-palette {
+							max-height: 240px;
+						}
+					`}</style>
+					<div
+						id={trinketsWindowId}
+						className={`${sideWindowClass} team-trinkets-side-window`}
+					>
+						<div className="window-title">Trinkets</div>
+						{/* Small grey "Drag onto the table" line above the tiles, with the grey "N/N
+						Trinkets" button on its right */}
+						<div className="team-drag-hint">
+							{logic.sideWindowDragHint}
+							<button
+								disabled={logic.areOwnedPicturesButtonsDisabled}
+								title={logic.ownedPicturesButtonsTooltip}
+								onClick={logic.openOwnedTrinketsWindow}
+							>
+								{logic.ownedTrinketsButtonText}
+							</button>
+						</div>
+						<div className="team-palette">
+							{logic.trinketsWindowTiles.map((trinket) => (
+								<img
+									key={trinket.name}
+									className="toon-or-trinket-picture"
+									src={trinket.src}
+									title={trinket.title}
+									draggable
+									onDragStart={trinket.dragFromSideWindow}
+									onDragEnd={logic.endDragFromSideWindow}
+								/>
+							))}
+						</div>
+					</div>
+					{children}
+				</div>
+			</div>
+		</>
+	)
+}
+
+// White table of Find a Team or of YOUR SLOT in Browse Teams, with Toon, Trinket A and Trinket B
+// columns, then Badges once verified and Role, and for Find a Team a Player column. A screen
+// 1320px wide or narrower hides it and shows TeamCards instead.
+function TeamTable({
+	id,
+	rows,
+	showBadgesColumn,
+	showPlayerColumn,
+	logic,
+}: {
+	id: string
+	rows: ReturnType<typeof useLogic>['teamTableRows']
+	showBadgesColumn: boolean
+	showPlayerColumn: boolean
+	logic: ReturnType<typeof useLogic>
+}) {
+	return (
+		<>
+			{/* Badge or role name stacked in a table cell or card box. A crossed-out one is grey with
+			a line through it and a "?" cursor, because the row cannot have it. */}
+			<style>{`
+				.team-badge-or-role {
+					white-space: nowrap;
+				}
+				.team-badge-or-role[data-crossed-out="true"] {
+					color: gray;
+					text-decoration: line-through;
+					cursor: help;
+				}
+			`}</style>
+			<style>{`
+				.team-table {
+					width: 100%;
+					border-collapse: collapse;
+					background: var(--field);
+				}
+				.team-table th,
+				.team-table td {
+					min-width: 120px;
+					height: 44px;
+					padding: 2px 6px;
+					border: 1px solid var(--table-line);
+					text-align: center;
+				}
+				.team-table th:nth-child(-n + 3),
+				.team-table td:nth-child(-n + 3) {
+					min-width: 0;
+					width: 60px;
+				}
+				.team-table td.team-disabled {
+					width: auto;
+					color: var(--faded-text);
+				}
+				.team-table td.team-clickable,
+				.team-table td.team-clickable .team-placeholder {
+					cursor: pointer;
+				}
+				.team-table .team-text[draggable="true"] {
+					cursor: grab;
+				}
+				.team-table td.team-clickable:hover {
+					background: var(--field-hover);
+				}
+				.team-table th {
+					height: 20px;
+					background: var(--window-face);
+				}
+				.team-table th[title] {
+					cursor: help;
+				}
+				.team-table .team-chip {
+					display: inline-block;
+				}
+				.team-verified-only {
+					display: flex;
+					justify-content: center;
+					align-items: center;
+					gap: 2px;
+					margin-top: 2px;
+					font-size: 11px;
+					white-space: nowrap;
+					cursor: help;
+				}
+				.team-verified-only input {
+					margin: 0;
+					cursor: pointer;
+				}
+				.team-table img {
+					width: 40px;
+					height: 40px;
+					vertical-align: middle;
+				}
+				.team-finding {
+					display: block;
+					max-width: 120px;
+					text-align: left;
+					font-size: 11px;
+				}
+				.team-finding span {
+					display: inline-block;
+					width: 0;
+					overflow: hidden;
+					vertical-align: bottom;
+					animation: team-dots 1.6s steps(4) infinite;
+				}
+				@keyframes team-dots {
+					to {
+						width: 4ch;
+					}
+				}
+				@media (max-width: 1320px) {
+					.team-table {
+						display: none;
+					}
+				}
+			`}</style>
+			<table
+				id={id}
+				className="team-table"
+				onDrop={logic.landDragOnTable}
+			>
+				<thead>
+					<tr>
+						<th>Toon</th>
+						<th>Trinket A</th>
+						<th>Trinket B</th>
+						{showBadgesColumn && <th>Badges</th>}
+						<th>Role</th>
+						{/* Player header that explains on hover which rows are left for players to find */}
+						{showPlayerColumn && <th title={logic.playerColumnHeaderTooltip}>Player</th>}
+					</tr>
+				</thead>
+				<tbody>
+					{rows.map((row) => (
+						<tr
+							key={row.key}
+							// The browser only lets a drop land where its dragover was prevented
+							onDragOver={(event) => {
+								if (row.canDropLeaveEmptyOnRow) event.preventDefault()
+							}}
+							onDrop={row.leaveRowEmpty}
+						>
+							{/* Whole row merged into one cell with "(Leave Empty)" in the middle, which
+							clears when clicked or when a toon or trinket lands on it */}
+							{row.isLeftEmpty && (
+								<td
+									className={row.leaveEmptyCellClass}
+									colSpan={row.leaveEmptyCellColSpan}
+									onClick={row.undoLeaveRowEmpty}
+									onDragOver={(event) => {
+										if (row.canDropPictureOnLeftEmptyRow) event.preventDefault()
+									}}
+									onDrop={row.dropPictureOnLeftEmptyRow}
+								>
+									(Leave Empty)
+								</td>
+							)}
+							{!row.isLeftEmpty && row.pictureCells.map((cell) => (
+								<td
+									key={cell.column}
+									onDragOver={(event) => {
+										if (cell.canDropPictureOnCell) event.preventDefault()
+									}}
+									onDrop={cell.dropPictureOnCell}
+								>
+									{/* Grey "(Any)" text in an empty Toon or Trinket cell, which cannot be
+									dragged */}
+									{cell.anyText && (
+										<div className="team-text team-placeholder">
+											{cell.anyText}
+										</div>
+									)}
+									{/* Toon or trinket picture */}
+									{cell.picture && (
+										<div
+											className="team-text"
+											draggable={cell.picture.draggable}
+											onDragStart={cell.picture.dragPictureFromTable}
+											onDragEnd={cell.picture.endPictureDragFromTable}
+										>
+											<img
+												className="toon-or-trinket-picture"
+												src={cell.picture.src}
+												title={cell.picture.title}
+												draggable={false}
+											/>
+										</div>
+									)}
+								</td>
+							))}
+							{/* Badge names stacked in the cell, or a grey "(none required)", which open the
+							Badges window when clicked */}
+							{!row.isLeftEmpty && showBadgesColumn && (
+								<td
+									className={row.badgesAndRoleCellClass}
+									onClick={row.openBadgesWindow}
+									title={row.badgesCellTooltip}
+								>
+									{row.noBadgesText && (
+										<span className="team-placeholder">{row.noBadgesText}</span>
+									)}
+									{row.badges.map((badge) => (
+										<div
+											key={badge.name}
+											className="team-badge-or-role"
+											data-crossed-out={badge.isCrossedOut}
+										>
+											{badge.name}
+										</div>
+									))}
+								</td>
+							)}
+							{/* Role names stacked in the cell, or a grey "(none required)", which open the
+							Roles window when clicked */}
+							{!row.isLeftEmpty && (
+								<td
+									className={row.badgesAndRoleCellClass}
+									onClick={row.openRolesWindow}
+								>
+									{row.noRolesText && (
+										<span className="team-placeholder">{row.noRolesText}</span>
+									)}
+									{row.roles.map((role) => (
+										<div
+											key={role.name}
+											className="team-badge-or-role"
+											data-crossed-out={role.isCrossedOut}
+											title={role.crossedOutTooltip}
+										>
+											{role.name}
+										</div>
+									))}
+								</td>
+							)}
+							{/* Chip from the Reserved window above a "Verified only" checkbox, or while the
+							table is locked either "Finding player..." with blinking dots or the grey name of
+							the player in the row */}
+							{!row.isLeftEmpty && showPlayerColumn && (
+								<td
+									onDragOver={(event) => {
+										if (row.canDropReservationOnPlayerCell) event.preventDefault()
+									}}
+									onDrop={row.dropReservationOnPlayerCell}
+								>
+									{row.showFindingPlayerText && (
+										<span className="team-finding">
+											Finding player<span>...</span>
+										</span>
+									)}
+									{row.showPlayerName && (
+										<span className="team-finding team-placeholder">
+											{row.playerName}
+										</span>
+									)}
+									{row.reservationChip && (
+										<ReservationChip
+											text={row.reservationChip.text}
+											onDragStart={row.reservationChip.dragReservationFromTable}
+											onDragEnd={row.reservationChip.endReservationDragFromTable}
+										/>
+									)}
+									{/* Small "Verified only" checkbox below the chip */}
+									{row.showVerifiedOnlyCheckbox && (
+										<label
+											className="team-verified-only"
+											title={row.verifiedOnlyCheckboxTooltip}
+										>
+											<input
+												type="checkbox"
+												checked={row.isVerifiedOnlyCheckboxChecked}
+												onChange={(event) => row.toggleVerifiedOnlyCheckbox(
+													event.target.checked,
+												)}
+											/>
+											Verified only
+										</label>
+									)}
+								</td>
+							)}
+						</tr>
+					))}
+				</tbody>
+			</table>
+		</>
+	)
+}
+
+// Column of white cards that replaces TeamTable on a narrow screen, one card per row with its
+// title above it, with labeled Toon, Trinket A, Trinket B, Badges once verified, Role and for Find
+// a Team Player boxes that wrap onto the next line when the card is too narrow for them
+function TeamCards({
+	id,
+	rows,
+	showBadgesBox,
+	showPlayerBox,
+}: {
+	id: string
+	rows: ReturnType<typeof useLogic>['teamTableRows']
+	showBadgesBox: boolean
+	showPlayerBox: boolean
+}) {
+	return (
+		<>
+			<style>{`
+				.team-cards {
+					display: none;
+				}
+				@media (max-width: 1320px) {
+					.team-cards {
+						display: flex;
+						flex-direction: column;
+						gap: 6px;
+					}
+				}
+				.team-card {
+					display: flex;
+					flex-wrap: wrap;
+					gap: 4px;
+					padding: 4px;
+					background: var(--field);
+					border: 2px solid;
+					border-color: var(--bevel-shadow) var(--bevel-light) var(--bevel-light)
+						var(--bevel-shadow);
+				}
+				.team-card-box {
+					flex: 1 1 140px;
+					min-width: 0;
+					overflow-wrap: anywhere;
+					display: flex;
+					flex-direction: column;
+					align-items: center;
+					justify-content: center;
+					gap: 2px;
+					min-height: 64px;
+					padding: 2px 4px;
+					border: 1px solid var(--table-line);
+					text-align: center;
+				}
+				.team-card-box.team-card-picture-box {
+					flex: 1 0 64px;
+				}
+				.team-card-box.team-clickable {
+					cursor: pointer;
+				}
+				.team-card-box.team-clickable:hover {
+					background: var(--field-hover);
+				}
+				.team-card-left-empty {
+					color: var(--faded-text);
+				}
+				.team-card-box img {
+					width: 40px;
+					height: 40px;
+				}
+				.team-card-label {
+					color: var(--hint-text);
+					font-size: 11px;
+					font-weight: bold;
+				}
+				.team-card-title {
+					margin-bottom: 2px;
+					font-weight: bold;
+				}
+			`}</style>
+			<div
+				id={id}
+				className="team-cards"
+			>
+				{rows.map((row) => (
+					<div key={row.key}>
+						{/* Bold title above the card, such as "Player Slot #N" */}
+						<div className="team-card-title">{row.cardTitle}</div>
+						<div className="team-card">
+							{/* Grey "(Leave Empty)" box across the whole card, which brings the card back
+							when tapped */}
+							{row.isLeftEmpty && (
+								<div
+									className={row.leftEmptyCardBoxClass}
+									onClick={row.undoLeaveRowEmpty}
+								>
+									(Leave Empty)
+								</div>
+							)}
+							{/* Toon, Trinket A and Trinket B boxes with their label above the picture or a
+							grey "(Any)", which open the Toons or Trinkets pick window when tapped */}
+							{!row.isLeftEmpty && row.pictureCells.map((cell) => (
+								<div
+									key={cell.column}
+									className={cell.cardBoxClass}
+									onClick={cell.tapCardBox}
+								>
+									<span className="team-card-label">{cell.cardBoxLabel}</span>
+									{cell.anyText && <span className="team-placeholder">{cell.anyText}</span>}
+									{cell.picture && (
+										<img
+											className="toon-or-trinket-picture"
+											src={cell.picture.src}
+											title={cell.picture.title}
+										/>
+									)}
+								</div>
+							))}
+							{/* Badges box with the badge names stacked, or a grey "(none required)", which
+							opens the Badges window when tapped */}
+							{!row.isLeftEmpty && showBadgesBox && (
+								<div
+									className={row.cardBoxClass}
+									onClick={row.openBadgesWindow}
+									title={row.badgesCellTooltip}
+								>
+									<span className="team-card-label">Badges</span>
+									{row.noBadgesText && (
+										<span className="team-placeholder">{row.noBadgesText}</span>
+									)}
+									{row.badges.map((badge) => (
+										<div
+											key={badge.name}
+											className="team-badge-or-role"
+											data-crossed-out={badge.isCrossedOut}
+										>
+											{badge.name}
+										</div>
+									))}
+								</div>
+							)}
+							{/* Role box with the role names stacked, or a grey "(none required)", which opens
+							the Roles window when tapped */}
+							{!row.isLeftEmpty && (
+								<div
+									className={row.cardBoxClass}
+									onClick={row.openRolesWindow}
+								>
+									<span className="team-card-label">Role</span>
+									{row.noRolesText && (
+										<span className="team-placeholder">{row.noRolesText}</span>
+									)}
+									{row.roles.map((role) => (
+										<div
+											key={role.name}
+											className="team-badge-or-role"
+											data-crossed-out={role.isCrossedOut}
+											title={role.crossedOutTooltip}
+										>
+											{role.name}
+										</div>
+									))}
+								</div>
+							)}
+							{/* Player box with the name from the Reserved Slots pick window or a grey "(Find
+							a player)", above a "Verified only" checkbox, or while the table is locked
+							either "Finding player..." with blinking dots or the grey name of the player in
+							the row. It opens the Reserved Slots pick window when tapped. */}
+							{!row.isLeftEmpty && showPlayerBox && (
+								<div
+									className={row.cardBoxClass}
+									onClick={row.tapPlayerCardBox}
+								>
+									<span className="team-card-label">Player</span>
+									{row.findAPlayerText && (
+										<span className="team-placeholder">{row.findAPlayerText}</span>
+									)}
+									{row.showFindingPlayerText && (
+										<span className="team-finding">
+											Finding player<span>...</span>
+										</span>
+									)}
+									{row.showPlayerName && (
+										<span className="team-placeholder">{row.playerName}</span>
+									)}
+									{row.reservationChip && <span>{row.reservationChip.text}</span>}
+									{/* Small "Verified only" checkbox below the name, whose tap stays out of the
+									box */}
+									{row.showVerifiedOnlyCheckbox && (
+										<label
+											className="team-verified-only"
+											title={row.verifiedOnlyCheckboxTooltip}
+											onClick={(event) => event.stopPropagation()}
+										>
+											<input
+												type="checkbox"
+												checked={row.isVerifiedOnlyCheckboxChecked}
+												onChange={(event) => row.toggleVerifiedOnlyCheckbox(
+													event.target.checked,
+												)}
+											/>
+											Verified only
+										</label>
+									)}
+								</div>
+							)}
+						</div>
+					</div>
+				))}
+			</div>
+		</>
+	)
+}
+
+// Old-style etched group box titled "TEAM SETTINGS", with Dandy Run and Early Dyle on the left and
+// Region and Floor goal on the right, in Find a Team and in Browse Teams
+function TeamSettingsGroupBox({
+	id,
+	settings,
+}: {
+	id: string
+	settings: ReturnType<typeof useLogic>['findATeamSettings']
+}) {
+	return (
+		<>
+			<style>{`
+				.team-settings {
+					display: grid;
+					grid-template-rows: auto auto;
+					grid-auto-flow: column;
+					justify-content: start;
+					gap: 6px 24px;
+					margin: 0;
+					padding: 6px 10px 10px;
+					border: 2px groove var(--bevel-light);
+				}
+				.team-settings legend {
+					padding: 0 4px;
+					font-weight: bold;
+				}
+				@media (max-width: 640px) {
+					.team-settings {
+						grid-template-rows: none;
+						grid-auto-flow: row;
+						justify-content: stretch;
+					}
+				}
+			`}</style>
+			<fieldset
+				id={id}
+				className="team-settings"
+			>
+				<legend>TEAM SETTINGS</legend>
+				{/* Column of two labeled Any / Yes / No dropdowns, Dandy Run and Early Dyle, that explain
+				themselves on hover */}
+				<style>{`
+					.team-dandy-run-and-early-dyle {
+						display: contents;
+					}
+					.team-dandy-run-and-early-dyle label {
+						cursor: help;
+					}
+				`}</style>
+				<div className="team-dandy-run-and-early-dyle">
+					<label title="Don't buy anything in Dandy's shop!!">
+						Dandy Run:
+						<select
+							value={settings.chosenDandyRunDropdownOption}
+							disabled={settings.areDropdownsLocked}
+							onChange={(event) => settings.chooseDandyRunDropdownOption(event.target.value)}
+						>
+							{settings.dandyRunAndEarlyDyleDropdownOptions.map((option) => (
+								<option key={option}>{option}</option>
+							))}
+						</select>
+					</label>
+					<label title={`Vote the special "TIME'S UP" card as soon as it appears`}>
+						Early Dyle:
+						<select
+							value={settings.chosenEarlyDyleDropdownOption}
+							disabled={settings.areDropdownsLocked}
+							onChange={(event) => settings.chooseEarlyDyleDropdownOption(event.target.value)}
+						>
+							{settings.dandyRunAndEarlyDyleDropdownOptions.map((option) => (
+								<option key={option}>{option}</option>
+							))}
+						</select>
+					</label>
+				</div>
+				{/* Column of two labeled dropdowns, Region and Floor goal, with the dropdowns lined up on
+				the right and equally wide */}
+				<style>{`
+					.team-region-and-floor-goal {
+						display: grid;
+						grid-row: span 2;
+						grid-template-columns: auto auto;
+						justify-content: space-between;
+						align-items: center;
+						gap: 6px 8px;
+					}
+					.team-region-and-floor-goal label {
+						display: contents;
+					}
+					.team-region-and-floor-goal select {
+						width: 100%;
+					}
+				`}</style>
+				<div className="team-region-and-floor-goal">
+					<label>
+						Region:
+						<select
+							value={settings.chosenRegionDropdownOption}
+							disabled={settings.areDropdownsLocked}
+							onChange={(event) => settings.chooseRegionDropdownOption(event.target.value)}
+						>
+							{settings.regionDropdownOptions.map((option) => (
+								<option key={option}>{option}</option>
+							))}
+						</select>
+					</label>
+					{/* Floor goal as two dropdowns, "from" and "to" */}
+					<style>{`
+						.team-floor-goal-range {
+							display: grid;
+							grid-template-columns: 1fr auto 1fr;
+							align-items: center;
+							gap: 4px;
+						}
+					`}</style>
+					<label>
+						Floor goal:
+						<span className="team-floor-goal-range">
+							<select
+								value={settings.chosenFloorGoalFromDropdownOption}
+								disabled={settings.areDropdownsLocked}
+								onChange={(event) => (
+									settings.chooseFloorGoalFromDropdownOption(event.target.value)
+								)}
+							>
+								{settings.floorGoalFromDropdownOptions.map((option) => (
+									<option key={option}>{option}</option>
+								))}
+							</select>
+							to
+							<select
+								value={settings.chosenFloorGoalToDropdownOption}
+								disabled={settings.areDropdownsLocked}
+								onChange={(event) => (
+									settings.chooseFloorGoalToDropdownOption(event.target.value)
+								)}
+							>
+								{settings.floorGoalToDropdownOptions.map((option) => (
+									<option key={option}>{option}</option>
+								))}
+							</select>
+						</span>
+					</label>
+				</div>
+			</fieldset>
+		</>
+	)
+}
+
 createRoot(document.getElementById('root')!).render(
 	<StrictMode>
 		{/* Desktop with the Roblox Verification and Find a Team icons and their windows */}
@@ -768,313 +1599,46 @@ createRoot(document.getElementById('root')!).render(
 							image="/pixelated/All_Together.webp"
 							{...logic.findATeamWindow}
 						>
-							{/* Side windows that hang outside this window's edges. A screen too narrow for them
-						shows the Find a Team cards instead, whose boxes open the same windows in the middle of
-						the screen. */}
+							{/* Window whose side windows hang outside its edges, which scrolls instead on
+							a screen too narrow for them */}
 							<style>{`
-							#team {
-								overflow: visible;
-							}
-							#team-side-windows {
-								display: contents;
-							}
-							@media (max-width: 1320px) {
 								#team {
-									overflow: auto;
+									overflow: visible;
 								}
-								#team-side-windows {
-									display: none;
+								@media (max-width: 1320px) {
+									#team {
+										overflow: auto;
+									}
 								}
-							}
-							#team-toons,
-							#team-trinkets-and-reserved {
-								position: absolute;
-							}
-							#team-toons {
-								right: calc(100% + 24px);
-								top: 180px;
-							}
-							#team-trinkets-and-reserved {
-								left: calc(100% + 24px);
-								top: 20px;
-								display: flex;
-								flex-direction: column;
-								gap: 24px;
-							}
-							.team-palette {
-								max-height: 360px;
-								overflow-y: auto;
-								display: grid;
-								grid-template-columns: repeat(5, 48px);
-								gap: 4px;
-								padding: 4px;
-								background: var(--field);
-								border: 2px solid;
-								border-color: var(--bevel-shadow) var(--bevel-light) var(--bevel-light) var(--bevel-shadow);
-							}
-							.team-palette img,
-							.team-palette .team-text {
-								width: 48px;
-								height: 48px;
-								cursor: grab;
-							}
-							.team-text {
-								display: flex;
-								align-items: center;
-								justify-content: center;
-								font-size: 11px;
-							}
-							.team-locked .window-title {
-								background: #808080;
-								color: #c0c0c0;
-							}
-							.team-locked .team-palette {
-								opacity: 0.5;
-								filter: grayscale(1);
-								pointer-events: none;
-							}
-							.team-placeholder {
-								color: var(--faded-text);
-								cursor: default;
-							}
-							.team-drag-hint {
-								display: flex;
-								align-items: center;
-								justify-content: space-between;
-								gap: 8px;
-								margin-bottom: 4px;
-								color: var(--hint-text);
-								font-size: 11px;
-							}
-							.team-drag-hint button {
-								font-size: 11px;
-							}
-						`}</style>
+							`}</style>
 							{/* Toons, Trinkets and Reserved Slots windows around this window */}
-							<div id="team-side-windows">
-								{/* Toons window to the lower left, whose toons drag into the Toon column */}
-								<div
-									id="team-toons"
+							<ToonsAndTrinketsSideWindows
+								toonsWindowId="team-toons"
+								trinketsWindowId="team-trinkets"
+								sideWindowClass={logic.sideWindowClass}
+								showLeaveEmptyTile
+								logic={logic}
+							>
+								{/* Reserved window below the Trinkets window, whose chips drag into the
+								Player column */}
+								{logic.showReservedWindow && <div
+									id="team-reserved"
 									className={logic.sideWindowClass}
 								>
-									<div className="window-title">Toons</div>
-									{/* Small grey "Drag onto the table" line above the tiles, with the grey
-								"N/N Toons" button on its right */}
-									<div className="team-drag-hint">
-										{logic.sideWindowDragHint}
-										<button
-											disabled={logic.areOwnedPicturesButtonsDisabled}
-											title={logic.ownedPicturesButtonsTooltip}
-											onClick={logic.openOwnedToonsWindow}
-										>
-											{logic.ownedToonsButtonText}
-										</button>
-									</div>
-									<div className="team-palette">
-										{/* "(Leave Empty)" text tile before the toon pictures */}
-										<div
-											className="team-text"
-											draggable
-											onDragStart={logic.dragLeaveEmptyTile}
-											onDragEnd={logic.endDragFromSideWindow}
-										>
-											(Leave Empty)
-										</div>
-										{logic.toonsWindowTiles.map((toon) => (
-											<img
-												key={toon.name}
-												className="toon-or-trinket-picture"
-												src={toon.src}
-												title={toon.title}
-												draggable
-												onDragStart={toon.dragFromSideWindow}
-												onDragEnd={logic.endDragFromSideWindow}
-											/>
-										))}
-									</div>
-								</div>
-								{/* Column to the right with the Trinkets window above the Reserved window */}
-								<div id="team-trinkets-and-reserved">
-									{/* Trinkets window, whose trinkets drag into the Trinket columns */}
-									<style>{`
-								#team-trinkets .team-palette {
-									max-height: 240px;
-								}
-							`}</style>
-									<div
-										id="team-trinkets"
-										className={logic.sideWindowClass}
-									>
-										<div className="window-title">Trinkets</div>
-										{/* Small grey "Drag onto the table" line above the tiles, with the grey
-									"N/N Trinkets" button on its right */}
-										<div className="team-drag-hint">
-											{logic.sideWindowDragHint}
-											<button
-												disabled={logic.areOwnedPicturesButtonsDisabled}
-												title={logic.ownedPicturesButtonsTooltip}
-												onClick={logic.openOwnedTrinketsWindow}
-											>
-												{logic.ownedTrinketsButtonText}
-											</button>
-										</div>
-										<div className="team-palette">
-											{logic.trinketsWindowTiles.map((trinket) => (
-												<img
-													key={trinket.name}
-													className="toon-or-trinket-picture"
-													src={trinket.src}
-													title={trinket.title}
-													draggable
-													onDragStart={trinket.dragFromSideWindow}
-													onDragEnd={logic.endDragFromSideWindow}
-												/>
-											))}
-										</div>
-									</div>
-									{/* Reserved window, whose chips drag into the Player column */}
-									{logic.showReservedWindow && <div
-										id="team-reserved"
-										className={logic.sideWindowClass}
-									>
-										<div className="window-title">Reserved Slots</div>
-										{/* Small grey "Drag onto the Player column" line above the chips */}
-										<div className="team-drag-hint">{logic.reservedWindowDragHint}</div>
-										<ReservedSlotsGroupBoxes
-											meChip={logic.reservedWindowMeChip}
-											showVerifiedFriends={logic.showReservedWindowVerifiedFriends}
-											verifiedFriendChips={logic.reservedWindowVerifiedFriendChips}
-											unverifiedFriendChips={logic.reservedWindowUnverifiedFriendChips}
-											copyInviteLinkButtonText={logic.copyInviteLinkButtonText}
-											copyInviteLink={logic.copyInviteLink}
-											addUnverifiedFriend={logic.addUnverifiedFriend}
-										/>
-									</div>}
-								</div>
-							</div>
-							{/* My Toons or My Trinkets window in the middle of the screen, with a bold title
-						above each category's grid of tiles. Every tile has a light grey tint and is slightly
-						see-through, with a big ✅ behind an owned tile's picture and a red X behind a missing
-						one's. */}
-							<style>{`
-								#team-owned-pictures-categories {
-									max-height: 70dvh;
-									overflow-y: auto;
-								}
-								.team-owned-pictures-category-title {
-									margin: 6px 0 2px;
-									font-weight: bold;
-								}
-								#team-owned-pictures .team-palette {
-									max-height: none;
-									overflow: visible;
-									grid-template-columns: repeat(6, 48px);
-								}
-								.team-owned-pictures-tile {
-									position: relative;
-									width: 48px;
-									height: 48px;
-								}
-								#team-owned-pictures .team-palette img {
-									cursor: pointer;
-								}
-								.team-owned-pictures-missing-mark {
-									position: absolute;
-									inset: 0;
-									pointer-events: none;
-								}
-								.team-owned-pictures-tile .toon-or-trinket-picture {
-									position: relative;
-									opacity: 0.6;
-									filter: grayscale(0.7) brightness(1.3);
-								}
-								.team-owned-pictures-owned-mark {
-									position: absolute;
-									inset: 0;
-									display: flex;
-									align-items: center;
-									justify-content: center;
-									font-size: 40px;
-									line-height: 1;
-									pointer-events: none;
-								}
-								#team-owned-pictures-show-all {
-									width: 100%;
-									margin-top: 6px;
-								}
-								#team-owned-pictures-show-all[aria-pressed="true"] {
-									border-style: solid;
-									border-color: var(--bevel-shadow) var(--bevel-light) var(--bevel-light) var(--bevel-shadow);
-									background: var(--field-hover);
-								}
-							`}</style>
-							<ModalWindow
-								id="team-owned-pictures"
-								closedby="any"
-								isOpen={logic.isOwnedPicturesWindowOpen}
-								close={logic.closeOwnedPicturesWindow}
-							>
-								{/* Title bar with a grey × button that closes the window */}
-								<div className="window-title">
-									{logic.ownedPicturesWindowTitle}
-									<button
-										className="window-close"
-										aria-label="Close"
-										onClick={logic.closeOwnedPicturesWindow}
-									>
-										×
-									</button>
-								</div>
-								{/* Small grey "Click to mark as missing or owned" line */}
-								<div className="team-drag-hint">{logic.ownedPicturesWindowHint}</div>
-								<div id="team-owned-pictures-categories">
-									{logic.ownedPicturesWindowCategories.map((category) => (
-										<div key={category.title}>
-											<div className="team-owned-pictures-category-title">
-												{category.title}
-											</div>
-											<div className="team-palette">
-												{category.tiles.map((tile) => (
-													<div
-														key={tile.name}
-														className="team-owned-pictures-tile"
-													>
-														{/* Red X behind a missing tile's picture */}
-														{tile.missingMarkSrc && (
-															<img
-																className="team-owned-pictures-missing-mark"
-																src={tile.missingMarkSrc}
-															/>
-														)}
-														{/* Big ✅ behind an owned tile's picture */}
-														{tile.ownedMark && (
-															<span className="team-owned-pictures-owned-mark">
-																{tile.ownedMark}
-															</span>
-														)}
-														<img
-															className="toon-or-trinket-picture"
-															src={tile.src}
-															title={tile.title}
-															data-missing={tile.isMissing}
-															onClick={tile.toggle}
-														/>
-													</div>
-												))}
-											</div>
-										</div>
-									))}
-								</div>
-								{/* Wide grey "Show all" button, which looks pressed in while the side window and
-							the pick window show every picture, missing ones too */}
-								<button
-									id="team-owned-pictures-show-all"
-									aria-pressed={logic.isOwnedPicturesWindowShowAllPressed}
-									onClick={logic.showAllOwnedPictures}
-								>
-									{logic.ownedPicturesWindowShowAllButtonText}
-								</button>
-							</ModalWindow>
+									<div className="window-title">Reserved Slots</div>
+									{/* Small grey "Drag onto the Player column" line above the chips */}
+									<div className="team-drag-hint">{logic.reservedWindowDragHint}</div>
+									<ReservedSlotsGroupBoxes
+										meChip={logic.reservedWindowMeChip}
+										showVerifiedFriends={logic.showReservedWindowVerifiedFriends}
+										verifiedFriendChips={logic.reservedWindowVerifiedFriendChips}
+										unverifiedFriendChips={logic.reservedWindowUnverifiedFriendChips}
+										copyInviteLinkButtonText={logic.copyInviteLinkButtonText}
+										copyInviteLink={logic.copyInviteLink}
+										addUnverifiedFriend={logic.addUnverifiedFriend}
+									/>
+								</div>}
+							</ToonsAndTrinketsSideWindows>
 							{/* Badges window in the middle of the screen, with a checkbox for each owned badge */}
 							<ChecklistWindow
 								id="team-badges"
@@ -1088,568 +1652,19 @@ createRoot(document.getElementById('root')!).render(
 								onCopyClick={logic.copyBadgesWindowNames}
 								onPasteClick={logic.pasteBadgesWindowNames}
 							/>
-							{/* Roles window in the middle of the screen, with a checkbox for each role */}
-							<ChecklistWindow
-								id="team-roles"
-								title="Roles"
-								checkboxes={logic.rolesWindowCheckboxes}
-								isOpen={logic.isRolesWindowOpen}
-								close={logic.closeRolesWindow}
-								copyButtonText={logic.rolesWindowCopyButtonText}
-								pasteButtonText={logic.rolesWindowPasteButtonText}
-								isPasteDisabled={logic.isRolesWindowPasteDisabled}
-								onCopyClick={logic.copyRolesWindowNames}
-								onPasteClick={logic.pasteRolesWindowNames}
-							/>
-							{/* Badge or role name stacked in a table cell. A crossed-out one is grey with a line through
-						it and a "?" cursor, because the row cannot have it. */}
-							<style>{`
-							.team-badge-or-role {
-								white-space: nowrap;
-							}
-							.team-badge-or-role[data-crossed-out="true"] {
-								color: gray;
-								text-decoration: line-through;
-								cursor: help;
-							}
-						`}</style>
-							{/* White table with Toon, Trinket A, Trinket B, once verified Badges, then Role and Reserved
-						columns */}
-							<style>{`
-							#team-table {
-								width: 100%;
-								border-collapse: collapse;
-								background: var(--field);
-							}
-							#team-table th,
-							#team-table td {
-								min-width: 120px;
-								height: 44px;
-								padding: 2px 6px;
-								border: 1px solid var(--table-line);
-								text-align: center;
-							}
-							#team-table th:nth-child(-n + 3),
-							#team-table td:nth-child(-n + 3) {
-								min-width: 0;
-								width: 60px;
-							}
-							#team-table td.team-disabled {
-								width: auto;
-								color: var(--faded-text);
-							}
-							#team-table td.team-clickable,
-							#team-table td.team-clickable .team-placeholder {
-								cursor: pointer;
-							}
-							#team-table .team-text[draggable="true"] {
-								cursor: grab;
-							}
-							#team-table td.team-clickable:hover {
-								background: var(--field-hover);
-							}
-							#team-table th {
-								height: 20px;
-								background: var(--window-face);
-							}
-							#team-table th[title] {
-								cursor: help;
-							}
-							#team-table .team-chip {
-								display: inline-block;
-							}
-							.team-verified-only {
-								display: flex;
-								justify-content: center;
-								align-items: center;
-								gap: 2px;
-								margin-top: 2px;
-								font-size: 11px;
-								white-space: nowrap;
-								cursor: help;
-							}
-							.team-verified-only input {
-								margin: 0;
-								cursor: pointer;
-							}
-							#team-table img {
-								width: 40px;
-								height: 40px;
-								vertical-align: middle;
-							}
-							.team-finding {
-								display: block;
-								max-width: 120px;
-								text-align: left;
-								font-size: 11px;
-							}
-							.team-finding span {
-								display: inline-block;
-								width: 0;
-								overflow: hidden;
-								vertical-align: bottom;
-								animation: team-dots 1.6s steps(4) infinite;
-							}
-							@keyframes team-dots {
-								to {
-									width: 4ch;
-								}
-							}
-							@media (max-width: 1320px) {
-								#team-table {
-									display: none;
-								}
-							}
-						`}</style>
-							<table
+							<TeamTable
 								id="team-table"
-								onDrop={logic.landDragOnTable}
-							>
-								<thead>
-									<tr>
-										<th>Toon</th>
-										<th>Trinket A</th>
-										<th>Trinket B</th>
-										{logic.isRobloxVerified && <th>Badges</th>}
-										<th>Role</th>
-										{/* Player header that explains on hover which rows are left for players to find */}
-										<th title={logic.playerColumnHeaderTooltip}>Player</th>
-									</tr>
-								</thead>
-								<tbody>
-									{logic.teamTableRows.map((row) => (
-										<tr
-											key={row.key}
-											// The browser only lets a drop land where its dragover was prevented
-											onDragOver={(event) => {
-												if (row.canDropLeaveEmptyOnRow) event.preventDefault()
-											}}
-											onDrop={row.leaveRowEmpty}
-										>
-											{/* Whole row merged into one cell with "(Leave Empty)" in the middle,
-										which clears when clicked or when a toon or trinket lands on it */}
-											{row.isLeftEmpty && (
-												<td
-													className={row.leaveEmptyCellClass}
-													colSpan={row.leaveEmptyCellColSpan}
-													onClick={row.undoLeaveRowEmpty}
-													onDragOver={(event) => {
-														if (row.canDropPictureOnLeftEmptyRow) event.preventDefault()
-													}}
-													onDrop={row.dropPictureOnLeftEmptyRow}
-												>
-													(Leave Empty)
-												</td>
-											)}
-											{!row.isLeftEmpty && row.pictureCells.map((cell) => (
-												<td
-													key={cell.column}
-													onDragOver={(event) => {
-														if (cell.canDropPictureOnCell) event.preventDefault()
-													}}
-													onDrop={cell.dropPictureOnCell}
-												>
-													{/* Grey "(Any)" text in an empty Toon or Trinket cell, which cannot be dragged */}
-													{cell.anyText && (
-														<div className="team-text team-placeholder">
-															{cell.anyText}
-														</div>
-													)}
-													{/* Toon or trinket picture */}
-													{cell.picture && (
-														<div
-															className="team-text"
-															draggable={cell.picture.draggable}
-															onDragStart={cell.picture.dragPictureFromTable}
-															onDragEnd={cell.picture.endPictureDragFromTable}
-														>
-															<img
-																className="toon-or-trinket-picture"
-																src={cell.picture.src}
-																title={cell.picture.title}
-																draggable={false}
-															/>
-														</div>
-													)}
-												</td>
-											))}
-											{/* Badge names stacked in the cell, or a grey "(none required)", which open the
-										Badges window when clicked */}
-											{!row.isLeftEmpty && logic.isRobloxVerified && (
-												<td
-													className={row.badgesAndRoleCellClass}
-													onClick={row.openBadgesWindow}
-													title={row.badgesCellTooltip}
-												>
-													{row.noBadgesText && (
-														<span className="team-placeholder">{row.noBadgesText}</span>
-													)}
-													{row.badges.map((badge) => (
-														<div
-															key={badge.name}
-															className="team-badge-or-role"
-															data-crossed-out={badge.isCrossedOut}
-														>
-															{badge.name}
-														</div>
-													))}
-												</td>
-											)}
-											{/* Role names stacked in the cell, or a grey "(none required)", which open the
-										Roles window when clicked */}
-											{!row.isLeftEmpty && (
-												<td
-													className={row.badgesAndRoleCellClass}
-													onClick={row.openRolesWindow}
-												>
-													{row.noRolesText && (
-														<span className="team-placeholder">{row.noRolesText}</span>
-													)}
-													{row.roles.map((role) => (
-														<div
-															key={role.name}
-															className="team-badge-or-role"
-															data-crossed-out={role.isCrossedOut}
-															title={role.crossedOutTooltip}
-														>
-															{role.name}
-														</div>
-													))}
-												</td>
-											)}
-											{/* Chip from the Reserved window above a "Verified only" checkbox, or while the
-										table is locked either "Finding player..." with blinking dots or the grey name of
-										the player in the row */}
-											{!row.isLeftEmpty && (
-												<td
-													onDragOver={(event) => {
-														if (row.canDropReservationOnPlayerCell) event.preventDefault()
-													}}
-													onDrop={row.dropReservationOnPlayerCell}
-												>
-													{row.showFindingPlayerText && (
-														<span className="team-finding">
-															Finding player<span>...</span>
-														</span>
-													)}
-													{row.showPlayerName && (
-														<span className="team-finding team-placeholder">
-															{row.playerName}
-														</span>
-													)}
-													{row.reservationChip && (
-														<ReservationChip
-															text={row.reservationChip.text}
-															onDragStart={row.reservationChip.dragReservationFromTable}
-															onDragEnd={row.reservationChip.endReservationDragFromTable}
-														/>
-													)}
-													{/* Small "Verified only" checkbox below the chip */}
-													{row.showVerifiedOnlyCheckbox && (
-														<label
-															className="team-verified-only"
-															title={row.verifiedOnlyCheckboxTooltip}
-														>
-															<input
-																type="checkbox"
-																checked={row.isVerifiedOnlyCheckboxChecked}
-																onChange={(event) => row.toggleVerifiedOnlyCheckbox(
-																	event.target.checked,
-																)}
-															/>
-															Verified only
-														</label>
-													)}
-												</td>
-											)}
-										</tr>
-									))}
-								</tbody>
-							</table>
-							{/* Column of white cards that replaces the table on a narrow screen, one card per row,
-						with labeled Toon, Trinket A, Trinket B, Badges once verified, Role and Player boxes that
-						wrap onto the next line when the card is too narrow for them */}
-							<style>{`
-							#team-cards {
-								display: none;
-							}
-							@media (max-width: 1320px) {
-								#team-cards {
-									display: flex;
-									flex-direction: column;
-									gap: 6px;
-								}
-							}
-							.team-card {
-								display: flex;
-								flex-wrap: wrap;
-								gap: 4px;
-								padding: 4px;
-								background: var(--field);
-								border: 2px solid;
-								border-color: var(--bevel-shadow) var(--bevel-light) var(--bevel-light)
-									var(--bevel-shadow);
-							}
-							.team-card-box {
-								flex: 1 1 140px;
-								min-width: 0;
-								overflow-wrap: anywhere;
-								display: flex;
-								flex-direction: column;
-								align-items: center;
-								justify-content: center;
-								gap: 2px;
-								min-height: 64px;
-								padding: 2px 4px;
-								border: 1px solid var(--table-line);
-								text-align: center;
-							}
-							.team-card-box.team-card-picture-box {
-								flex: 1 0 64px;
-							}
-							.team-card-box.team-clickable {
-								cursor: pointer;
-							}
-							.team-card-box.team-clickable:hover {
-								background: var(--field-hover);
-							}
-							.team-card-left-empty {
-								color: var(--faded-text);
-							}
-							.team-card-box img {
-								width: 40px;
-								height: 40px;
-							}
-							.team-card-label {
-								color: var(--hint-text);
-								font-size: 11px;
-								font-weight: bold;
-							}
-							.team-card-title {
-								margin-bottom: 2px;
-								font-weight: bold;
-							}
-						`}</style>
-							<div id="team-cards">
-								{logic.teamTableRows.map((row) => (
-									<div key={row.key}>
-										{/* Bold "Player Slot #N" line above the card */}
-										<div className="team-card-title">{row.cardTitle}</div>
-										<div className="team-card">
-											{/* Grey "(Leave Empty)" box across the whole card, which brings the card back
-									when tapped */}
-											{row.isLeftEmpty && (
-												<div
-													className={row.leftEmptyCardBoxClass}
-													onClick={row.undoLeaveRowEmpty}
-												>
-													(Leave Empty)
-												</div>
-											)}
-											{/* Toon, Trinket A and Trinket B boxes with their label above the picture or a
-									grey "(Any)", which open the Toons or Trinkets pick window when tapped */}
-											{!row.isLeftEmpty && row.pictureCells.map((cell) => (
-												<div
-													key={cell.column}
-													className={cell.cardBoxClass}
-													onClick={cell.tapCardBox}
-												>
-													<span className="team-card-label">{cell.cardBoxLabel}</span>
-													{cell.anyText && <span className="team-placeholder">{cell.anyText}</span>}
-													{cell.picture && (
-														<img
-															className="toon-or-trinket-picture"
-															src={cell.picture.src}
-															title={cell.picture.title}
-														/>
-													)}
-												</div>
-											))}
-											{/* Badges box with the badge names stacked, or a grey "(none required)", which
-									opens the Badges window when tapped */}
-											{!row.isLeftEmpty && logic.isRobloxVerified && (
-												<div
-													className={row.cardBoxClass}
-													onClick={row.openBadgesWindow}
-													title={row.badgesCellTooltip}
-												>
-													<span className="team-card-label">Badges</span>
-													{row.noBadgesText && (
-														<span className="team-placeholder">{row.noBadgesText}</span>
-													)}
-													{row.badges.map((badge) => (
-														<div
-															key={badge.name}
-															className="team-badge-or-role"
-															data-crossed-out={badge.isCrossedOut}
-														>
-															{badge.name}
-														</div>
-													))}
-												</div>
-											)}
-											{/* Role box with the role names stacked, or a grey "(none required)", which opens
-									the Roles window when tapped */}
-											{!row.isLeftEmpty && (
-												<div
-													className={row.cardBoxClass}
-													onClick={row.openRolesWindow}
-												>
-													<span className="team-card-label">Role</span>
-													{row.noRolesText && (
-														<span className="team-placeholder">{row.noRolesText}</span>
-													)}
-													{row.roles.map((role) => (
-														<div
-															key={role.name}
-															className="team-badge-or-role"
-															data-crossed-out={role.isCrossedOut}
-															title={role.crossedOutTooltip}
-														>
-															{role.name}
-														</div>
-													))}
-												</div>
-											)}
-											{/* Player box with the name from the Reserved Slots pick window or a grey
-									"(Find a player)", above a "Verified only" checkbox, or while the table is
-									locked either "Finding player..." with blinking dots or the grey name of the
-									player in the row. It opens the Reserved Slots pick window when tapped. */}
-											{!row.isLeftEmpty && (
-												<div
-													className={row.cardBoxClass}
-													onClick={row.tapPlayerCardBox}
-												>
-													<span className="team-card-label">Player</span>
-													{row.findAPlayerText && (
-														<span className="team-placeholder">{row.findAPlayerText}</span>
-													)}
-													{row.showFindingPlayerText && (
-														<span className="team-finding">
-															Finding player<span>...</span>
-														</span>
-													)}
-													{row.showPlayerName && (
-														<span className="team-placeholder">{row.playerName}</span>
-													)}
-													{row.reservationChip && <span>{row.reservationChip.text}</span>}
-													{/* Small "Verified only" checkbox below the name, whose tap stays out of
-											the box */}
-													{row.showVerifiedOnlyCheckbox && (
-														<label
-															className="team-verified-only"
-															title={row.verifiedOnlyCheckboxTooltip}
-															onClick={(event) => event.stopPropagation()}
-														>
-															<input
-																type="checkbox"
-																checked={row.isVerifiedOnlyCheckboxChecked}
-																onChange={(event) => row.toggleVerifiedOnlyCheckbox(
-																	event.target.checked,
-																)}
-															/>
-															Verified only
-														</label>
-													)}
-												</div>
-											)}
-										</div>
-									</div>
-								))}
-							</div>
-							{/* Pick window in the middle of the screen, which a box of a card opens: Toons or
-						Trinkets with a grid of picture tiles, where the tile that the box holds has a navy
-						frame, or Reserved Slots with "(Find a player)" above the group boxes of the Reserved
-						window */}
-							<style>{`
-							#team-pick .team-palette {
-								max-height: 60dvh;
-							}
-							#team-pick .team-palette > * {
-								cursor: pointer;
-							}
-							#team-pick .team-palette [data-chosen="true"] {
-								outline: 2px solid var(--title-bar);
-								outline-offset: -2px;
-							}
-							#team-pick-find-a-player {
-								width: 100%;
-								margin-bottom: 8px;
-							}
-						`}</style>
-							<ModalWindow
-								id="team-pick"
-								closedby="any"
-								isOpen={logic.isPickWindowOpen}
-								close={logic.closePickWindow}
-							>
-								<div className="window-title">
-									{logic.pickWindowTitle}
-									<button
-										className="window-close"
-										aria-label="Close"
-										onClick={logic.closePickWindow}
-									>
-										×
-									</button>
-								</div>
-								{logic.showPickWindowTiles ? (
-									<>
-										{/* Small grey line with the "N/N Toons" or "N/N Trinkets" button on
-									its right, above the tiles */}
-										<div className="team-drag-hint">
-											<span />
-											<button
-												disabled={logic.areOwnedPicturesButtonsDisabled}
-												title={logic.ownedPicturesButtonsTooltip}
-												onClick={logic.openOwnedPicturesWindowFromPickWindow}
-											>
-												{logic.pickWindowOwnedPicturesButtonText}
-											</button>
-										</div>
-										<div className="team-palette">
-											{logic.pickWindowTiles.map((tile) => tile.src ? (
-												<img
-													key={tile.key}
-													className="toon-or-trinket-picture"
-													src={tile.src}
-													title={tile.title}
-													data-chosen={tile.isChosen}
-													onClick={tile.pick}
-												/>
-											) : (
-												<div
-													key={tile.key}
-													className="team-text"
-													title={tile.title}
-													data-chosen={tile.isChosen}
-													onClick={tile.pick}
-												>
-													{tile.text}
-												</div>
-											))}
-										</div>
-									</>
-								) : (
-									<>
-										<button
-											id="team-pick-find-a-player"
-											onClick={logic.pickFindAPlayer}
-										>
-											{logic.pickWindowFindAPlayerButtonText}
-										</button>
-										<ReservedSlotsGroupBoxes
-											meChip={logic.reservedWindowMeChip}
-											showVerifiedFriends={logic.showReservedWindowVerifiedFriends}
-											verifiedFriendChips={logic.reservedWindowVerifiedFriendChips}
-											unverifiedFriendChips={logic.reservedWindowUnverifiedFriendChips}
-											copyInviteLinkButtonText={logic.copyInviteLinkButtonText}
-											copyInviteLink={logic.copyInviteLink}
-											addUnverifiedFriend={logic.addUnverifiedFriend}
-										/>
-									</>
-								)}
-							</ModalWindow>
+								rows={logic.teamTableRows}
+								showBadgesColumn={logic.isRobloxVerified}
+								showPlayerColumn
+								logic={logic}
+							/>
+							<TeamCards
+								id="team-cards"
+								rows={logic.teamTableRows}
+								showBadgesBox={logic.isRobloxVerified}
+								showPlayerBox
+							/>
 							{/* "Server link:" field with a "?", TEAM SETTINGS and Find Players, each on its own row */}
 							<style>{`
 							#team-form {
@@ -1739,139 +1754,10 @@ createRoot(document.getElementById('root')!).render(
 										</a>
 									</div>
 								)}
-								{/* Old-style etched group box titled "TEAM SETTINGS", with Dandy Run and Early Dyle on the
-							left and Region and Floor goal on the right */}
-								<style>{`
-								#team-settings {
-									display: grid;
-									grid-template-rows: auto auto;
-									grid-auto-flow: column;
-									justify-content: start;
-									gap: 6px 24px;
-									margin: 0;
-									padding: 6px 10px 10px;
-									border: 2px groove var(--bevel-light);
-								}
-								#team-settings legend {
-									padding: 0 4px;
-									font-weight: bold;
-								}
-								@media (max-width: 640px) {
-									#team-settings {
-										grid-template-rows: none;
-										grid-auto-flow: row;
-										justify-content: stretch;
-									}
-								}
-							`}</style>
-								<fieldset id="team-settings">
-									<legend>TEAM SETTINGS</legend>
-									{/* Column of two labeled Any / Yes / No dropdowns, Dandy Run and Early Dyle, that
-								explain themselves on hover */}
-									<style>{`
-									#team-dandy-run-and-early-dyle {
-										display: contents;
-									}
-									#team-dandy-run-and-early-dyle label {
-										cursor: help;
-									}
-								`}</style>
-									<div id="team-dandy-run-and-early-dyle">
-										<label title="Don't buy anything in Dandy's shop!!">
-											Dandy Run:
-											<select
-												value={logic.chosenDandyRunDropdownOption}
-												disabled={logic.areDandyRunAndEarlyDyleDropdownsLocked}
-												onChange={(event) => logic.chooseDandyRunDropdownOption(event.target.value)}
-											>
-												{logic.dandyRunAndEarlyDyleDropdownOptions.map((option) => (
-													<option key={option}>{option}</option>
-												))}
-											</select>
-										</label>
-										<label title={`Vote the special "TIME'S UP" card as soon as it appears`}>
-											Early Dyle:
-											<select
-												value={logic.chosenEarlyDyleDropdownOption}
-												disabled={logic.areDandyRunAndEarlyDyleDropdownsLocked}
-												onChange={(event) => logic.chooseEarlyDyleDropdownOption(event.target.value)}
-											>
-												{logic.dandyRunAndEarlyDyleDropdownOptions.map((option) => (
-													<option key={option}>{option}</option>
-												))}
-											</select>
-										</label>
-									</div>
-									{/* Column of two labeled dropdowns, Region and Floor goal, with the dropdowns lined
-								up on the right and equally wide */}
-									<style>{`
-									#team-region-and-floor-goal {
-										display: grid;
-										grid-row: span 2;
-										grid-template-columns: auto auto;
-										justify-content: space-between;
-										align-items: center;
-										gap: 6px 8px;
-									}
-									#team-region-and-floor-goal label {
-										display: contents;
-									}
-									#team-region-and-floor-goal select {
-										width: 100%;
-									}
-								`}</style>
-									<div id="team-region-and-floor-goal">
-										<label>
-											Region:
-											<select
-												value={logic.chosenRegionDropdownOption}
-												disabled={logic.areRegionAndFloorGoalDropdownsLocked}
-												onChange={(event) => logic.chooseRegionDropdownOption(event.target.value)}
-											>
-												{logic.regionDropdownOptions.map((option) => (
-													<option key={option}>{option}</option>
-												))}
-											</select>
-										</label>
-										{/* Floor goal as two dropdowns, "from" and "to" */}
-										<style>{`
-										#team-floor-goal-range {
-											display: grid;
-											grid-template-columns: 1fr auto 1fr;
-											align-items: center;
-											gap: 4px;
-										}
-									`}</style>
-										<label>
-											Floor goal:
-											<span id="team-floor-goal-range">
-												<select
-													value={logic.chosenFloorGoalFromDropdownOption}
-													disabled={logic.areRegionAndFloorGoalDropdownsLocked}
-													onChange={(event) => (
-														logic.chooseFloorGoalFromDropdownOption(event.target.value)
-													)}
-												>
-													{logic.floorGoalFromDropdownOptions.map((option) => (
-														<option key={option}>{option}</option>
-													))}
-												</select>
-												to
-												<select
-													value={logic.chosenFloorGoalToDropdownOption}
-													disabled={logic.areRegionAndFloorGoalDropdownsLocked}
-													onChange={(event) => (
-														logic.chooseFloorGoalToDropdownOption(event.target.value)
-													)}
-												>
-													{logic.floorGoalToDropdownOptions.map((option) => (
-														<option key={option}>{option}</option>
-													))}
-												</select>
-											</span>
-										</label>
-									</div>
-								</fieldset>
+								<TeamSettingsGroupBox
+									id="team-settings"
+									settings={logic.findATeamSettings}
+								/>
 								<div>
 									{/* Find Players button, greyed out with a tooltip while the team cannot search, followed
 									while searching by a spinner */}
@@ -1975,106 +1861,6 @@ createRoot(document.getElementById('root')!).render(
 									{logic.findingWithoutServerLinkHint}
 								</p>
 							</form>
-							{/* Window on top of Find a Team that says the team is found, with a Click to join server button
-						below the text, and the picture of everyone at the elevator sitting on
-						top of the window */}
-							<style>{`
-							#team-found {
-								max-width: 520px;
-								overflow: visible;
-								overflow-wrap: anywhere;
-							}
-							@media (max-width: 640px) {
-								#team-found {
-									max-width: calc(100vw - 16px);
-								}
-							}
-							#team-found img {
-								position: absolute;
-								bottom: 100%;
-								left: 50%;
-								translate: -50% 0;
-								width: 33%;
-								image-rendering: pixelated;
-							}
-							#team-found p {
-								margin: 4px 0 0;
-								text-align: center;
-							}
-							#team-found a {
-								color: var(--link);
-							}
-							#team-found #team-found-join {
-								display: block;
-								width: fit-content;
-								margin: 12px auto 8px;
-								padding: 4px 24px;
-								background: var(--window-face);
-								color: var(--window-text);
-								border: 2px solid;
-								border-color: var(--bevel-light) var(--bevel-dark) var(--bevel-dark)
-									var(--bevel-light);
-								box-shadow: inset -1px -1px var(--bevel-shadow);
-								font-weight: bold;
-								text-decoration: none;
-							}
-							#team-found #team-found-join:hover {
-								background: var(--button-hover);
-							}
-							#team-found #team-found-join:active {
-								border-color: var(--bevel-dark) var(--bevel-light) var(--bevel-light)
-									var(--bevel-dark);
-								box-shadow: none;
-								translate: 1px 1px;
-							}
-						`}</style>
-							<ModalWindow
-								id="team-found"
-								closedby="closerequest"
-								isOpen={logic.isTeamFoundWindowOpen}
-								close={logic.closeTeamFoundWindow}
-							>
-								{/* Picture of all of the toons waiting together at the elevator, above the window */}
-								<img
-									src="/pixelated/Everyone_at_elevator.webp"
-									alt="All of the toons waiting together at the elevator"
-								/>
-								{/* Title bar with Team found! and a grey × button that closes the window */}
-								<div className="window-title">
-									Team found!
-									<button
-										className="window-close"
-										aria-label="Close"
-										onClick={logic.closeTeamFoundWindow}
-									>
-										×
-									</button>
-								</div>
-								{/* Centered text that says who joined whose team, with the host's username as a
-							blue link to their Roblox profile */}
-								<p>
-									{logic.teamFoundText.beforeHost}
-									{logic.teamFoundText.host && (
-										<a
-											href={logic.teamFoundText.hostProfileLink}
-											target="_blank"
-											rel="noreferrer"
-										>
-											{logic.teamFoundText.host}
-										</a>
-									)}
-									{logic.teamFoundText.afterHost}
-								</p>
-								{/* Raised grey Click to join server button that opens the server in Roblox */}
-								<a
-									id="team-found-join"
-									href={logic.teamServerLink}
-									target="_blank"
-									rel="noreferrer"
-								>
-									Click to join server
-								</a>
-							</ModalWindow>
 							{/* Window on top of Find a Team with two screenshots that explain how to get a server link */}
 							<style>{`
 							#team-howto[open] {
@@ -2126,7 +1912,295 @@ createRoot(document.getElementById('root')!).render(
 								</div>
 							</ModalWindow>
 						</DesktopWindow>
-						{/* Upvote Players icon, third in the row */}
+						{/* Browse Teams icon, third in the row */}
+						<DesktopWindow
+							id="browse"
+							iconId="browse-icon"
+							title="Browse Teams"
+							image="/browse_teams.webp"
+							{...logic.browseTeamsWindow}
+						>
+							{/* Column of YOUR SLOT, TEAM SETTINGS and the team cards, where only the cards
+							scroll when the window is taller than the screen */}
+							<style>{`
+								#browse[open] {
+									max-height: 90vh;
+									display: flex;
+									flex-direction: column;
+									overflow: visible;
+								}
+								@media (max-width: 1320px) {
+									#browse[open] {
+										overflow: auto;
+									}
+								}
+								#browse-contents {
+									width: 600px;
+									max-width: 100%;
+									min-height: 0;
+									display: flex;
+									flex-direction: column;
+									gap: 8px;
+								}
+								#browse-contents p {
+									margin: 0;
+								}
+							`}</style>
+							<div id="browse-contents">
+								{/* Toons and Trinkets windows around this window */}
+								<ToonsAndTrinketsSideWindows
+									toonsWindowId="browse-toons"
+									trinketsWindowId="browse-trinkets"
+									sideWindowClass={logic.browseTeamsSideWindowClass}
+									showLeaveEmptyTile={false}
+									logic={logic}
+								/>
+								{/* YOUR SLOT as a table with one row, or as one card on a narrow screen, followed
+								by a small grey line about the badges */}
+								<TeamTable
+									id="browse-slot-table"
+									rows={logic.browseTeamsTableRows}
+									showBadgesColumn={false}
+									showPlayerColumn={false}
+									logic={logic}
+								/>
+								<TeamCards
+									id="browse-slot-cards"
+									rows={logic.browseTeamsTableRows}
+									showBadgesBox={false}
+									showPlayerBox={false}
+								/>
+								<style>{`
+									#browse-slot-badges {
+										color: var(--hint-text);
+										font-size: 11px;
+									}
+								`}</style>
+								<p id="browse-slot-badges">{logic.browseTeamsSlotBadgesText}</p>
+								<TeamSettingsGroupBox
+									id="browse-settings"
+									settings={logic.browseTeamsSettings}
+								/>
+								{logic.showBrowsedTeamCards && (
+									<>
+										<p>{logic.browseTeamsListText}</p>
+										{/* Scrolling column of white team cards, each with a row of toon pictures
+										above a row of small grey tags, which turn light grey on hover */}
+										<style>{`
+											#browse-cards {
+												min-height: 120px;
+												overflow-y: auto;
+												display: flex;
+												flex-direction: column;
+												gap: 6px;
+											}
+											.browse-card {
+												padding: 6px;
+												display: flex;
+												flex-direction: column;
+												gap: 4px;
+												background: var(--field);
+												color: var(--window-text);
+												border: 1px solid var(--table-line);
+												font: inherit;
+												text-align: left;
+												cursor: pointer;
+											}
+											.browse-card:hover {
+												background: var(--field-hover);
+											}
+											.browse-card-toons {
+												display: flex;
+												flex-wrap: wrap;
+												align-items: center;
+												gap: 4px;
+											}
+											.browse-card-toons img {
+												width: 40px;
+												height: 40px;
+											}
+											.browse-card-tags {
+												display: flex;
+												flex-wrap: wrap;
+												gap: 4px;
+											}
+											.browse-card-tags span {
+												padding: 0 4px;
+												background: var(--window-face);
+												border: 1px solid var(--table-line);
+											}
+										`}</style>
+										<div
+											id="browse-cards"
+											onScroll={(event) => logic.scrollBrowseTeamsList(
+												event.currentTarget.scrollTop + event.currentTarget.clientHeight
+													>= event.currentTarget.scrollHeight - 40,
+											)}
+										>
+											{logic.browsedTeamCards.map((card) => (
+												<button
+													key={card.key}
+													className="browse-card"
+													onClick={card.open}
+												>
+													<span className="browse-card-toons">
+														{card.toons.map((toon) => (toon.src
+															? (
+																<img
+																	key={toon.key}
+																	className="toon-or-trinket-picture"
+																	src={toon.src}
+																	title={toon.title}
+																/>
+															)
+															: (
+																<span
+																	key={toon.key}
+																	className="team-placeholder"
+																>
+																	{toon.anyText}
+																</span>
+															)))}
+													</span>
+													<span className="browse-card-tags">
+														{card.tags.map((tag) => <span key={tag}>{tag}</span>)}
+													</span>
+												</button>
+											))}
+											{logic.browseTeamsMoreText && (
+												<p className="team-placeholder">{logic.browseTeamsMoreText}</p>
+											)}
+										</div>
+									</>
+								)}
+								{logic.showOpenedBrowsedTeam && (
+									<>
+										{/* "← All teams" button that goes back to the cards */}
+										<style>{`
+											#browse-back {
+												align-self: flex-start;
+											}
+										`}</style>
+										<button
+											id="browse-back"
+											onClick={logic.closeOpenedBrowsedTeam}
+										>
+											← All teams
+										</button>
+										<p>{logic.openedBrowsedTeamText}</p>
+										{/* White read-only table of the team without its "(Leave Empty)" rows, with
+										Toon, Trinket A, Trinket B, Badges, Role and Player columns and grey
+										placeholders, which scrolls sideways on a narrow screen */}
+										<style>{`
+											#browse-team-table-scroll {
+												min-height: 0;
+												overflow: auto;
+											}
+											#browse-team-table {
+												border-collapse: collapse;
+												background: var(--field);
+											}
+											#browse-team-table th,
+											#browse-team-table td {
+												min-width: 60px;
+												height: 44px;
+												padding: 2px 6px;
+												border: 1px solid var(--table-line);
+												text-align: center;
+											}
+											#browse-team-table th {
+												height: 20px;
+												background: var(--window-face);
+											}
+											#browse-team-table img {
+												width: 40px;
+												height: 40px;
+												vertical-align: middle;
+											}
+										`}</style>
+										<div id="browse-team-table-scroll">
+											<table id="browse-team-table">
+												<thead>
+													<tr>
+														<th>Toon</th>
+														<th>Trinket A</th>
+														<th>Trinket B</th>
+														<th>Badges</th>
+														<th>Role</th>
+														<th>Player</th>
+													</tr>
+												</thead>
+												<tbody>
+													{logic.openedBrowsedTeamRows.map((row) => (
+														<tr key={row.key}>
+															{/* Toon or trinket picture, or a grey "(Any)" */}
+															{row.pictureCells.map((cell) => (
+																<td key={cell.key}>
+																	{cell.anyText && (
+																		<span className="team-placeholder">{cell.anyText}</span>
+																	)}
+																	{cell.picture && (
+																		<img
+																			className="toon-or-trinket-picture"
+																			src={cell.picture.src}
+																			title={cell.picture.title}
+																		/>
+																	)}
+																</td>
+															))}
+															{/* Badge names stacked in the cell, or a grey "(none required)" */}
+															<td>
+																{row.noBadgesText && (
+																	<span className="team-placeholder">{row.noBadgesText}</span>
+																)}
+																{row.badgeNames.map((name) => <div key={name}>{name}</div>)}
+															</td>
+															{/* Role names stacked in the cell, or a grey "(none required)" */}
+															<td>
+																{row.noRolesText && (
+																	<span className="team-placeholder">{row.noRolesText}</span>
+																)}
+																{row.roleNames.map((name) => <div key={name}>{name}</div>)}
+															</td>
+															{/* Grey name of the player who took the row, or "(Free slot)" */}
+															<td className="team-placeholder">{row.playerName}</td>
+														</tr>
+													))}
+												</tbody>
+											</table>
+										</div>
+										{/* Join button on the right, greyed out with a tooltip while the user cannot
+										join */}
+										<style>{`
+											#browse-join {
+												align-self: flex-end;
+											}
+										`}</style>
+										{logic.showBrowsedTeamJoinButton && (
+											<span
+												id="browse-join"
+												title={logic.browsedTeamJoinButtonTooltip}
+											>
+												<button
+													disabled={logic.isBrowsedTeamJoinButtonDisabled}
+													onClick={logic.toggleJoiningBrowsedTeam}
+												>
+													{logic.browsedTeamJoinButtonText}
+												</button>
+											</span>
+										)}
+									</>
+								)}
+								{/* Red line at the bottom when the server ended the join */}
+								<style>{`
+									#browse-error {
+										color: var(--error);
+									}
+								`}</style>
+								<p id="browse-error">{logic.browseTeamsError}</p>
+							</div>
+						</DesktopWindow>
+						{/* Upvote Players icon, fourth in the row */}
 						<DesktopWindow
 							id="upvote"
 							iconId="upvote-icon"
@@ -2354,7 +2428,7 @@ createRoot(document.getElementById('root')!).render(
 								)}
 							</div>
 						</DesktopWindow>
-						{/* This is a fan project icon, fourth in the row */}
+						{/* This is a fan project icon, fifth in the row */}
 						<DesktopWindow
 							id="fan-project"
 							iconId="fan-project-icon"
@@ -2364,7 +2438,7 @@ createRoot(document.getElementById('root')!).render(
 						>
 							<p>This project was made by fans for fans, and not made by Blushcrunch.</p>
 						</DesktopWindow>
-						{/* Contact/Report icon, fifth in the row */}
+						{/* Contact/Report icon, sixth in the row */}
 						<DesktopWindow
 							id="contact-report"
 							iconId="contact-report-icon"
@@ -2440,7 +2514,7 @@ createRoot(document.getElementById('root')!).render(
 								</div>
 							</form>
 						</DesktopWindow>
-						{/* Options icon, sixth in the row */}
+						{/* Options icon, seventh in the row */}
 						<DesktopWindow
 							id="options"
 							iconId="options-icon"
@@ -2507,7 +2581,7 @@ createRoot(document.getElementById('root')!).render(
 								))}
 							</fieldset>
 						</DesktopWindow>
-						{/* Reports icon, seventh in the row, which only the owner of the site sees */}
+						{/* Reports icon, eighth in the row, which only the owner of the site sees */}
 						{logic.showReportsIcon && (
 							<DesktopWindow
 								id="reports"
@@ -2563,6 +2637,336 @@ createRoot(document.getElementById('root')!).render(
 							</DesktopWindow>
 						)}
 					</div>
+					{/* Roles window in the middle of the screen, which a Role cell of Find a Team or YOUR
+					SLOT opens, with a checkbox for each role */}
+					<ChecklistWindow
+						id="team-roles"
+						title="Roles"
+						checkboxes={logic.rolesWindowCheckboxes}
+						isOpen={logic.isRolesWindowOpen}
+						close={logic.closeRolesWindow}
+						copyButtonText={logic.rolesWindowCopyButtonText}
+						pasteButtonText={logic.rolesWindowPasteButtonText}
+						isPasteDisabled={logic.isRolesWindowPasteDisabled}
+						onCopyClick={logic.copyRolesWindowNames}
+						onPasteClick={logic.pasteRolesWindowNames}
+					/>
+					{/* Pick window in the middle of the screen, which a box of a Find a Team or YOUR SLOT
+					card opens: Toons or Trinkets with a grid of picture tiles, where the tile that the box
+					holds has a navy frame, or Reserved Slots with "(Find a player)" above the group boxes
+					of the Reserved window */}
+					<style>{`
+						#team-pick .team-palette {
+							max-height: 60dvh;
+						}
+						#team-pick .team-palette > * {
+							cursor: pointer;
+						}
+						#team-pick .team-palette [data-chosen="true"] {
+							outline: 2px solid var(--title-bar);
+							outline-offset: -2px;
+						}
+						#team-pick-find-a-player {
+							width: 100%;
+							margin-bottom: 8px;
+						}
+					`}</style>
+					<ModalWindow
+						id="team-pick"
+						closedby="any"
+						isOpen={logic.isPickWindowOpen}
+						close={logic.closePickWindow}
+					>
+						<div className="window-title">
+							{logic.pickWindowTitle}
+							<button
+								className="window-close"
+								aria-label="Close"
+								onClick={logic.closePickWindow}
+							>
+								×
+							</button>
+						</div>
+						{logic.showPickWindowTiles ? (
+							<>
+								{/* Small grey line with the "N/N Toons" or "N/N Trinkets" button on its right,
+								above the tiles */}
+								<div className="team-drag-hint">
+									<span />
+									<button
+										disabled={logic.areOwnedPicturesButtonsDisabled}
+										title={logic.ownedPicturesButtonsTooltip}
+										onClick={logic.openOwnedPicturesWindowFromPickWindow}
+									>
+										{logic.pickWindowOwnedPicturesButtonText}
+									</button>
+								</div>
+								<div className="team-palette">
+									{logic.pickWindowTiles.map((tile) => tile.src ? (
+										<img
+											key={tile.key}
+											className="toon-or-trinket-picture"
+											src={tile.src}
+											title={tile.title}
+											data-chosen={tile.isChosen}
+											onClick={tile.pick}
+										/>
+									) : (
+										<div
+											key={tile.key}
+											className="team-text"
+											title={tile.title}
+											data-chosen={tile.isChosen}
+											onClick={tile.pick}
+										>
+											{tile.text}
+										</div>
+									))}
+								</div>
+							</>
+						) : (
+							<>
+								<button
+									id="team-pick-find-a-player"
+									onClick={logic.pickFindAPlayer}
+								>
+									{logic.pickWindowFindAPlayerButtonText}
+								</button>
+								<ReservedSlotsGroupBoxes
+									meChip={logic.reservedWindowMeChip}
+									showVerifiedFriends={logic.showReservedWindowVerifiedFriends}
+									verifiedFriendChips={logic.reservedWindowVerifiedFriendChips}
+									unverifiedFriendChips={logic.reservedWindowUnverifiedFriendChips}
+									copyInviteLinkButtonText={logic.copyInviteLinkButtonText}
+									copyInviteLink={logic.copyInviteLink}
+									addUnverifiedFriend={logic.addUnverifiedFriend}
+								/>
+							</>
+						)}
+					</ModalWindow>
+					{/* My Toons or My Trinkets window in the middle of the screen, which the "N/N" buttons
+					open, with a bold title above each category's grid of tiles. Every tile has a light grey
+					tint and is slightly see-through, with a big ✅ behind an owned tile's picture and a red
+					X behind a missing one's. */}
+					<style>{`
+						#team-owned-pictures-categories {
+							max-height: 70dvh;
+							overflow-y: auto;
+						}
+						.team-owned-pictures-category-title {
+							margin: 6px 0 2px;
+							font-weight: bold;
+						}
+						#team-owned-pictures .team-palette {
+							max-height: none;
+							overflow: visible;
+							grid-template-columns: repeat(6, 48px);
+						}
+						.team-owned-pictures-tile {
+							position: relative;
+							width: 48px;
+							height: 48px;
+						}
+						#team-owned-pictures .team-palette img {
+							cursor: pointer;
+						}
+						.team-owned-pictures-missing-mark {
+							position: absolute;
+							inset: 0;
+							pointer-events: none;
+						}
+						.team-owned-pictures-tile .toon-or-trinket-picture {
+							position: relative;
+							opacity: 0.6;
+							filter: grayscale(0.7) brightness(1.3);
+						}
+						.team-owned-pictures-owned-mark {
+							position: absolute;
+							inset: 0;
+							display: flex;
+							align-items: center;
+							justify-content: center;
+							font-size: 40px;
+							line-height: 1;
+							pointer-events: none;
+						}
+						#team-owned-pictures-show-all {
+							width: 100%;
+							margin-top: 6px;
+						}
+						#team-owned-pictures-show-all[aria-pressed="true"] {
+							border-style: solid;
+							border-color: var(--bevel-shadow) var(--bevel-light) var(--bevel-light) var(--bevel-shadow);
+							background: var(--field-hover);
+						}
+					`}</style>
+					<ModalWindow
+						id="team-owned-pictures"
+						closedby="any"
+						isOpen={logic.isOwnedPicturesWindowOpen}
+						close={logic.closeOwnedPicturesWindow}
+					>
+						{/* Title bar with a grey × button that closes the window */}
+						<div className="window-title">
+							{logic.ownedPicturesWindowTitle}
+							<button
+								className="window-close"
+								aria-label="Close"
+								onClick={logic.closeOwnedPicturesWindow}
+							>
+								×
+							</button>
+						</div>
+						{/* Small grey "Click to mark as missing or owned" line */}
+						<div className="team-drag-hint">{logic.ownedPicturesWindowHint}</div>
+						<div id="team-owned-pictures-categories">
+							{logic.ownedPicturesWindowCategories.map((category) => (
+								<div key={category.title}>
+									<div className="team-owned-pictures-category-title">
+										{category.title}
+									</div>
+									<div className="team-palette">
+										{category.tiles.map((tile) => (
+											<div
+												key={tile.name}
+												className="team-owned-pictures-tile"
+											>
+												{/* Red X behind a missing tile's picture */}
+												{tile.missingMarkSrc && (
+													<img
+														className="team-owned-pictures-missing-mark"
+														src={tile.missingMarkSrc}
+													/>
+												)}
+												{/* Big ✅ behind an owned tile's picture */}
+												{tile.ownedMark && (
+													<span className="team-owned-pictures-owned-mark">
+														{tile.ownedMark}
+													</span>
+												)}
+												<img
+													className="toon-or-trinket-picture"
+													src={tile.src}
+													title={tile.title}
+													data-missing={tile.isMissing}
+													onClick={tile.toggle}
+												/>
+											</div>
+										))}
+									</div>
+								</div>
+							))}
+						</div>
+						{/* Wide grey "Show all" button, which looks pressed in while the side window and the
+						pick window show every picture, missing ones too */}
+						<button
+							id="team-owned-pictures-show-all"
+							aria-pressed={logic.isOwnedPicturesWindowShowAllPressed}
+							onClick={logic.showAllOwnedPictures}
+						>
+							{logic.ownedPicturesWindowShowAllButtonText}
+						</button>
+					</ModalWindow>
+					{/* Window in the middle of the screen that says the team is found, with a Click to join
+					server button below the text, and the picture of everyone at the elevator sitting on top
+					of the window */}
+					<style>{`
+						#team-found {
+							max-width: 520px;
+							overflow: visible;
+							overflow-wrap: anywhere;
+						}
+						@media (max-width: 640px) {
+							#team-found {
+								max-width: calc(100vw - 16px);
+							}
+						}
+						#team-found img {
+							position: absolute;
+							bottom: 100%;
+							left: 50%;
+							translate: -50% 0;
+							width: 33%;
+							image-rendering: pixelated;
+						}
+						#team-found p {
+							margin: 4px 0 0;
+							text-align: center;
+						}
+						#team-found a {
+							color: var(--link);
+						}
+						#team-found #team-found-join {
+							display: block;
+							width: fit-content;
+							margin: 12px auto 8px;
+							padding: 4px 24px;
+							background: var(--window-face);
+							color: var(--window-text);
+							border: 2px solid;
+							border-color: var(--bevel-light) var(--bevel-dark) var(--bevel-dark)
+								var(--bevel-light);
+							box-shadow: inset -1px -1px var(--bevel-shadow);
+							font-weight: bold;
+							text-decoration: none;
+						}
+						#team-found #team-found-join:hover {
+							background: var(--button-hover);
+						}
+						#team-found #team-found-join:active {
+							border-color: var(--bevel-dark) var(--bevel-light) var(--bevel-light)
+								var(--bevel-dark);
+							box-shadow: none;
+							translate: 1px 1px;
+						}
+					`}</style>
+					<ModalWindow
+						id="team-found"
+						closedby="closerequest"
+						isOpen={logic.isTeamFoundWindowOpen}
+						close={logic.closeTeamFoundWindow}
+					>
+						{/* Picture of all of the toons waiting together at the elevator, above the window */}
+						<img
+							src="/pixelated/Everyone_at_elevator.webp"
+							alt="All of the toons waiting together at the elevator"
+						/>
+						{/* Title bar with Team found! and a grey × button that closes the window */}
+						<div className="window-title">
+							Team found!
+							<button
+								className="window-close"
+								aria-label="Close"
+								onClick={logic.closeTeamFoundWindow}
+							>
+								×
+							</button>
+						</div>
+						{/* Centered text that says who joined whose team, with the host's username as a blue
+						link to their Roblox profile */}
+						<p>
+							{logic.teamFoundText.beforeHost}
+							{logic.teamFoundText.host && (
+								<a
+									href={logic.teamFoundText.hostProfileLink}
+									target="_blank"
+									rel="noreferrer"
+								>
+									{logic.teamFoundText.host}
+								</a>
+							)}
+							{logic.teamFoundText.afterHost}
+						</p>
+						{/* Raised grey Click to join server button that opens the server in Roblox */}
+						<a
+							id="team-found-join"
+							href={logic.teamServerLink}
+							target="_blank"
+							rel="noreferrer"
+						>
+							Click to join server
+						</a>
+					</ModalWindow>
 					{/* Two white-on-black counters side by side at the bottom middle of the screen, or stacked in
 					the bottom left corner of a phone */}
 					<style>{`

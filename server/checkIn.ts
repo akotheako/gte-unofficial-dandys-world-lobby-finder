@@ -2,6 +2,7 @@ import type { QueryResult } from '@neondatabase/serverless'
 import { Hono } from 'hono'
 import { getSignedCookie } from 'hono/cookie'
 import { badgeCategories } from '../shared/badgeCategories.ts'
+import { browseTeamsJoinTableRows } from '../shared/browseTeamsJoinTableRows.ts'
 import { robloxServerLinkPattern } from '../shared/robloxServerLinkPattern.ts'
 import type {
 	CheckInAnswer,
@@ -35,6 +36,9 @@ type Team = {
 	is_searching: boolean
 	// Random id of the search that the page started with its last click on Find Players
 	search_id: string
+	// Host whose card the user joined in Browse Teams, which is the only team that the search
+	// merges with, or empty for a search of Find a Team
+	chosen_host_team_id: string
 	joined_team_id: string | null
 	// Status of the search's table as it was when every row of its merged team got a player, which
 	// ends the search. The check-ins answer with it from then on, so that a page that only checks in
@@ -177,7 +181,7 @@ function playersOf({
 // The team's own players can only take a row reserved for them, and players from other teams can
 // take any row that one of their own reserved rows fits, including a reserved row that the
 // team's own player does not end up in. An empty Toon or Trinket cell means "(Any)" on both sides,
-// and on a host's own row it only covers the pictures that the host has not marked as missing.
+// and a host never takes a row that asks for a picture that they marked as missing.
 function placePlayersInRows({
 	players,
 	team,
@@ -207,15 +211,17 @@ function placePlayersInRows({
 		return player.reservedRowIndexes.some((playerRowIndex) => {
 			const playerRow = playerRows[playerRowIndex]
 			const playerTrinkets = [playerRow.trinketAPicture, playerRow.trinketBPicture].filter(Boolean)
-			const missingTrinkets = [row.trinketAPicture, row.trinketBPicture]
-				.filter((trinket) => trinket && !playerTrinkets.includes(trinket))
+			const requiredTrinkets = [row.trinketAPicture, row.trinketBPicture].filter(Boolean)
+			const missingTrinkets = requiredTrinkets
+				.filter((trinket) => !playerTrinkets.includes(trinket))
+			// A player never fills a row that asks for a picture that they marked as missing, even
+			// when their own row names it
 			return (!row.toonPicture
-				|| row.toonPicture === playerRow.toonPicture
-				|| (!playerRow.toonPicture && !playerMissingToons.includes(row.toonPicture)))
-				// A player's empty trinket slot can take any trinket that the row asks for and that
-				// the player owns
+				|| ((row.toonPicture === playerRow.toonPicture || !playerRow.toonPicture)
+					&& !playerMissingToons.includes(row.toonPicture)))
+				// A player's empty trinket slot can take any trinket that the row asks for
 				&& missingTrinkets.length <= 2 - playerTrinkets.length
-				&& missingTrinkets.every((trinket) => !playerMissingTrinkets.includes(trinket))
+				&& requiredTrinkets.every((trinket) => !playerMissingTrinkets.includes(trinket))
 				&& row.roleNames.every((role) => playerRow.roleNames.includes(role))
 				// Badges only count for a verified player, since nobody can confirm the badges of
 				// an unverified one. A harder badge of the same category also counts, such as
@@ -245,6 +251,64 @@ function placePlayersInRows({
 		return false
 	}
 	return placePlayer(0) ? playersInRows : null
+}
+
+// Whether the players of a merged team all fit every table in it. A closed tab keeps its search
+// for up to 90 seconds, so the same verified player can search twice, and must not end up twice in
+// one team.
+function doPlayersFitMergedTeam({
+	mergedTeam,
+	players,
+	teamsById,
+}: {
+	mergedTeam: Team[]
+	players: TeamPlayer[]
+	teamsById: Map<string, Team>
+}) {
+	const verifiedUsernames = players.flatMap(({ playerInRow }) => (
+		'robloxUsername' in playerInRow && playerInRow.robloxUsername
+			? [playerInRow.robloxUsername]
+			: []
+	))
+	return new Set(verifiedUsernames).size === verifiedUsernames.length
+		&& mergedTeam.every((team) => placePlayersInRows({
+			players,
+			team,
+			teamsById,
+		}))
+}
+
+// TEAM SETTINGS on which two searches disagree, as the server log names them. Any agrees with
+// every choice, and two floor goals agree when their ranges share at least one floor.
+function teamSettingsDifferences({
+	teamA,
+	teamB,
+}: {
+	teamA: Pick<Team, 'dandy_run' | 'early_dyle' | 'region' | 'floor_goal'>
+	teamB: Pick<Team, 'dandy_run' | 'early_dyle' | 'region' | 'floor_goal'>
+}) {
+	// A floor goal reads "40 to 60", and "100+" counts as floor 101
+	const floorGoalRangeOf = (floorGoal: string) => {
+		const [from, to = from] = floorGoal.split(' to ').map((option) => (
+			parseInt(option) + (option.endsWith('+') ? 1 : 0)
+		))
+		return {
+			from,
+			to,
+		}
+	}
+	const floorGoalA = floorGoalRangeOf(teamA.floor_goal)
+	const floorGoalB = floorGoalRangeOf(teamB.floor_goal)
+	return [
+		teamA.dandy_run !== 'Any' && teamB.dandy_run !== 'Any'
+			&& teamA.dandy_run !== teamB.dandy_run && 'Dandy Run differs',
+		teamA.early_dyle !== 'Any' && teamB.early_dyle !== 'Any'
+			&& teamA.early_dyle !== teamB.early_dyle && 'Early Dyle differs',
+		(floorGoalA.from > floorGoalB.to || floorGoalB.from > floorGoalA.to)
+			&& `floor goals ${teamA.floor_goal} and ${teamB.floor_goal} share no floor`,
+		teamA.region !== 'Any' && teamB.region !== 'Any' && teamA.region !== teamB.region
+			&& 'Region differs',
+	].filter((difference) => typeof difference === 'string')
 }
 
 // Every open page checks in under its random page id every few seconds. The check-in counts the
@@ -298,6 +362,7 @@ checkIn.use(async (_c, next) => {
 		ALTER TABLE teams ADD COLUMN IF NOT EXISTS early_dyle text NOT NULL DEFAULT 'Any';
 		ALTER TABLE teams DROP COLUMN IF EXISTS is_dandy_run;
 		ALTER TABLE teams DROP COLUMN IF EXISTS is_early_dyle;
+		ALTER TABLE teams ADD COLUMN IF NOT EXISTS chosen_host_team_id text NOT NULL DEFAULT '';
 		-- Record of every team that got together, which Upvote Players shows
 		CREATE TABLE IF NOT EXISTS found_teams (
 			found_team_id text PRIMARY KEY,
@@ -344,9 +409,26 @@ checkIn.post('/', async (c) => {
 			floorGoal: string
 			isFindingPlayers: boolean
 			searchId: string
+			// Absent from a page that still runs an older version of the site
+			chosenHostTeamId?: string
 		} | null
 		// The invite link that the page was opened with
 		invite: { inviteCode: string } | null
+		// The user's slot and TEAM SETTINGS while Browse Teams is open, which pick the teams that it
+		// lists. Absent from a page that still runs an older version of the site.
+		browse?: {
+			toonPicture: string
+			trinketAPicture: string
+			trinketBPicture: string
+			roleNames: string[]
+			missingToons: string[]
+			missingTrinkets: string[]
+			dandyRun: string
+			earlyDyle: string
+			region: string
+			floorGoal: string
+			browsedTeamCount: number
+		} | null
 	}>()
 	const pageId = String(body.pageId)
 	const cookie = await getSignedCookie(c, cookieSecret, 'roblox')
@@ -473,6 +555,7 @@ checkIn.post('/', async (c) => {
 				floor_goal: String(sentTeam.floorGoal),
 				is_searching: Boolean(sentTeam.isFindingPlayers),
 				search_id: searchId,
+				chosen_host_team_id: String(sentTeam.chosenHostTeamId ?? ''),
 				joined_team_id: null,
 				found_status: null,
 				// now() is the time at which the transaction started, in both round trips
@@ -498,7 +581,8 @@ checkIn.post('/', async (c) => {
 					region,
 					floor_goal,
 					is_searching,
-					search_id
+					search_id,
+					chosen_host_team_id
 				)
 				VALUES (
 					${sqlLiteral(team.team_id)},
@@ -516,7 +600,8 @@ checkIn.post('/', async (c) => {
 					${sqlLiteral(team.region)},
 					${sqlLiteral(team.floor_goal)},
 					${team.is_searching},
-					${sqlLiteral(team.search_id)}
+					${sqlLiteral(team.search_id)},
+					${sqlLiteral(team.chosen_host_team_id)}
 				)
 				ON CONFLICT (team_id) DO UPDATE SET
 					invite_code = excluded.invite_code,
@@ -534,6 +619,7 @@ checkIn.post('/', async (c) => {
 					floor_goal = excluded.floor_goal,
 					is_searching = excluded.is_searching,
 					search_id = excluded.search_id,
+					chosen_host_team_id = excluded.chosen_host_team_id,
 					joined_team_id = NULL,
 					found_status = NULL,
 					started_at = now()
@@ -631,18 +717,15 @@ checkIn.post('/', async (c) => {
 		}))
 
 		const myTeam = teamsById.get(pageId)
-		// A floor goal reads "40 to 60", and "100+" counts as floor 101
-		const floorGoalRangeOf = (team: Team) => {
-			const [from, to = from] = team.floor_goal.split(' to ').map((option) => (
-				parseInt(option) + (option.endsWith('+') ? 1 : 0)
-			))
-			return {
-				from,
-				to,
-			}
-		}
+		// The chosen host of a Browse Teams join, or the host that it joined meanwhile
+		const finalChosenHostIdOf = (team: Team) => (
+			teamsById.get(team.chosen_host_team_id)?.joined_team_id ?? team.chosen_host_team_id
+		)
 		if (myTeam?.is_searching && !myTeam.joined_team_id && !myTeam.found_status) {
-			const myFloorGoal = floorGoalRangeOf(myTeam)
+			const chosenHost = teamsById.get(finalChosenHostIdOf(myTeam))
+			if (myTeam.chosen_host_team_id && (!chosenHost?.is_searching || chosenHost.found_status)) {
+				error = 'This team stopped searching or filled up'
+			}
 			// Search as the server log names it, such as "@name (1a2b3c4d)", with the start of its
 			// page id, since a host who did not verify has no name
 			const logNameOf = (team: Team) => (
@@ -674,17 +757,17 @@ checkIn.post('/', async (c) => {
 					|| other.joined_team_id
 					|| other.found_status
 				) continue
-				const otherFloorGoal = floorGoalRangeOf(other)
+				// A Browse Teams join only merges with the host that the user chose
+				if (myTeam.chosen_host_team_id && other !== chosenHost) continue
+				if (other.chosen_host_team_id && finalChosenHostIdOf(other) !== myTeam.team_id) continue
+				const isBrowseTeamsJoin = Boolean(
+					myTeam.chosen_host_team_id || other.chosen_host_team_id,
+				)
 				const differences = [
-					other.dandy_run !== 'Any' && myTeam.dandy_run !== 'Any'
-						&& other.dandy_run !== myTeam.dandy_run && 'Dandy Run differs',
-					other.early_dyle !== 'Any' && myTeam.early_dyle !== 'Any'
-						&& other.early_dyle !== myTeam.early_dyle && 'Early Dyle differs',
-					// The two floor goal ranges share at least one floor
-					(otherFloorGoal.from > myFloorGoal.to || myFloorGoal.from > otherFloorGoal.to)
-						&& `floor goals ${myTeam.floor_goal} and ${other.floor_goal} share no floor`,
-					other.region !== 'Any' && myTeam.region !== 'Any' && other.region !== myTeam.region
-						&& 'Region differs',
+					...teamSettingsDifferences({
+						teamA: myTeam,
+						teamB: other,
+					}),
 					!other.server_link && !myTeam.server_link && 'neither has a server link',
 					// Both teams want the same number of players, counting every row that is not
 					// "(Leave Empty)"
@@ -693,8 +776,8 @@ checkIn.post('/', async (c) => {
 						&& 'number of rows differs',
 					// The allowed upvote gap widens by one level for every 6 seconds that the older of
 					// the two searches has waited, and any gap fits after 60 seconds, so that two lone
-					// searches always match
-					(() => {
+					// searches always match. A user who chose the team in Browse Teams accepts any gap.
+					!isBrowseTeamsJoin && (() => {
 						const waitedSeconds = (transactionTime.getTime() - Math.min(
 							other.started_at.getTime(),
 							myTeam.started_at.getTime(),
@@ -706,6 +789,7 @@ checkIn.post('/', async (c) => {
 					console.log(`No merge of ${logNameOf(myTeam)} with ${logNameOf(other)}: ${
 						differences.join(', ')
 					}`)
+					if (myTeam.chosen_host_team_id) error = 'This team has no slot for you anymore'
 					continue
 				}
 				// The host is the search whose server link everyone uses, so it needs a link. The
@@ -727,23 +811,14 @@ checkIn.post('/', async (c) => {
 					})
 					.find(({
 						mergedTeam, players,
-					}) => {
-						// A closed tab keeps its search for up to 90 seconds, so the same verified
-						// player can search twice, and must not end up twice in one team
-						const verifiedUsernames = players.flatMap(({ playerInRow }) => (
-							'robloxUsername' in playerInRow && playerInRow.robloxUsername
-								? [playerInRow.robloxUsername]
-								: []
-						))
-						return new Set(verifiedUsernames).size === verifiedUsernames.length
-							&& mergedTeam.every((team) => placePlayersInRows({
-								players,
-								team,
-								teamsById,
-							}))
-					})
+					}) => doPlayersFitMergedTeam({
+						mergedTeam,
+						players,
+						teamsById,
+					}))
 				if (!merge) {
 					console.log(`No merge of ${logNameOf(myTeam)} with ${logNameOf(other)}: the players do not fit the rows, a verified player is in both, or the only side with a server link would have to join, while others already joined the other side`)
+					if (myTeam.chosen_host_team_id) error = 'This team has no slot for you anymore'
 					continue
 				}
 				console.log(`Merged ${logNameOf(merge.joiner)} into ${logNameOf(merge.host)}`)
@@ -836,6 +911,81 @@ checkIn.post('/', async (c) => {
 			)).length,
 		}
 
+		// Browse Teams lists the host that the user's join there chose, then every other search that
+		// another one could join, that agrees with the user's TEAM SETTINGS, and that still has a slot
+		// that the user fits once every player of its merged team has a row
+		const browse = body.browse
+		const browsedHosts: Team[] = []
+		let hasMoreBrowsedTeams = false
+		if (browse) {
+			const browsedTeamCount = Math.min(Number(browse.browsedTeamCount) || 0, 200)
+			const chosenHost = myTeam?.chosen_host_team_id
+				? teamsById.get(finalChosenHostIdOf(myTeam))
+				: undefined
+			if (chosenHost?.is_searching) browsedHosts.push(chosenHost)
+			for (const host of teams) {
+				if (
+					host === chosenHost
+					|| host.team_id === pageId
+					|| !host.is_searching
+					|| host.joined_team_id
+					|| host.found_status
+					|| host.chosen_host_team_id
+					|| !host.server_link
+					|| teamSettingsDifferences({
+						teamA: host,
+						teamB: {
+							dandy_run: String(browse.dandyRun),
+							early_dyle: String(browse.earlyDyle),
+							region: String(browse.region),
+							floor_goal: String(browse.floorGoal),
+						},
+					}).length
+				) continue
+				const userTeam: Team = {
+					team_id: pageId,
+					invite_code: '',
+					roblox_user_id: robloxAccount ? String(robloxAccount.id) : '',
+					roblox_username: robloxAccount?.username ?? '',
+					roblox_badge_names: ownedBadgeNames,
+					removed_roblox_usernames: [],
+					missing_toons: browse.missingToons.slice(0, 200).map(String),
+					missing_trinkets: browse.missingTrinkets.slice(0, 200).map(String),
+					team_table_rows: browseTeamsJoinTableRows({
+						browseTeamsSlot: {
+							toonPicture: String(browse.toonPicture),
+							trinketAPicture: String(browse.trinketAPicture),
+							trinketBPicture: String(browse.trinketBPicture),
+							roleNames: browse.roleNames.map(String),
+						},
+						rowCount: host.team_table_rows.filter((row) => !row.isLeftEmpty).length,
+					}),
+					server_link: '',
+					dandy_run: host.dandy_run,
+					early_dyle: host.early_dyle,
+					region: host.region,
+					floor_goal: host.floor_goal,
+					is_searching: true,
+					search_id: '',
+					chosen_host_team_id: host.team_id,
+					joined_team_id: host.team_id,
+					found_status: null,
+					started_at: transactionTime,
+				}
+				const mergedTeam = [...mergedTeamOf(host), userTeam]
+				if (!doPlayersFitMergedTeam({
+					mergedTeam,
+					players: allPlayersOf(mergedTeam),
+					teamsById: new Map(teamsById).set(pageId, userTeam),
+				})) continue
+				if (browsedHosts.length - (chosenHost?.is_searching ? 1 : 0) === browsedTeamCount) {
+					hasMoreBrowsedTeams = true
+					break
+				}
+				browsedHosts.push(host)
+			}
+		}
+
 		const shownTeam = invitingTeamId ? teamsById.get(invitingTeamId) : myTeam
 		const finalHost = shownTeam?.joined_team_id ? teamsById.get(shownTeam.joined_team_id) : shownTeam
 		const shownMergedTeam = finalHost ? mergedTeamOf(finalHost) : []
@@ -890,6 +1040,21 @@ checkIn.post('/', async (c) => {
 					teamServerLink: '',
 				},
 			} : null,
+			browsedTeams: browsedHosts.map((host) => ({
+				hostTeamId: host.team_id,
+				hostRobloxUsername: host.roblox_username,
+				dandyRun: host.dandy_run,
+				earlyDyle: host.early_dyle,
+				region: host.region,
+				floorGoal: host.floor_goal,
+				teamTableRows: host.team_table_rows,
+				playersInRows: (placePlayersInRows({
+					players: allPlayersOf(mergedTeamOf(host)),
+					team: host,
+					teamsById,
+				}) ?? []).map((player) => player?.playerInRow ?? null),
+			})),
+			hasMoreBrowsedTeams,
 		} satisfies CheckInAnswer)
 	} catch (error) {
 		await client.query('ROLLBACK')

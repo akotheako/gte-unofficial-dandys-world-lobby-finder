@@ -1,4 +1,5 @@
 import type { CheckInAnswer, TeamTableRow } from '../../shared/teamTypes.ts'
+import type { JoinedBrowsedTeam } from './useLogic.ts'
 
 export function checkInWithServer({
 	pageId,
@@ -13,6 +14,8 @@ export function checkInWithServer({
 	getSearchId,
 	getInviteFromLink,
 	getShownTeamStatus,
+	getJoinedBrowsedTeam,
+	getBrowseTeamsFilter,
 	setOnThisPageCount,
 	setFindingPlayersCount,
 	setInvitingTeam,
@@ -21,6 +24,10 @@ export function checkInWithServer({
 	setInviteFromLink,
 	setFindPlayersError,
 	setIsVerificationNeededToJoin,
+	setBrowsedTeams,
+	setHasMoreBrowsedTeams,
+	setJoinedBrowsedTeam,
+	setBrowseTeamsError,
 }: {
 	pageId: string
 	inviteCode: string
@@ -42,6 +49,21 @@ export function checkInWithServer({
 	getSearchId: () => string
 	getInviteFromLink: () => { inviteCode: string } | null
 	getShownTeamStatus: () => CheckInAnswer['shownTeamStatus']
+	getJoinedBrowsedTeam: () => JoinedBrowsedTeam | null
+	// null while Browse Teams is closed
+	getBrowseTeamsFilter: () => {
+		toonPicture: string
+		trinketAPicture: string
+		trinketBPicture: string
+		roleNames: string[]
+		missingToons: string[]
+		missingTrinkets: string[]
+		dandyRun: string
+		earlyDyle: string
+		region: string
+		floorGoal: string
+		browsedTeamCount: number
+	} | null
 	setOnThisPageCount: (onThisPageCount: number) => void
 	setFindingPlayersCount: (findingPlayersCount: number) => void
 	setInvitingTeam: (invitingTeam: CheckInAnswer['invitingTeam']) => void
@@ -50,6 +72,10 @@ export function checkInWithServer({
 	setInviteFromLink: (inviteFromLink: null) => void
 	setFindPlayersError: (findPlayersError: string) => void
 	setIsVerificationNeededToJoin: (isVerificationNeededToJoin: boolean) => void
+	setBrowsedTeams: (browsedTeams: CheckInAnswer['browsedTeams']) => void
+	setHasMoreBrowsedTeams: (hasMoreBrowsedTeams: boolean) => void
+	setJoinedBrowsedTeam: (joinedBrowsedTeam: null) => void
+	setBrowseTeamsError: (browseTeamsError: string) => void
 }) {
 	// The ids survive reloads, so a reloaded tab keeps its team and its friend's invite link
 	sessionStorage.setItem('pageId', pageId)
@@ -62,9 +88,29 @@ export function checkInWithServer({
 		const invite = getInviteFromLink()
 		const teamTableRows = getTeamTableRows()
 		const isFindingPlayers = getIsFindingPlayers()
-		// The server keeps the team while it searches, or once friends may open its invite link
-		const team = !invite && (isFindingPlayers || getIsInviteLinkCopied())
-			? {
+		const joinedBrowsedTeam = getJoinedBrowsedTeam()
+		const browse = getBrowseTeamsFilter()
+		// The server keeps the team while it searches, or once friends may open its invite link. A
+		// join in Browse Teams searches with its own one-slot table instead of the Find a Team one.
+		const team = (() => {
+			if (invite) return null
+			if (joinedBrowsedTeam) {
+				return {
+					teamTableRows: joinedBrowsedTeam.teamTableRows,
+					removedRobloxUsernames: [],
+					...getMissingPictures(),
+					inviteCode,
+					serverLink: '',
+					dandyRun: joinedBrowsedTeam.dandyRun,
+					earlyDyle: joinedBrowsedTeam.earlyDyle,
+					region: joinedBrowsedTeam.region,
+					floorGoal: joinedBrowsedTeam.floorGoal,
+					isFindingPlayers: true,
+					searchId: joinedBrowsedTeam.searchId,
+					chosenHostTeamId: joinedBrowsedTeam.hostTeamId,
+				}
+			}
+			return isFindingPlayers || getIsInviteLinkCopied() ? {
 				// Solar Support is crossed out on every row whose toon is not Bobette
 				teamTableRows: teamTableRows.map((row) => ({
 					...row,
@@ -80,8 +126,8 @@ export function checkInWithServer({
 				...getTeamSettings(),
 				isFindingPlayers,
 				searchId: getSearchId(),
-			}
-			: null
+			} : null
+		})()
 		const answer = await fetch('/api/check-in', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
@@ -89,6 +135,7 @@ export function checkInWithServer({
 				pageId,
 				team,
 				invite,
+				browse,
 			}),
 		})
 			.then((res) => res.ok ? res.json() as Promise<CheckInAnswer> : null)
@@ -106,24 +153,31 @@ export function checkInWithServer({
 				setShownTeamStatus(answer.shownTeamStatus)
 			}
 			setIsVerificationNeededToJoin(answer.isVerificationNeededToJoin)
+			setBrowsedTeams(answer.browsedTeams)
+			setHasMoreBrowsedTeams(answer.hasMoreBrowsedTeams)
 			if (answer.error) {
-				setFindPlayersError(answer.error)
 				if (invite) {
+					setFindPlayersError(answer.error)
 					history.replaceState(null, '', location.pathname)
 					setInviteFromLink(null)
+				} else if (joinedBrowsedTeam) {
+					setBrowseTeamsError(answer.error)
+					setJoinedBrowsedTeam(null)
 				} else {
+					setFindPlayersError(answer.error)
 					setIsFindingPlayers(false)
 				}
 			}
 		}
-		// Pages that take part in a team check in often, and the others only keep the counters fresh.
+		// Pages that take part in a team or keep Browse Teams open check in often, and the others
+		// only keep the counters fresh.
 		// Every check-in waits for a lock that all of them share, so the other pages wait longer the
 		// more pages are open, from 15 seconds up to 45 at 450 pages. The server counts a page as gone
 		// after 90 silent seconds, and hidden tabs fire their timers only once a minute, so the wait
 		// stays well under 60 seconds.
 		timeout = setTimeout(
 			checkIn,
-			team || invite ? 5_000 : Math.min(45_000, Math.max(15_000, lastOnThisPageCount * 100)),
+			team || invite || browse ? 5_000 : Math.min(45_000, Math.max(15_000, lastOnThisPageCount * 100)),
 		)
 	}
 	checkIn()

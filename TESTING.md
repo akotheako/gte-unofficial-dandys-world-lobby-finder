@@ -175,8 +175,8 @@ These checks need profiles A and B, and A is verified.
 - An empty link is allowed, and the search shows the grey line about searching without a server
   link.
 - The blue "?" opens the help window on top, with both pictures.
-- Dandy Run and Early Dyle show their tooltips, Dandy Run, Early Dyle and Region start on Any, and both
-  dropdowns of the Floor goal start on 25. The "from" dropdown never offers a floor above "to", and
+- Dandy Run and Early Dyle show their tooltips, Dandy Run, Early Dyle and Region start on Any, and the
+  Floor goal starts on 10 to 100+. The "from" dropdown never offers a floor above "to", and
   "to" never offers one below "from".
 - While it searches, the button reads "Finding Players (Click to Cancel)", the table, the link and
   TEAM SETTINGS are locked, rows without a player show "Finding player" with animated dots, the
@@ -203,8 +203,9 @@ These checks need two or three profiles that search at the same time.
   still merge within 60 seconds.
 - A player fits a row only when the toon and trinkets match, where "(Any)" matches anything on
   either side, and when they do every role that the row asks for.
-- An "(Any)" cell on a "Me" row does not match a toon or trinket that the user marked as missing
-  in My Toons or My Trinkets, while an "(Any)" cell on a friend's row still matches anything.
+- A "Me" row never takes a row that asks for a toon or trinket that the user marked as missing in
+  My Toons or My Trinkets, whether its own cell is "(Any)" or names that picture, while an "(Any)"
+  cell on a friend's row still matches anything.
 - A "Verified only" row rejects an unverified player, accepts a harder badge of the same category,
   such as Marathon Runner for Speed Walker, and rejects an easier one.
 - The search with a server link hosts, or the older search when both have one, and a search that
@@ -224,6 +225,32 @@ These checks need two or three profiles that search at the same time.
 - The spinner stops once every row is taken.
 - "looking for a team" drops when searches merge, and "online" drops about 90 seconds after a tab
   closes.
+
+## 9b. Browse Teams
+
+- The Browse Teams icon is third in the row, and its window opens with YOUR SLOT, TEAM SETTINGS and
+  "Looking for teams...".
+- The Toon and Trinket dropdowns of YOUR SLOT offer "(Any)" and only the owned pictures, show the
+  chosen picture beside them, and keep the slot after a reload.
+- TEAM SETTINGS of Browse Teams and of Find a Team are kept apart, and both survive a reload.
+- A card lists a searching team with a server link whose free slot the user fits, with its toons
+  and a tag for every TEAM SETTING that is not Any.
+- No card shows a team whose free slots need a toon that the user marked as missing, a role that the
+  slot does not do, or a badge that the user's verified account lacks, nor a team whose TEAM
+  SETTINGS disagree.
+- A card disappears within a few seconds once its team stops searching or fills up.
+- With more than 20 fitting teams, the list shows 20 with "Loading more teams..." at its end, and
+  scrolling to the end loads the rest.
+- Clicking a card shows "← All teams", the host and TEAM SETTINGS line, and the team's table with
+  "(Free slot)" on its free rows.
+- Join merges the user into that team only, greys out Find Players and locks YOUR SLOT and TEAM
+  SETTINGS, and "Team found!" opens once every row has a player, even while Find a Team is closed.
+- Closing "Team found!" ends the join and unlocks YOUR SLOT.
+- Clicking the button again while it waits cancels the join.
+- When the team stops searching or no longer has a slot for the user, a red line says so and the
+  join ends.
+- Join is greyed out with a tooltip while Find Players runs, while another join runs, and for an
+  invited friend.
 
 ## 10. Upvote Players
 

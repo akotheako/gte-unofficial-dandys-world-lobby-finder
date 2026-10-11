@@ -117,14 +117,14 @@ test.describe('with "Me" on the first row', () => {
 	})
 })
 
-test('TEAM SETTINGS start on Any and 25, with the Dandy Run and Early Dyle tooltips', async ({
+test('TEAM SETTINGS start on Any and 10 to 100+, with Dandy Run and Early Dyle tooltips', async ({
 	page,
 }) => {
 	await expect(page.locator('#team-settings select').first()).toHaveValue('Any')
 	await expect(page.locator('#team-settings select').nth(1)).toHaveValue('Any')
 	await expect(page.locator('#team-settings select').nth(2)).toHaveValue('Any')
-	await expect(page.locator('#team-settings select').nth(3)).toHaveValue('25')
-	await expect(page.locator('#team-settings select').nth(4)).toHaveValue('25')
+	await expect(page.locator('#team-settings select').nth(3)).toHaveValue('10')
+	await expect(page.locator('#team-settings select').nth(4)).toHaveValue('100+')
 	await expect(page.locator('#team-settings label', { hasText: 'Dandy Run' }))
 		.toHaveAttribute('title', 'Don\'t buy anything in Dandy\'s shop!!')
 	await expect(page.locator('#team-settings label', { hasText: 'Early Dyle' }))

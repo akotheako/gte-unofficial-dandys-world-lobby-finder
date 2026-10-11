@@ -43,12 +43,14 @@ import { pickInPickWindow } from './pickInPickWindow.ts'
 import { readSavedTeamTable } from './readSavedTeamTable.ts'
 import { removeFriendFromReservedWindow } from './removeFriendFromReservedWindow.ts'
 import { saveServerLinkField } from './saveServerLinkField.ts'
+import { scrollBrowseTeamsList } from './scrollBrowseTeamsList.ts'
 import { sendReport } from './sendReport.ts'
 import { saveTeamTable } from './saveTeamTable.ts'
 import { showAllOwnedPictures } from './showAllOwnedPictures.ts'
 import { tapFindATeamCardBox } from './tapFindATeamCardBox.ts'
 import { toggleBadgeCheckbox } from './toggleBadgeCheckbox.ts'
 import { toggleFindingPlayers } from './toggleFindingPlayers.ts'
+import { toggleJoiningBrowsedTeam } from './toggleJoiningBrowsedTeam.ts'
 import { toggleNotificationCheckbox } from './toggleNotificationCheckbox.ts'
 import { toggleOptionsCheckbox } from './toggleOptionsCheckbox.ts'
 import { toggleOwnedPictureTile } from './toggleOwnedPictureTile.ts'
@@ -71,8 +73,12 @@ export type RobloxBadge = {
 
 export type PictureColumn = 'toonPicture' | 'trinketAPicture' | 'trinketBPicture'
 
-// Box of a Find a Team card on a narrow screen whose pick window is open
+// Table of Find a Team, or the one-row table of YOUR SLOT in Browse Teams
+type TableRowsKey = 'teamTableRows' | 'browseTeamsTableRows'
+
+// Box of a Find a Team or YOUR SLOT card on a narrow screen whose pick window is open
 export type CardBoxInPickWindow = {
+	tableRowsKey: TableRowsKey
 	index: number
 	column: PictureColumn | 'reservedFor'
 }
@@ -80,6 +86,7 @@ export type CardBoxInPickWindow = {
 export type DesktopWindowName =
 	| 'Roblox Verification'
 	| 'Find a Team'
+	| 'Browse Teams'
 	| 'Upvote Players'
 	| 'This is a fan project'
 	| 'Contact/Report'
@@ -94,7 +101,29 @@ export type DraggedItem = {
 	fromTableCell: string
 }
 
-// Name of the player in a row of Find a Team or Upvote Players, or '' for an empty row
+// Options that the dropdowns of a TEAM SETTINGS group box show
+type TeamSettingsChosenOptions = {
+	dandyRun: string
+	earlyDyle: string
+	region: string
+	floorGoalFrom: string
+	floorGoalTo: string
+}
+
+// Team whose Join button the user clicked in Browse Teams, with the table that the join searches
+// with, while it waits for the team to fill up
+export type JoinedBrowsedTeam = {
+	hostTeamId: string
+	searchId: string
+	teamTableRows: TeamTableRow[]
+	dandyRun: string
+	earlyDyle: string
+	region: string
+	floorGoal: string
+}
+
+// Name of the player in a row of Find a Team, Browse Teams or Upvote Players, or '' for an empty
+// row
 function playerNameOf(playerInRow: PlayerInRow | null) {
 	if (!playerInRow) return ''
 	if ('robloxUsername' in playerInRow) {
@@ -168,6 +197,7 @@ export function useLogic() {
 		tableDragLandedOnTable: boolean
 		rowIndexInBadgesWindow: number
 		rowIndexInRolesWindow: number
+		tableRowsKeyInRolesWindow: TableRowsKey
 		// null while no pick window is open
 		cardBoxInPickWindow: CardBoxInPickWindow | null
 		// null until Copy is clicked in that window
@@ -186,6 +216,19 @@ export function useLogic() {
 		// null until the Reports window loaded them
 		reports: Report[] | null
 		reportsError: string
+		// YOUR SLOT, a table with one row that holds "Me"
+		browseTeamsTableRows: TeamTableRow[]
+		browseTeamsChosenSettings: TeamSettingsChosenOptions
+		// null until the first check-in after Browse Teams opened answers
+		browsedTeams: CheckInAnswer['browsedTeams'] | null
+		hasMoreBrowsedTeams: boolean
+		// How many cards Browse Teams asks the server for, which grows while the user scrolls
+		browsedTeamCount: number
+		// Card whose full table Browse Teams shows, or null for the list of cards
+		openedBrowsedHostTeamId: string | null
+		joinedBrowsedTeam: JoinedBrowsedTeam | null
+		// Red line below the Join button when the server ended the join
+		browseTeamsError: string
 	} => ({
 		verifiedRobloxAccount: null,
 		verificationEmojiCode: '',
@@ -258,6 +301,7 @@ export function useLogic() {
 		tableDragLandedOnTable: false,
 		rowIndexInBadgesWindow: 0,
 		rowIndexInRolesWindow: 0,
+		tableRowsKeyInRolesWindow: 'teamTableRows',
 		cardBoxInPickWindow: null,
 		copiedBadgeNames: null,
 		copiedRoleNames: null,
@@ -270,6 +314,31 @@ export function useLogic() {
 		reportStatusText: '',
 		reports: null,
 		reportsError: '',
+		browseTeamsTableRows: JSON.parse(localStorage.getItem('browseTeamsTableRows') ?? 'null') ?? [{
+			toonPicture: '',
+			trinketAPicture: '',
+			trinketBPicture: '',
+			badgeNames: [],
+			roleNames: [],
+			isVerifiedPlayerRequired: false,
+			reservedFor: 'me',
+			isLeftEmpty: false,
+		}],
+		browseTeamsChosenSettings: JSON.parse(
+			localStorage.getItem('browseTeamsSettings') ?? 'null',
+		) ?? {
+			dandyRun: 'Any',
+			earlyDyle: 'Any',
+			region: 'Any',
+			floorGoalFrom: '10',
+			floorGoalTo: '100+',
+		},
+		browsedTeams: null,
+		hasMoreBrowsedTeams: false,
+		browsedTeamCount: 20,
+		openedBrowsedHostTeamId: null,
+		joinedBrowsedTeam: null,
+		browseTeamsError: '',
 	}))
 
 	// Fills the Toons and Trinkets side windows with pictures
@@ -304,9 +373,19 @@ export function useLogic() {
 		}
 	}, [isRobloxVerified, setState])
 
-	// Keeps both counters at the bottom of the screen up to date, and keeps the team on the server
-	// in sync while it searches, once its invite link was copied, or while this page is an invited
-	// friend's. A change of any of those checks in again right away.
+	// Keeps both counters at the bottom of the screen up to date, keeps the team on the server in
+	// sync while it searches, once its invite link was copied, while this page is an invited
+	// friend's, or while it joins a team of Browse Teams, and keeps the cards of Browse Teams up to
+	// date while it is open. A change of any of those, or of what picks the cards, checks in again
+	// right away.
+	const isBrowseTeamsWindowOpen = state.openDesktopWindowName === 'Browse Teams'
+	const browseTeamsFilterText = JSON.stringify([
+		state.browseTeamsTableRows,
+		state.missingToons,
+		state.missingTrinkets,
+		state.browsedTeamCount,
+		state.browseTeamsChosenSettings,
+	])
 	useEffect(() => checkInWithServer({
 		pageId: getSyncState().pageId,
 		inviteCode: getSyncState().inviteCode,
@@ -330,6 +409,26 @@ export function useLogic() {
 		getSearchId: () => getSyncState().searchId,
 		getInviteFromLink: () => getSyncState().inviteFromLink,
 		getShownTeamStatus: () => getSyncState().shownTeamStatus,
+		getJoinedBrowsedTeam: () => getSyncState().joinedBrowsedTeam,
+		getBrowseTeamsFilter: () => (getSyncState().openDesktopWindowName === 'Browse Teams' ? {
+			toonPicture: getSyncState().browseTeamsTableRows[0].toonPicture,
+			trinketAPicture: getSyncState().browseTeamsTableRows[0].trinketAPicture,
+			trinketBPicture: getSyncState().browseTeamsTableRows[0].trinketBPicture,
+			// Solar Support is crossed out unless the toon is Bobette, as in Find a Team
+			roleNames: getSyncState().browseTeamsTableRows[0].roleNames.filter((role) => (
+				role !== 'Solar Support'
+				|| getSyncState().browseTeamsTableRows[0].toonPicture === 'bobette.png'
+			)),
+			missingToons: getSyncState().missingToons,
+			missingTrinkets: getSyncState().missingTrinkets,
+			dandyRun: getSyncState().browseTeamsChosenSettings.dandyRun,
+			earlyDyle: getSyncState().browseTeamsChosenSettings.earlyDyle,
+			region: getSyncState().browseTeamsChosenSettings.region,
+			floorGoal: `${getSyncState().browseTeamsChosenSettings.floorGoalFrom} to ${
+				getSyncState().browseTeamsChosenSettings.floorGoalTo
+			}`,
+			browsedTeamCount: getSyncState().browsedTeamCount,
+		} : null),
 		setOnThisPageCount: (onThisPageCount) => setState({ onThisPageCount }),
 		setFindingPlayersCount: (findingPlayersCount) => setState({ findingPlayersCount }),
 		setInvitingTeam: (invitingTeam) => setState({ invitingTeam }),
@@ -340,17 +439,36 @@ export function useLogic() {
 		setIsVerificationNeededToJoin: (isVerificationNeededToJoin) => setState({
 			isVerificationNeededToJoin,
 		}),
+		setBrowsedTeams: (browsedTeams) => setState({ browsedTeams }),
+		setHasMoreBrowsedTeams: (hasMoreBrowsedTeams) => setState({ hasMoreBrowsedTeams }),
+		setJoinedBrowsedTeam: (joinedBrowsedTeam) => setState({ joinedBrowsedTeam }),
+		setBrowseTeamsError: (browseTeamsError) => setState({ browseTeamsError }),
 	}), [
 		state.isFindingPlayers,
 		state.inviteFromLink,
 		state.isInviteLinkCopied,
+		state.joinedBrowsedTeam,
+		isBrowseTeamsWindowOpen,
+		browseTeamsFilterText,
 		getSyncState,
 		setState,
 	])
-	const {
-		invitingTeam,
-		shownTeamStatus,
-	} = state
+
+	// Remembers the slot and the TEAM SETTINGS of Browse Teams across reloads
+	// mutateState keeps the rows array's identity while editing its row, so the row is compared
+	// as text
+	const browseTeamsTableRowsText = JSON.stringify(state.browseTeamsTableRows)
+	useEffect(() => localStorage.setItem(
+		'browseTeamsTableRows',
+		browseTeamsTableRowsText,
+	), [browseTeamsTableRowsText])
+	useEffect(() => localStorage.setItem(
+		'browseTeamsSettings',
+		JSON.stringify(state.browseTeamsChosenSettings),
+	), [state.browseTeamsChosenSettings])
+	const { invitingTeam } = state
+	// A join in Browse Teams gets the status of its own one-slot table, which Find a Team leaves out
+	const shownTeamStatus = state.joinedBrowsedTeam ? null : state.shownTeamStatus
 	const isInvitedFriend = Boolean(state.inviteFromLink)
 	// An invited friend only watches the team, and a searching team cannot change. The search of
 	// a found team ends on the server, while the page keeps it running until "Team found!" closes,
@@ -383,7 +501,7 @@ export function useLogic() {
 
 	// Opens the team found window as soon as the server link of the team arrives, together with the
 	// Ding!, the flashing tab, the notification and the automatic join that Options turned on
-	const teamServerLink = shownTeamStatus?.teamServerLink ?? ''
+	const teamServerLink = state.shownTeamStatus?.teamServerLink ?? ''
 	useEffect(() => {
 		if (!teamServerLink) return
 		setState({ isTeamFoundWindowOpen: true })
@@ -426,7 +544,11 @@ export function useLogic() {
 		})
 	}
 
-	// A tap on a tile or a name of the pick window that a Find a Team card box opened
+	// A tap on a tile or a name of the pick window that a Find a Team or YOUR SLOT card box opened,
+	// which fills the table of that box
+	const tableRowsKeyInPickWindow = () => (
+		getSyncState().cardBoxInPickWindow?.tableRowsKey ?? 'teamTableRows'
+	)
 	const pick = (pick: {
 		kind: 'picture' | 'leave-empty' | 'reserved-for'
 		name: string
@@ -435,45 +557,108 @@ export function useLogic() {
 		getRowPicture: ({
 			index,
 			column,
-		}) => getSyncState().teamTableRows[index][column],
+		}) => getSyncState()[tableRowsKeyInPickWindow()][index][column],
 		setPicture: ({
 			index,
 			column,
 			picture,
 		}) => mutateState((state) => {
-			state.teamTableRows[index][column] = picture
+			state[tableRowsKeyInPickWindow()][index][column] = picture
 		}),
 		setIsLeftEmpty: (index) => mutateState((state) => {
-			state.teamTableRows[index].isLeftEmpty = true
+			state[tableRowsKeyInPickWindow()][index].isLeftEmpty = true
 		}),
 		setReservedFor: ({
 			index,
 			reservedFor,
 		}) => mutateState((state) => {
-			state.teamTableRows[index].reservedFor = reservedFor
+			state[tableRowsKeyInPickWindow()][index].reservedFor = reservedFor
 		}),
 		setCardBoxInPickWindow: (cardBoxInPickWindow) => setState({ cardBoxInPickWindow }),
 		pick,
 	})
 
-	const floorGoalDropdownOptions = [
-		'10',
-		'20',
-		'25',
-		'30',
-		'40',
-		'50',
-		'60',
-		'70',
-		'80',
-		'90',
-		'100',
-		'100+',
-	]
-	// The server sends an inviting team's floor goal as "40 to 60"
-	const [chosenFloorGoalFromDropdownOption, chosenFloorGoalToDropdownOption] = invitingTeam
-		? invitingTeam.floorGoal.split(' to ')
-		: [state.chosenFloorGoalFromDropdownOption, state.chosenFloorGoalToDropdownOption]
+	// "TEAM SETTINGS" group box of Find a Team and of Browse Teams, which each keep their own chosen
+	// options: Dandy Run and Early Dyle in the left column, where Any matches a team with either
+	// choice, and Region and Floor goal in the right column
+	const teamSettingsGroupBoxOf = ({
+		areDropdownsLocked,
+		chosenOptions,
+		chooseOption,
+	}: {
+		areDropdownsLocked: boolean
+		chosenOptions: TeamSettingsChosenOptions
+		chooseOption: (choice: {
+			setting: keyof TeamSettingsChosenOptions
+			chosenOption: string
+		}) => void
+	}) => {
+		const floorGoalDropdownOptions = [
+			'10',
+			'20',
+			'25',
+			'30',
+			'40',
+			'50',
+			'60',
+			'70',
+			'80',
+			'90',
+			'100',
+			'100+',
+		]
+		return {
+			areDropdownsLocked,
+			dandyRunAndEarlyDyleDropdownOptions: [
+				'Any',
+				'Yes',
+				'No',
+			],
+			chosenDandyRunDropdownOption: chosenOptions.dandyRun,
+			chooseDandyRunDropdownOption: (chosenOption: string) => chooseOption({
+				setting: 'dandyRun',
+				chosenOption,
+			}),
+			chosenEarlyDyleDropdownOption: chosenOptions.earlyDyle,
+			chooseEarlyDyleDropdownOption: (chosenOption: string) => chooseOption({
+				setting: 'earlyDyle',
+				chosenOption,
+			}),
+			regionDropdownOptions: [
+				'Any',
+				'Africa',
+				'Asia',
+				'Europe',
+				'North America',
+				'South America',
+				'Oceania',
+			],
+			chosenRegionDropdownOption: chosenOptions.region,
+			chooseRegionDropdownOption: (chosenOption: string) => chooseOption({
+				setting: 'region',
+				chosenOption,
+			}),
+			// Each dropdown of the Floor goal offers only the floors that keep "from" at or below "to"
+			floorGoalFromDropdownOptions: floorGoalDropdownOptions.slice(
+				0,
+				floorGoalDropdownOptions.indexOf(chosenOptions.floorGoalTo) + 1,
+			),
+			chosenFloorGoalFromDropdownOption: chosenOptions.floorGoalFrom,
+			chooseFloorGoalFromDropdownOption: (chosenOption: string) => chooseOption({
+				setting: 'floorGoalFrom',
+				chosenOption,
+			}),
+			floorGoalToDropdownOptions: floorGoalDropdownOptions.slice(
+				floorGoalDropdownOptions.indexOf(chosenOptions.floorGoalFrom),
+			),
+			chosenFloorGoalToDropdownOption: chosenOptions.floorGoalTo,
+			chooseFloorGoalToDropdownOption: (chosenOption: string) => chooseOption({
+				setting: 'floorGoalTo',
+				chosenOption,
+			}),
+		}
+	}
+
 
 	// Pictures that the side windows and the pick windows leave out
 	const hiddenToons = state.isShowingAllToons ? [] : state.missingToons
@@ -630,9 +815,10 @@ export function useLogic() {
 			state.trinketsWindowPictures.filter((name) => !state.missingTrinkets.includes(name)).length
 		}/${state.trinketsWindowPictures.length} Trinkets`,
 		openOwnedTrinketsWindow: () => setState({ openOwnedPicturesWindowKind: 'trinket' }),
-		// The "N/N" buttons are greyed out, with this tooltip, while a search runs
-		areOwnedPicturesButtonsDisabled: state.isFindingPlayers,
-		ownedPicturesButtonsTooltip: state.isFindingPlayers
+		// The "N/N" buttons are greyed out, with this tooltip, while a search or a join of Browse
+		// Teams runs
+		areOwnedPicturesButtonsDisabled: state.isFindingPlayers || Boolean(state.joinedBrowsedTeam),
+		ownedPicturesButtonsTooltip: state.isFindingPlayers || state.joinedBrowsedTeam
 			? 'Cancel the search to change which toons and trinkets you own'
 			: '',
 
@@ -1067,14 +1253,15 @@ export function useLogic() {
 		].map((name) => ({
 			name,
 			hasLineAbove: false,
-			isChecked: state.teamTableRows[state.rowIndexInRolesWindow].roleNames.includes(name),
+			isChecked: state[state.tableRowsKeyInRolesWindow][state.rowIndexInRolesWindow].roleNames
+				.includes(name),
 			isGreyedOut: false,
 			toggleCheckbox: (isChecked: boolean) => toggleRoleCheckbox({
-				getRoleNames: () => (
-					getSyncState().teamTableRows[getSyncState().rowIndexInRolesWindow].roleNames
-				),
+				getRoleNames: () => getSyncState()[getSyncState().tableRowsKeyInRolesWindow][
+					getSyncState().rowIndexInRolesWindow
+				].roleNames,
 				setRoleNames: (roleNames) => mutateState((state) => {
-					state.teamTableRows[state.rowIndexInRolesWindow].roleNames = roleNames
+					state[state.tableRowsKeyInRolesWindow][state.rowIndexInRolesWindow].roleNames = roleNames
 				}),
 				isChecked,
 				name,
@@ -1091,7 +1278,7 @@ export function useLogic() {
 		),
 		isRolesWindowPasteDisabled: !state.copiedRoleNames,
 		copyRolesWindowNames: () => copyChecklistNames({
-			checkedNames: state.teamTableRows[state.rowIndexInRolesWindow].roleNames,
+			checkedNames: state[state.tableRowsKeyInRolesWindow][state.rowIndexInRolesWindow].roleNames,
 			setCopiedNames: (copiedRoleNames) => setState({ copiedRoleNames }),
 			setConfirmedButton: (rolesWindowConfirmedButton) => setState({
 				rolesWindowConfirmedButton,
@@ -1100,7 +1287,7 @@ export function useLogic() {
 		pasteRolesWindowNames: () => pasteChecklistNames({
 			copiedNames: state.copiedRoleNames ?? [],
 			setCheckedNames: (roleNames) => mutateState((state) => {
-				state.teamTableRows[state.rowIndexInRolesWindow].roleNames = roleNames
+				state[state.tableRowsKeyInRolesWindow][state.rowIndexInRolesWindow].roleNames = roleNames
 			}),
 			setConfirmedButton: (rolesWindowConfirmedButton) => setState({
 				rolesWindowConfirmedButton,
@@ -1112,7 +1299,7 @@ export function useLogic() {
 		// window. Its ×, Esc, a click outside it and every pick close it.
 		...(() => {
 			const cardBox = state.cardBoxInPickWindow
-			const chosenName = cardBox ? state.teamTableRows[cardBox.index][cardBox.column] : ''
+			const chosenName = cardBox ? state[cardBox.tableRowsKey][cardBox.index][cardBox.column] : ''
 			const isToonBox = cardBox?.column === 'toonPicture'
 			const pictureFolder = isToonBox ? 'toons' : 'trinkets'
 			return {
@@ -1136,8 +1323,8 @@ export function useLogic() {
 				openOwnedPicturesWindowFromPickWindow: () => setState({
 					openOwnedPicturesWindowKind: isToonBox ? 'toon' : 'trinket',
 				}),
-				// "(Any)" and, for a Toon box, "(Leave Empty)" come before the pictures. The tile that
-				// the box holds has a navy frame.
+				// "(Any)" and, for a Toon box of Find a Team, "(Leave Empty)" come before the pictures.
+				// The tile that the box holds has a navy frame.
 				pickWindowTiles: [
 					{
 						key: '(Any)',
@@ -1150,7 +1337,7 @@ export function useLogic() {
 							name: '',
 						}),
 					},
-					...isToonBox ? [{
+					...isToonBox && cardBox?.tableRowsKey === 'teamTableRows' ? [{
 						key: '(Leave Empty)',
 						text: '(Leave Empty)',
 						src: '',
@@ -1186,279 +1373,308 @@ export function useLogic() {
 		// A drag from the table that ends anywhere else empties its cell
 		landDragOnTable: () => setState({ tableDragLandedOnTable: true }),
 
-		// Rows of the white table in the middle of Find a Team
-		teamTableRows: shownTeamTableRows.map((row, index) => ({
-			key: index,
+		...(() => {
+			// Rows of a white table, and the cards that replace them on a narrow screen
+			const tableRowsOf = ({
+				tableRowsKey,
+				rows,
+				isTableLocked,
+				getIsTableLocked,
+				cardTitleOf,
+			}: {
+				tableRowsKey: TableRowsKey
+				rows: TeamTableRow[]
+				isTableLocked: boolean
+				getIsTableLocked: () => boolean
+				cardTitleOf: (index: number) => string
+			}) => rows.map((row, index) => ({
+				key: index,
 
-			// Dropping "(Leave Empty)" anywhere on the row
-			canDropLeaveEmptyOnRow: !isTableLocked && state.draggedItem?.kind === 'leave-empty',
-			leaveRowEmpty: () => leaveRowEmpty({
-				getDraggedItem: () => getSyncState().draggedItem,
-				setIsLeftEmpty: (isLeftEmpty) => mutateState((state) => {
-					state.teamTableRows[index].isLeftEmpty = isLeftEmpty
+				// Dropping "(Leave Empty)" anywhere on the row
+				canDropLeaveEmptyOnRow: !isTableLocked && state.draggedItem?.kind === 'leave-empty',
+				leaveRowEmpty: () => leaveRowEmpty({
+					getDraggedItem: () => getSyncState().draggedItem,
+					setIsLeftEmpty: (isLeftEmpty) => mutateState((state) => {
+						state[tableRowsKey][index].isLeftEmpty = isLeftEmpty
+					}),
 				}),
-			}),
 
-			// Grey "(Leave Empty)" cell that spans the whole row and clears when clicked
-			isLeftEmpty: row.isLeftEmpty,
-			leaveEmptyCellColSpan: isRobloxVerified ? 6 : 5,
-			leaveEmptyCellClass: isTableLocked
-				? 'team-disabled'
-				: 'team-disabled team-clickable',
-			undoLeaveRowEmpty: () => undoLeaveRowEmpty({
-				getIsTableLocked: () => (
-					getSyncState().isFindingPlayers || Boolean(getSyncState().inviteFromLink)
+				// Grey "(Leave Empty)" cell that spans the whole row and clears when clicked
+				isLeftEmpty: row.isLeftEmpty,
+				leaveEmptyCellColSpan: isRobloxVerified ? 6 : 5,
+				leaveEmptyCellClass: isTableLocked
+					? 'team-disabled'
+					: 'team-disabled team-clickable',
+				undoLeaveRowEmpty: () => undoLeaveRowEmpty({
+					getIsTableLocked,
+					setIsLeftEmpty: (isLeftEmpty) => mutateState((state) => {
+						state[tableRowsKey][index].isLeftEmpty = isLeftEmpty
+					}),
+				}),
+				// Dropping a toon or trinket on the "(Leave Empty)" cell
+				canDropPictureOnLeftEmptyRow: !isTableLocked && (
+					state.draggedItem?.kind === 'toon' || state.draggedItem?.kind === 'trinket'
 				),
-				setIsLeftEmpty: (isLeftEmpty) => mutateState((state) => {
-					state.teamTableRows[index].isLeftEmpty = isLeftEmpty
+				dropPictureOnLeftEmptyRow: () => dropPictureOnLeftEmptyRow({
+					getDraggedItem: () => getSyncState().draggedItem,
+					getRowPicture: (column) => getSyncState()[tableRowsKey][index][column],
+					setIsLeftEmpty: (isLeftEmpty) => mutateState((state) => {
+						state[tableRowsKey][index].isLeftEmpty = isLeftEmpty
+					}),
+					setPicture: ({
+						column, name,
+					}) => mutateState((state) => {
+						state[tableRowsKey][index][column] = name
+					}),
+					setTableDragLandedInAnotherCell: (tableDragLandedInAnotherCell) => setState({
+						tableDragLandedInAnotherCell,
+					}),
 				}),
-			}),
-			// Dropping a toon or trinket on the "(Leave Empty)" cell
-			canDropPictureOnLeftEmptyRow: !isTableLocked && (
-				state.draggedItem?.kind === 'toon' || state.draggedItem?.kind === 'trinket'
-			),
-			dropPictureOnLeftEmptyRow: () => dropPictureOnLeftEmptyRow({
-				getDraggedItem: () => getSyncState().draggedItem,
-				getRowPicture: (column) => getSyncState().teamTableRows[index][column],
-				setIsLeftEmpty: (isLeftEmpty) => mutateState((state) => {
-					state.teamTableRows[index].isLeftEmpty = isLeftEmpty
-				}),
-				setPicture: ({
-					column, name,
-				}) => mutateState((state) => {
-					state.teamTableRows[index][column] = name
-				}),
-				setTableDragLandedInAnotherCell: (tableDragLandedInAnotherCell) => setState({
-					tableDragLandedInAnotherCell,
-				}),
-			}),
 
-			// Toon, Trinket A and Trinket B cells, the first three columns of the row
-			pictureCells: (['toonPicture', 'trinketAPicture', 'trinketBPicture'] as const)
-				.map((column) => ({
-					column,
-					canDropPictureOnCell: !isTableLocked
-						&& state.draggedItem?.kind === (column === 'toonPicture' ? 'toon' : 'trinket'),
-					dropPictureOnCell: () => dropPictureOnCell({
-						getDraggedItem: () => getSyncState().draggedItem,
-						getRowPicture: (rowColumn) => getSyncState().teamTableRows[index][rowColumn],
-						setPicture: (picture) => mutateState((state) => {
-							state.teamTableRows[index][column] = picture
-						}),
-						setTableDragLandedInAnotherCell: (tableDragLandedInAnotherCell) => setState({
-							tableDragLandedInAnotherCell,
-						}),
-						index,
+				// Toon, Trinket A and Trinket B cells, the first three columns of the row
+				pictureCells: (['toonPicture', 'trinketAPicture', 'trinketBPicture'] as const)
+					.map((column) => ({
 						column,
-					}),
-
-					// Toon or Trinket box of the row's card on a narrow screen, which opens the Toons or
-					// Trinkets pick window when tapped
-					cardBoxLabel: {
-						toonPicture: 'Toon',
-						trinketAPicture: 'Trinket A',
-						trinketBPicture: 'Trinket B',
-					}[column],
-					cardBoxClass: isTableLocked
-						? 'team-card-box team-card-picture-box'
-						: 'team-card-box team-card-picture-box team-clickable',
-					tapCardBox: () => tapFindATeamCardBox({
-						getIsTableLocked: () => (
-							getSyncState().isFindingPlayers || Boolean(getSyncState().inviteFromLink)
-						),
-						setCardBoxInPickWindow: (cardBoxInPickWindow) => setState({ cardBoxInPickWindow }),
-						cardBox: {
-							index,
-							column,
-						},
-					}),
-
-					// Grey "(Any)" text in an empty Toon or Trinket cell
-					anyText: row[column] ? '' : '(Any)',
-
-					// Picture inside the cell, which drags to another cell or out of the table to
-					// clear it
-					picture: row[column] ? {
-						src: `/pixelated/${column === 'toonPicture' ? 'toons' : 'trinkets'}/${row[column]}`,
-						title: row[column].replace('.png', ''),
-						draggable: !isTableLocked,
-						dragPictureFromTable: () => dragPictureFromTable({
-							getPicture: () => getSyncState().teamTableRows[index][column],
-							setDraggedItem: (draggedItem) => setState({ draggedItem }),
-							index,
-							column,
-						}),
-						endPictureDragFromTable: () => endPictureDragFromTable({
-							getTableDragLandedInAnotherCell: () => (
-								getSyncState().tableDragLandedInAnotherCell
-							),
-							getTableDragLandedOnTable: () => getSyncState().tableDragLandedOnTable,
-							setTableDragLandedInAnotherCell: (tableDragLandedInAnotherCell) => (
-								setState({ tableDragLandedInAnotherCell })
-							),
-							setTableDragLandedOnTable: (tableDragLandedOnTable) => (
-								setState({ tableDragLandedOnTable })
-							),
-							setDraggedItem: (draggedItem) => setState({ draggedItem }),
+						canDropPictureOnCell: !isTableLocked
+						&& state.draggedItem?.kind === (column === 'toonPicture' ? 'toon' : 'trinket'),
+						dropPictureOnCell: () => dropPictureOnCell({
+							getDraggedItem: () => getSyncState().draggedItem,
+							getRowPicture: (rowColumn) => getSyncState()[tableRowsKey][index][rowColumn],
 							setPicture: (picture) => mutateState((state) => {
-								state.teamTableRows[index][column] = picture
+								state[tableRowsKey][index][column] = picture
 							}),
+							setTableDragLandedInAnotherCell: (tableDragLandedInAnotherCell) => setState({
+								tableDragLandedInAnotherCell,
+							}),
+							index,
+							column,
 						}),
-					} : null,
-				})),
 
-			// Badges and Role cells, which open their window in the middle of the screen when clicked
-			badgesAndRoleCellClass: isTableLocked ? '' : 'team-clickable',
-			// Every box of the row's card on a narrow screen, which reacts to a tap while the table
-			// is unlocked
-			cardBoxClass: isTableLocked ? 'team-card-box' : 'team-card-box team-clickable',
-			// Title above the row's card
-			cardTitle: `Player Slot #${index + 1}`,
-			leftEmptyCardBoxClass: isTableLocked
-				? 'team-card-box team-card-left-empty'
-				: 'team-card-box team-card-left-empty team-clickable',
-			openBadgesWindow: () => openBadgesOrRolesWindow({
-				getIsTableLocked: () => (
-					getSyncState().isFindingPlayers || Boolean(getSyncState().inviteFromLink)
-				),
-				setRowIndexInWindow: (rowIndexInBadgesWindow) => setState({ rowIndexInBadgesWindow }),
-				setIsWindowOpen: (isBadgesWindowOpen) => setState({ isBadgesWindowOpen }),
-				index,
-			}),
-			openRolesWindow: () => openBadgesOrRolesWindow({
-				getIsTableLocked: () => (
-					getSyncState().isFindingPlayers || Boolean(getSyncState().inviteFromLink)
-				),
-				setRowIndexInWindow: (rowIndexInRolesWindow) => setState({ rowIndexInRolesWindow }),
-				setIsWindowOpen: (isRolesWindowOpen) => setState({ isRolesWindowOpen }),
-				index,
-			}),
+						// Toon or Trinket box of the row's card on a narrow screen, which opens the Toons or
+						// Trinkets pick window when tapped
+						cardBoxLabel: {
+							toonPicture: 'Toon',
+							trinketAPicture: 'Trinket A',
+							trinketBPicture: 'Trinket B',
+						}[column],
+						cardBoxClass: isTableLocked
+							? 'team-card-box team-card-picture-box'
+							: 'team-card-box team-card-picture-box team-clickable',
+						tapCardBox: () => tapFindATeamCardBox({
+							getIsTableLocked,
+							setCardBoxInPickWindow: (cardBoxInPickWindow) => setState({ cardBoxInPickWindow }),
+							cardBox: {
+								tableRowsKey,
+								index,
+								column,
+							},
+						}),
 
-			// Grey "(none required)" text in an empty Badges or Role cell
-			noBadgesText: row.badgeNames.length ? '' : '(none required)',
-			noRolesText: row.roleNames.length ? '' : '(none required)',
+						// Grey "(Any)" text in an empty Toon or Trinket cell
+						anyText: row[column] ? '' : '(Any)',
 
-			// Badge names stacked in the Badges cell, the fourth column, shown only once verified.
-			// They are crossed out while "Verified only" is unchecked. A badge that a checked later
-			// badge of its category proves is left out.
-			badges: row.badgeNames.filter((name) => !isBadgeProvenByLaterCheckedBadge({
-				badgeName: name,
-				checkedBadgeNames: row.badgeNames,
-			})).map((name) => ({
-				name,
-				isCrossedOut: !row.isVerifiedPlayerRequired,
-			})),
-			badgesCellTooltip: row.isVerifiedPlayerRequired || !row.badgeNames.length
-				? 'Click to modify required badges'
-				: 'Only verified players can require badges.',
+						// Picture inside the cell, which drags to another cell or out of the table to
+						// clear it
+						picture: row[column] ? {
+							src: `/pixelated/${column === 'toonPicture' ? 'toons' : 'trinkets'}/${row[column]}`,
+							title: row[column].replace('.png', ''),
+							draggable: !isTableLocked,
+							dragPictureFromTable: () => dragPictureFromTable({
+								getPicture: () => getSyncState()[tableRowsKey][index][column],
+								setDraggedItem: (draggedItem) => setState({ draggedItem }),
+								index,
+								column,
+							}),
+							endPictureDragFromTable: () => endPictureDragFromTable({
+								getTableDragLandedInAnotherCell: () => (
+									getSyncState().tableDragLandedInAnotherCell
+								),
+								getTableDragLandedOnTable: () => getSyncState().tableDragLandedOnTable,
+								setTableDragLandedInAnotherCell: (tableDragLandedInAnotherCell) => (
+									setState({ tableDragLandedInAnotherCell })
+								),
+								setTableDragLandedOnTable: (tableDragLandedOnTable) => (
+									setState({ tableDragLandedOnTable })
+								),
+								setDraggedItem: (draggedItem) => setState({ draggedItem }),
+								setPicture: (picture) => mutateState((state) => {
+									state[tableRowsKey][index][column] = picture
+								}),
+							}),
+						} : null,
+					})),
 
-			// Role names stacked in the Role cell after Badges.
-			// Solar Support is crossed out when the toon is not Bobette.
-			roles: row.roleNames
-				.map((name) => {
-					const isCrossedOut = name === 'Solar Support' && row.toonPicture !== 'bobette.png'
-					return {
-						name,
-						isCrossedOut,
-						crossedOutTooltip: isCrossedOut
-							? 'Only Bobette can help with Solar Distracting'
-							: undefined,
-					}
+				// Badges and Role cells, which open their window in the middle of the screen when clicked
+				badgesAndRoleCellClass: isTableLocked ? '' : 'team-clickable',
+				// Every box of the row's card on a narrow screen, which reacts to a tap while the table
+				// is unlocked
+				cardBoxClass: isTableLocked ? 'team-card-box' : 'team-card-box team-clickable',
+				// Title above the row's card
+				cardTitle: cardTitleOf(index),
+				leftEmptyCardBoxClass: isTableLocked
+					? 'team-card-box team-card-left-empty'
+					: 'team-card-box team-card-left-empty team-clickable',
+				openBadgesWindow: () => openBadgesOrRolesWindow({
+					getIsTableLocked,
+					setRowIndexInWindow: (rowIndexInBadgesWindow) => setState({ rowIndexInBadgesWindow }),
+					setIsWindowOpen: (isBadgesWindowOpen) => setState({ isBadgesWindowOpen }),
+					index,
+				}),
+				openRolesWindow: () => openBadgesOrRolesWindow({
+					getIsTableLocked,
+					setRowIndexInWindow: (rowIndexInRolesWindow) => setState({
+						rowIndexInRolesWindow,
+						tableRowsKeyInRolesWindow: tableRowsKey,
+					}),
+					setIsWindowOpen: (isRolesWindowOpen) => setState({ isRolesWindowOpen }),
+					index,
 				}),
 
-			// Player column, the last one: a chip from the Reserved window above a "Verified only"
-			// checkbox, or while the table is locked either "Finding player..." or the grey name of
-			// the player in the row
-			...(() => {
-				const playerInRow = shownTeamStatus?.playersInRows[index] ?? null
-				// A host without a Roblox account would otherwise read "Unverified player" in their
-				// own row
-				const isOwnUnverifiedRow = !isInvitedFriend
+				// Grey "(none required)" text in an empty Badges or Role cell
+				noBadgesText: row.badgeNames.length ? '' : '(none required)',
+				noRolesText: row.roleNames.length ? '' : '(none required)',
+
+				// Badge names stacked in the Badges cell, the fourth column, shown only once verified.
+				// They are crossed out while "Verified only" is unchecked. A badge that a checked later
+				// badge of its category proves is left out.
+				badges: row.badgeNames.filter((name) => !isBadgeProvenByLaterCheckedBadge({
+					badgeName: name,
+					checkedBadgeNames: row.badgeNames,
+				})).map((name) => ({
+					name,
+					isCrossedOut: !row.isVerifiedPlayerRequired,
+				})),
+				badgesCellTooltip: row.isVerifiedPlayerRequired || !row.badgeNames.length
+					? 'Click to modify required badges'
+					: 'Only verified players can require badges.',
+
+				// Role names stacked in the Role cell after Badges.
+				// Solar Support is crossed out when the toon is not Bobette.
+				roles: row.roleNames
+					.map((name) => {
+						const isCrossedOut = name === 'Solar Support' && row.toonPicture !== 'bobette.png'
+						return {
+							name,
+							isCrossedOut,
+							crossedOutTooltip: isCrossedOut
+								? 'Only Bobette can help with Solar Distracting'
+								: undefined,
+						}
+					}),
+
+				// Player column, the last one: a chip from the Reserved window above a "Verified only"
+				// checkbox, or while the table is locked either "Finding player..." or the grey name of
+				// the player in the row
+				...(() => {
+					const playerInRow = shownTeamStatus?.playersInRows[index] ?? null
+					// A host without a Roblox account would otherwise read "Unverified player" in their
+					// own row
+					const isOwnUnverifiedRow = !isInvitedFriend
 					&& !isRobloxVerified
 					&& shownTeamStatus?.hostRowIndex === index
-				const playerInRowName = isOwnUnverifiedRow ? 'Me' : playerNameOf(playerInRow)
-				// A searching row without a player shows "Finding player..." once the server told
-				// which rows the team's own players are in, since a chip on several rows takes
-				// only one of them
-				const showFindingPlayerText = isSearching
+					const playerInRowName = isOwnUnverifiedRow ? 'Me' : playerNameOf(playerInRow)
+					// A searching row without a player shows "Finding player..." once the server told
+					// which rows the team's own players are in, since a chip on several rows takes
+					// only one of them
+					const showFindingPlayerText = isSearching
 					&& Boolean(shownTeamStatus)
 					&& !playerInRow
-				return {
+					return {
 					// Player box of the row's card on a narrow screen, which opens the Reserved Slots
 					// pick window when tapped, and reads "(Find a player)" while it holds no name
-					tapPlayerCardBox: () => tapFindATeamCardBox({
-						getIsTableLocked: () => (
-							getSyncState().isFindingPlayers || Boolean(getSyncState().inviteFromLink)
-						),
-						setCardBoxInPickWindow: (cardBoxInPickWindow) => setState({ cardBoxInPickWindow }),
-						cardBox: {
-							index,
-							column: 'reservedFor',
-						},
-					}),
-					findAPlayerText: !isTableLocked && !row.reservedFor ? '(Find a player)' : '',
-					showFindingPlayerText,
-					showPlayerName: isTableLocked && !showFindingPlayerText,
-					playerName: `(${playerInRowName || (() => {
-						if (row.reservedFor) return reservationChipText(row.reservedFor)
-						return isRobloxVerified && row.isVerifiedPlayerRequired
-							? 'Find verified player'
-							: 'Find any player'
-					})()})`,
-					// Dropping a chip from the Reserved window or from another Player cell
-					canDropReservationOnPlayerCell: !isTableLocked
+						tapPlayerCardBox: () => tapFindATeamCardBox({
+							getIsTableLocked,
+							setCardBoxInPickWindow: (cardBoxInPickWindow) => setState({ cardBoxInPickWindow }),
+							cardBox: {
+								tableRowsKey,
+								index,
+								column: 'reservedFor',
+							},
+						}),
+						findAPlayerText: !isTableLocked && !row.reservedFor ? '(Find a player)' : '',
+						showFindingPlayerText,
+						showPlayerName: isTableLocked && !showFindingPlayerText,
+						playerName: `(${playerInRowName || (() => {
+							if (row.reservedFor) return reservationChipText(row.reservedFor)
+							return isRobloxVerified && row.isVerifiedPlayerRequired
+								? 'Find verified player'
+								: 'Find any player'
+						})()})`,
+						// Dropping a chip from the Reserved window or from another Player cell
+						canDropReservationOnPlayerCell: !isTableLocked
 						&& state.draggedItem?.kind === 'reserved-for',
-					dropReservationOnPlayerCell: () => dropReservationOnPlayerCell({
-						getDraggedItem: () => getSyncState().draggedItem,
-						setReservedFor: (reservedFor) => mutateState((state) => {
-							state.teamTableRows[index].reservedFor = reservedFor
-						}),
-						setTableDragLandedInAnotherCell: (tableDragLandedInAnotherCell) => setState({
-							tableDragLandedInAnotherCell,
-						}),
-						index,
-					}),
-
-					// Chip in the cell, which drags to another Player cell or out of the table to
-					// clear it
-					reservationChip: !isTableLocked && row.reservedFor ? {
-						text: reservationChipText(row.reservedFor),
-						dragReservationFromTable: () => dragReservationFromTable({
-							getReservedFor: () => getSyncState().teamTableRows[index].reservedFor,
-							setDraggedItem: (draggedItem) => setState({ draggedItem }),
+						dropReservationOnPlayerCell: () => dropReservationOnPlayerCell({
+							getDraggedItem: () => getSyncState().draggedItem,
+							setReservedFor: (reservedFor) => mutateState((state) => {
+								state[tableRowsKey][index].reservedFor = reservedFor
+							}),
+							setTableDragLandedInAnotherCell: (tableDragLandedInAnotherCell) => setState({
+								tableDragLandedInAnotherCell,
+							}),
 							index,
 						}),
-						endReservationDragFromTable: () => endReservationDragFromTable({
-							getTableDragLandedInAnotherCell: () => (
-								getSyncState().tableDragLandedInAnotherCell
-							),
-							getTableDragLandedOnTable: () => getSyncState().tableDragLandedOnTable,
-							setTableDragLandedInAnotherCell: (tableDragLandedInAnotherCell) => (
-								setState({ tableDragLandedInAnotherCell })
-							),
-							setTableDragLandedOnTable: (tableDragLandedOnTable) => (
-								setState({ tableDragLandedOnTable })
-							),
-							setDraggedItem: (draggedItem) => setState({ draggedItem }),
-							setReservedFor: (reservedFor) => mutateState((state) => {
-								state.teamTableRows[index].reservedFor = reservedFor
-							}),
-						}),
-					} : null,
 
-					// "Verified only" checkbox below the chip, only for a verified host
-					showVerifiedOnlyCheckbox: isRobloxVerified && !isTableLocked,
-					verifiedOnlyCheckboxTooltip: `Allow only verified players into this player slot.`,
-					isVerifiedOnlyCheckboxChecked: row.isVerifiedPlayerRequired,
-					toggleVerifiedOnlyCheckbox: (isChecked: boolean) => toggleVerifiedOnlyCheckbox({
-						setIsVerifiedPlayerRequired: (isVerifiedPlayerRequired) => mutateState((state) => {
-							state.teamTableRows[index].isVerifiedPlayerRequired = isVerifiedPlayerRequired
+						// Chip in the cell, which drags to another Player cell or out of the table to
+						// clear it
+						reservationChip: !isTableLocked && row.reservedFor ? {
+							text: reservationChipText(row.reservedFor),
+							dragReservationFromTable: () => dragReservationFromTable({
+								getReservedFor: () => getSyncState()[tableRowsKey][index].reservedFor,
+								setDraggedItem: (draggedItem) => setState({ draggedItem }),
+								index,
+							}),
+							endReservationDragFromTable: () => endReservationDragFromTable({
+								getTableDragLandedInAnotherCell: () => (
+									getSyncState().tableDragLandedInAnotherCell
+								),
+								getTableDragLandedOnTable: () => getSyncState().tableDragLandedOnTable,
+								setTableDragLandedInAnotherCell: (tableDragLandedInAnotherCell) => (
+									setState({ tableDragLandedInAnotherCell })
+								),
+								setTableDragLandedOnTable: (tableDragLandedOnTable) => (
+									setState({ tableDragLandedOnTable })
+								),
+								setDraggedItem: (draggedItem) => setState({ draggedItem }),
+								setReservedFor: (reservedFor) => mutateState((state) => {
+									state[tableRowsKey][index].reservedFor = reservedFor
+								}),
+							}),
+						} : null,
+
+						// "Verified only" checkbox below the chip, only for a verified host
+						showVerifiedOnlyCheckbox: isRobloxVerified && !isTableLocked,
+						verifiedOnlyCheckboxTooltip: `Allow only verified players into this player slot.`,
+						isVerifiedOnlyCheckboxChecked: row.isVerifiedPlayerRequired,
+						toggleVerifiedOnlyCheckbox: (isChecked: boolean) => toggleVerifiedOnlyCheckbox({
+							setIsVerifiedPlayerRequired: (isVerifiedPlayerRequired) => mutateState((state) => {
+								state[tableRowsKey][index].isVerifiedPlayerRequired = isVerifiedPlayerRequired
+							}),
+							isChecked,
 						}),
-						isChecked,
-					}),
-				}
-			})(),
-		})),
+					}
+				})(),
+			}))
+			return {
+				// Rows of the white table in the middle of Find a Team
+				teamTableRows: tableRowsOf({
+					tableRowsKey: 'teamTableRows',
+					rows: shownTeamTableRows,
+					isTableLocked,
+					getIsTableLocked: () => (
+						getSyncState().isFindingPlayers || Boolean(getSyncState().inviteFromLink)
+					),
+					cardTitleOf: (index) => `Player Slot #${index + 1}`,
+				}),
+				// Row of YOUR SLOT at the top of Browse Teams, which a join locks
+				browseTeamsTableRows: tableRowsOf({
+					tableRowsKey: 'browseTeamsTableRows',
+					rows: state.browseTeamsTableRows,
+					isTableLocked: Boolean(state.joinedBrowsedTeam),
+					getIsTableLocked: () => Boolean(getSyncState().joinedBrowsedTeam),
+					cardTitleOf: () => 'YOUR SLOT',
+				}),
+			}
+		})(),
 		// Tooltip of the Player column header, which explains what a row without a chip means
 		playerColumnHeaderTooltip: `A row without a chip is left for a player to find, and so is every extra row that shares a chip.
 "Verified only" lets only verified players take it.`,
@@ -1480,80 +1696,47 @@ export function useLogic() {
 		openServerLinkHelpWindow: () => setState({ isServerLinkHelpWindowOpen: true }),
 		closeServerLinkHelpWindow: () => setState({ isServerLinkHelpWindowOpen: false }),
 
-		// Dandy Run and Early Dyle dropdowns in the left column of TEAM SETTINGS, where Any matches
-		// a team with either choice
-		// An invited friend sees the settings of the team that invited them
-		areDandyRunAndEarlyDyleDropdownsLocked: isTableLocked,
-		dandyRunAndEarlyDyleDropdownOptions: [
-			'Any',
-			'Yes',
-			'No',
-		],
-		chosenDandyRunDropdownOption: invitingTeam?.dandyRun ?? state.chosenDandyRunDropdownOption,
-		chooseDandyRunDropdownOption: (chosenOption: string) => chooseTeamSettingsDropdownOption({
-			localStorageKey: 'dandyRunOption',
-			setChosenOption: (chosenDandyRunDropdownOption) => setState({
-				chosenDandyRunDropdownOption,
-			}),
-			chosenOption,
-		}),
-		chosenEarlyDyleDropdownOption: invitingTeam?.earlyDyle
-			?? state.chosenEarlyDyleDropdownOption,
-		chooseEarlyDyleDropdownOption: (chosenOption: string) => chooseTeamSettingsDropdownOption({
-			localStorageKey: 'earlyDyleOption',
-			setChosenOption: (chosenEarlyDyleDropdownOption) => setState({
-				chosenEarlyDyleDropdownOption,
-			}),
-			chosenOption,
-		}),
-
-		// Region and Floor goal dropdowns in the right column of TEAM SETTINGS
-		areRegionAndFloorGoalDropdownsLocked: isTableLocked,
-		regionDropdownOptions: [
-			'Any',
-			'Africa',
-			'Asia',
-			'Europe',
-			'North America',
-			'South America',
-			'Oceania',
-		],
-		chosenRegionDropdownOption: invitingTeam?.region ?? state.chosenRegionDropdownOption,
-		chooseRegionDropdownOption: (chosenOption: string) => chooseTeamSettingsDropdownOption({
-			localStorageKey: 'region',
-			setChosenOption: (chosenRegionDropdownOption) => setState({
-				chosenRegionDropdownOption,
-			}),
-			chosenOption,
-		}),
-		// Each dropdown of the Floor goal offers only the floors that keep "from" at or below "to"
-		floorGoalFromDropdownOptions: floorGoalDropdownOptions.slice(
-			0,
-			floorGoalDropdownOptions.indexOf(chosenFloorGoalToDropdownOption) + 1,
-		),
-		chosenFloorGoalFromDropdownOption,
-		chooseFloorGoalFromDropdownOption: (chosenOption: string) => (
-			chooseTeamSettingsDropdownOption({
-				localStorageKey: 'floorGoalFrom',
-				setChosenOption: (chosenFloorGoalFromDropdownOption) => setState({
-					chosenFloorGoalFromDropdownOption,
+		// TEAM SETTINGS below the server link field
+		// An invited friend sees the settings of the team that invited them, whose floor goal the
+		// server sends as "40 to 60"
+		findATeamSettings: teamSettingsGroupBoxOf({
+			areDropdownsLocked: isTableLocked,
+			chosenOptions: invitingTeam ? {
+				dandyRun: invitingTeam.dandyRun,
+				earlyDyle: invitingTeam.earlyDyle,
+				region: invitingTeam.region,
+				floorGoalFrom: invitingTeam.floorGoal.split(' to ')[0],
+				floorGoalTo: invitingTeam.floorGoal.split(' to ')[1],
+			} : {
+				dandyRun: state.chosenDandyRunDropdownOption,
+				earlyDyle: state.chosenEarlyDyleDropdownOption,
+				region: state.chosenRegionDropdownOption,
+				floorGoalFrom: state.chosenFloorGoalFromDropdownOption,
+				floorGoalTo: state.chosenFloorGoalToDropdownOption,
+			},
+			chooseOption: ({
+				setting,
+				chosenOption,
+			}) => chooseTeamSettingsDropdownOption({
+				localStorageKey: {
+					dandyRun: 'dandyRunOption',
+					earlyDyle: 'earlyDyleOption',
+					region: 'region',
+					floorGoalFrom: 'floorGoalFrom',
+					floorGoalTo: 'floorGoalTo',
+				}[setting],
+				setChosenOption: (chosenOption) => setState({
+					[{
+						dandyRun: 'chosenDandyRunDropdownOption',
+						earlyDyle: 'chosenEarlyDyleDropdownOption',
+						region: 'chosenRegionDropdownOption',
+						floorGoalFrom: 'chosenFloorGoalFromDropdownOption',
+						floorGoalTo: 'chosenFloorGoalToDropdownOption',
+					}[setting]]: chosenOption,
 				}),
 				chosenOption,
-			})
-		),
-		floorGoalToDropdownOptions: floorGoalDropdownOptions.slice(
-			floorGoalDropdownOptions.indexOf(chosenFloorGoalFromDropdownOption),
-		),
-		chosenFloorGoalToDropdownOption,
-		chooseFloorGoalToDropdownOption: (chosenOption: string) => (
-			chooseTeamSettingsDropdownOption({
-				localStorageKey: 'floorGoalTo',
-				setChosenOption: (chosenFloorGoalToDropdownOption) => setState({
-					chosenFloorGoalToDropdownOption,
-				}),
-				chosenOption,
-			})
-		),
+			}),
+		}),
 
 		// Find Players button at the bottom right of Find a Team, with its spinner and the red
 		// error line below it. An invited friend only watches, so they get no button.
@@ -1577,6 +1760,7 @@ export function useLogic() {
 			)))
 			const findPlayersButtonDisabledTooltip = (() => {
 				if (state.isFindingPlayers) return ''
+				if (state.joinedBrowsedTeam) return 'Cancel the join in Browse Teams first.'
 				if (!reservations.has('me')) {
 					return '"Me" from the Reserved window has to be on at least 1 row that is not "(Leave Empty)".'
 				}
@@ -1620,12 +1804,13 @@ That is a row without a chip, or an extra row that shares a chip.`
 			getIsInvitedFriend: () => Boolean(getSyncState().inviteFromLink),
 			setIsTeamFoundWindowOpen: (isTeamFoundWindowOpen) => setState({ isTeamFoundWindowOpen }),
 			setIsFindingPlayers: (isFindingPlayers) => setState({ isFindingPlayers }),
+			setJoinedBrowsedTeam: (joinedBrowsedTeam) => setState({ joinedBrowsedTeam }),
 			setShownTeamStatus: (shownTeamStatus) => setState({ shownTeamStatus }),
 		}),
 		// Text of the window, split around the host's username, which the view shows as a link to
 		// the host's Roblox profile when the text names the host
 		teamFoundText: (() => {
-			const host = shownTeamStatus?.hostRobloxUsername ?? ''
+			const host = state.shownTeamStatus?.hostRobloxUsername ?? ''
 			const hostProfileLink = `https://www.roblox.com/user.aspx?username=${encodeURIComponent(host)
 			}`
 			const textWithoutHost = (text: string) => ({
@@ -1634,7 +1819,7 @@ That is a row without a chip, or an extra row that shares a chip.`
 				hostProfileLink: '',
 				afterHost: '',
 			})
-			if (hasJoinedATeam) {
+			if (state.shownTeamStatus?.hasJoinedATeam) {
 				if (host) {
 					return {
 						beforeHost: 'The host is ',
@@ -1661,7 +1846,174 @@ That is a row without a chip, or an extra row that shares a chip.`
 		teamServerLink,
 
 
-		// Upvote Players icon, third in the row at the top of the screen, and its window, which
+		// Browse Teams icon, third in the row at the top of the screen, and its window, which shows
+		// the list of team cards, or the full table of the card that the user clicked
+		browseTeamsWindow: {
+			isOpen: isBrowseTeamsWindowOpen,
+			openFromIcon: () => openWindowFromIcon({
+				getOpenDesktopWindowName: () => getSyncState().openDesktopWindowName,
+				setOpenDesktopWindowName: (openDesktopWindowName) => setState({ openDesktopWindowName }),
+				closeFindATeamWindow,
+				desktopWindowName: 'Browse Teams',
+			}),
+			close: () => setState({ openDesktopWindowName: null }),
+		},
+
+		// Toons and Trinkets side windows around Browse Teams, which grey out while a join runs.
+		// The row of YOUR SLOT is browseTeamsTableRows above.
+		browseTeamsSideWindowClass: state.joinedBrowsedTeam ? 'window team-locked' : 'window',
+		// Small grey line below YOUR SLOT about the badges
+		browseTeamsSlotBadgesText: isRobloxVerified
+			? 'The badges of your verified Roblox account count by themselves.'
+			: 'Verify your Roblox account in Roblox Verification to fit slots that require badges.',
+
+		// TEAM SETTINGS below YOUR SLOT, which pick the listed teams, and which a join locks
+		browseTeamsSettings: teamSettingsGroupBoxOf({
+			areDropdownsLocked: Boolean(state.joinedBrowsedTeam),
+			chosenOptions: state.browseTeamsChosenSettings,
+			chooseOption: ({
+				setting,
+				chosenOption,
+			}) => setState({
+				browseTeamsChosenSettings: {
+					...getSyncState().browseTeamsChosenSettings,
+					[setting]: chosenOption,
+				},
+			}),
+		}),
+
+		// List of team cards below TEAM SETTINGS, which scrolls, and loads 20 more cards whenever it
+		// is scrolled to its end
+		showBrowsedTeamCards: !state.openedBrowsedHostTeamId,
+		browseTeamsListText: (() => {
+			if (!state.browsedTeams) return 'Looking for teams...'
+			if (!state.browsedTeams.length) {
+				return 'No searching team has a slot for you right now. This list updates every few seconds.'
+			}
+			return 'Teams that are looking for players and have a slot for you. Click one to see it.'
+		})(),
+		// Card with a row of the team's toons, where a toon that the team leaves open is a grey
+		// "(Any)", and a row of tags below it for the TEAM SETTINGS that are not Any
+		browsedTeamCards: (state.browsedTeams ?? []).map((browsedTeam) => ({
+			key: browsedTeam.hostTeamId,
+			toons: browsedTeam.teamTableRows.flatMap((row, index) => (row.isLeftEmpty ? [] : [{
+				key: index,
+				anyText: row.toonPicture ? '' : '(Any)',
+				src: row.toonPicture ? `/pixelated/toons/${row.toonPicture}` : '',
+				title: row.toonPicture.replace('.png', ''),
+			}])),
+			tags: [
+				browsedTeam.hostTeamId === state.joinedBrowsedTeam?.hostTeamId ? 'Joined' : '',
+				{
+					Yes: 'Dandy Run',
+					No: 'No Dandy Run',
+				}[browsedTeam.dandyRun] ?? '',
+				{
+					Yes: 'Early Dyle',
+					No: 'No Early Dyle',
+				}[browsedTeam.earlyDyle] ?? '',
+				browsedTeam.region === 'Any' ? '' : browsedTeam.region,
+				`Floors ${browsedTeam.floorGoal}`,
+			].filter(Boolean),
+			open: () => setState({ openedBrowsedHostTeamId: browsedTeam.hostTeamId }),
+		})),
+		scrollBrowseTeamsList: (isNearListEnd: boolean) => scrollBrowseTeamsList({
+			getHasMoreBrowsedTeams: () => getSyncState().hasMoreBrowsedTeams,
+			getListedTeamCount: () => getSyncState().browsedTeams?.length ?? 0,
+			getBrowsedTeamCount: () => getSyncState().browsedTeamCount,
+			setBrowsedTeamCount: (browsedTeamCount) => setState({ browsedTeamCount }),
+			isNearListEnd,
+		}),
+		// Grey line at the end of the list while more teams fit than it shows
+		browseTeamsMoreText: state.hasMoreBrowsedTeams ? 'Loading more teams...' : '',
+
+		// Full table of the clicked card in place of the list, with a "← All teams" button above it
+		// and a Join button below it
+		...(() => {
+			const openedBrowsedTeam = state.browsedTeams?.find((browsedTeam) => (
+				browsedTeam.hostTeamId === state.openedBrowsedHostTeamId
+			))
+			const isOpenedBrowsedTeamJoined = Boolean(openedBrowsedTeam)
+				&& openedBrowsedTeam?.hostTeamId === state.joinedBrowsedTeam?.hostTeamId
+			const browsedTeamJoinButtonTooltip = (() => {
+				if (isOpenedBrowsedTeamJoined) return ''
+				if (state.joinedBrowsedTeam) return 'Cancel the join of the other team first.'
+				if (state.isFindingPlayers) return 'Cancel Find Players in Find a Team first.'
+				if (isInvitedFriend) return 'You are in the team of the friend who invited you.'
+				return ''
+			})()
+			return {
+				showOpenedBrowsedTeam: Boolean(state.openedBrowsedHostTeamId),
+				closeOpenedBrowsedTeam: () => setState({ openedBrowsedHostTeamId: null }),
+				// Line above the table with the host's name and the TEAM SETTINGS, or why the team
+				// is gone
+				openedBrowsedTeamText: openedBrowsedTeam
+					? `${openedBrowsedTeam.hostRobloxUsername
+						? `@${openedBrowsedTeam.hostRobloxUsername}'s team`
+						: 'Team of an unverified host'} · ${[
+						`Region: ${openedBrowsedTeam.region}`,
+						`Floor goal: ${openedBrowsedTeam.floorGoal}`,
+						`Dandy Run: ${openedBrowsedTeam.dandyRun}`,
+						`Early Dyle: ${openedBrowsedTeam.earlyDyle}`,
+					].join(' · ')}`
+					: 'This team stopped searching, filled up, or has no slot for you anymore.',
+				// Rows of the read-only table, with the Toon, Trinket A, Trinket B, Badges, Role and
+				// Player columns. "(Leave Empty)" rows are left out.
+				openedBrowsedTeamRows: (openedBrowsedTeam?.teamTableRows ?? []).flatMap((row, index) => (
+					row.isLeftEmpty ? [] : [{
+						key: index,
+						pictureCells: (['toonPicture', 'trinketAPicture', 'trinketBPicture'] as const)
+							.map((column) => ({
+								key: column,
+								anyText: row[column] ? '' : '(Any)',
+								picture: row[column] ? {
+									src: `/pixelated/${column === 'toonPicture' ? 'toons' : 'trinkets'}/${
+										row[column]
+									}`,
+									title: row[column].replace('.png', ''),
+								} : null,
+							})),
+						noBadgesText: row.badgeNames.length && row.isVerifiedPlayerRequired
+							? ''
+							: '(none required)',
+						// Badges only count on a "Verified only" row, as in Find a Team
+						badgeNames: row.isVerifiedPlayerRequired
+							? row.badgeNames.filter((name) => !isBadgeProvenByLaterCheckedBadge({
+								badgeName: name,
+								checkedBadgeNames: row.badgeNames,
+							}))
+							: [],
+						noRolesText: row.roleNames.length ? '' : '(none required)',
+						roleNames: row.roleNames,
+						playerName: `(${playerNameOf(openedBrowsedTeam!.playersInRows[index] ?? null)
+							|| 'Free slot'})`,
+					}]
+				)),
+				// Join button, which reads "Waiting for the team to fill up (Click to Cancel)" while
+				// the join runs, greyed out with a tooltip while the user cannot join, and followed by a
+				// red line when the server ended the join
+				showBrowsedTeamJoinButton: Boolean(openedBrowsedTeam),
+				browsedTeamJoinButtonText: isOpenedBrowsedTeamJoined
+					? 'Waiting for the team to fill up (Click to Cancel)'
+					: 'Join',
+				isBrowsedTeamJoinButtonDisabled: Boolean(browsedTeamJoinButtonTooltip),
+				browsedTeamJoinButtonTooltip,
+				toggleJoiningBrowsedTeam: () => {
+					if (!openedBrowsedTeam) return
+					toggleJoiningBrowsedTeam({
+						getJoinedBrowsedTeam: () => getSyncState().joinedBrowsedTeam,
+						setJoinedBrowsedTeam: (joinedBrowsedTeam) => setState({ joinedBrowsedTeam }),
+						setBrowseTeamsError: (browseTeamsError) => setState({ browseTeamsError }),
+						browsedTeam: openedBrowsedTeam,
+						browseTeamsSlot: getSyncState().browseTeamsTableRows[0],
+					})
+				},
+				browseTeamsError: state.browseTeamsError,
+			}
+		})(),
+
+
+		// Upvote Players icon, fourth in the row at the top of the screen, and its window, which
 		// loads the last found team whenever it opens for a verified user
 		upvotePlayersWindow: {
 			isOpen: state.openDesktopWindowName === 'Upvote Players',
@@ -1795,7 +2147,7 @@ Verify your account in Roblox Verification, and the players of the last team tha
 		})),
 
 
-		// This is a fan project icon, fourth in the row at the top of the screen, and its window
+		// This is a fan project icon, fifth in the row at the top of the screen, and its window
 		fanProjectWindow: {
 			isOpen: state.openDesktopWindowName === 'This is a fan project',
 			openFromIcon: () => openWindowFromIcon({
@@ -1808,7 +2160,7 @@ Verify your account in Roblox Verification, and the players of the last team tha
 		},
 
 
-		// Contact/Report icon, fifth in the row at the top of the screen, and its window with a topic
+		// Contact/Report icon, sixth in the row at the top of the screen, and its window with a topic
 		// dropdown, a message box and a Send button
 		contactReportWindow: {
 			isOpen: state.openDesktopWindowName === 'Contact/Report',
@@ -1856,7 +2208,7 @@ Verify your account in Roblox Verification, and the players of the last team tha
 		reportStatusText: state.reportStatusText,
 
 
-		// Options icon, sixth in the row at the top of the screen, and its window
+		// Options icon, seventh in the row at the top of the screen, and its window
 		optionsWindow: {
 			isOpen: state.openDesktopWindowName === 'Options',
 			openFromIcon: () => openWindowFromIcon({
@@ -1945,7 +2297,7 @@ On an iPhone, add this site to the Home Screen first.`
 		],
 
 
-		// Reports icon, seventh in the row at the top of the screen, which only @akotheakotheako sees,
+		// Reports icon, eighth in the row at the top of the screen, which only @akotheakotheako sees,
 		// and its window, which loads every report whenever it opens
 		showReportsIcon: state.verifiedRobloxAccount?.id === reportsReaderRobloxUserId,
 		reportsWindow: {

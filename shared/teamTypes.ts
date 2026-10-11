@@ -75,4 +75,19 @@ export type CheckInAnswer = {
 		// Empty until every row of the merged team has a player
 		teamServerLink: string
 	} | null
+	// Searching teams that Browse Teams lists as cards, oldest first, led by the team that the user
+	// joined there. Empty while Browse Teams is closed.
+	browsedTeams: {
+		hostTeamId: string
+		hostRobloxUsername: string
+		dandyRun: string
+		earlyDyle: string
+		region: string
+		floorGoal: string
+		// The host's own table, with the players of the whole merged team in its rows
+		teamTableRows: TeamTableRow[]
+		playersInRows: (PlayerInRow | null)[]
+	}[]
+	// More teams fit than Browse Teams asked for, so scrolling to the end of its list loads more
+	hasMoreBrowsedTeams: boolean
 }
