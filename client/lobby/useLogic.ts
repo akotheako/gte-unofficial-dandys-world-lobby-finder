@@ -1899,8 +1899,8 @@ That is a row without a chip, or an extra row that shares a chip.`
 		teamServerLink,
 
 
-		// Browse Teams icon, third in the row at the top of the screen, and its window, which shows
-		// the list of team cards, or the full table of the card that the user clicked
+		// Browse Teams icon, third in the row at the top of the screen, and its window with the team
+		// list and a modal for the selected team's details
 		browseTeamsWindow: {
 			isOpen: isBrowseTeamsWindowOpen,
 			openFromIcon: () => openWindowFromIcon({
@@ -1909,7 +1909,10 @@ That is a row without a chip, or an extra row that shares a chip.`
 				closeFindATeamWindow,
 				desktopWindowName: 'Browse Teams',
 			}),
-			close: () => setState({ openDesktopWindowName: null }),
+			close: () => setState({
+				openDesktopWindowName: null,
+				openedBrowsedHostTeamId: null,
+			}),
 		},
 
 		// Toons and Trinkets side windows around Browse Teams, which grey out while a join runs.
@@ -1937,7 +1940,7 @@ That is a row without a chip, or an extra row that shares a chip.`
 
 		// List of team cards below TEAM SETTINGS, which scrolls, and loads 20 more cards whenever it
 		// is scrolled to its end
-		showBrowsedTeamCards: !state.openedBrowsedHostTeamId,
+		showBrowsedTeamCards: true,
 		browseTeamsListText: (() => {
 			if (!state.browsedTeams) return 'Looking for teams...'
 			if (!state.browsedTeams.length) {
@@ -1968,7 +1971,10 @@ That is a row without a chip, or an extra row that shares a chip.`
 				browsedTeam.region === 'Any' ? '' : browsedTeam.region,
 				`Floors ${browsedTeam.floorGoal}`,
 			].filter(Boolean),
-			open: () => setState({ openedBrowsedHostTeamId: browsedTeam.hostTeamId }),
+			open: () => setState({
+				openedBrowsedHostTeamId: browsedTeam.hostTeamId,
+				browseTeamsError: '',
+			}),
 		})),
 		scrollBrowseTeamsList: (isNearListEnd: boolean) => scrollBrowseTeamsList({
 			getHasMoreBrowsedTeams: () => getSyncState().hasMoreBrowsedTeams,
@@ -1979,9 +1985,7 @@ That is a row without a chip, or an extra row that shares a chip.`
 		}),
 		// Grey line at the end of the list while more teams fit than it shows
 		browseTeamsMoreText: state.hasMoreBrowsedTeams ? 'Loading more teams...' : '',
-
-		// Full table of the clicked card in place of the list, with a "← All teams" button above it
-		// and a Join button below it
+		// Modal with the selected team's details and Join action
 		...(() => {
 			const openedBrowsedTeam = state.browsedTeams?.find((browsedTeam) => (
 				browsedTeam.hostTeamId === state.openedBrowsedHostTeamId
@@ -2000,24 +2004,46 @@ That is a row without a chip, or an extra row that shares a chip.`
 				closeOpenedBrowsedTeam: () => setState({ openedBrowsedHostTeamId: null }),
 				// Line above the table with the host's name and the TEAM SETTINGS, or why the team
 				// is gone
-				openedBrowsedTeamText: openedBrowsedTeam
-					? `${openedBrowsedTeam.hostRobloxUsername
+				openedBrowsedTeamHostText: openedBrowsedTeam
+					? openedBrowsedTeam.hostRobloxUsername
 						? `@${openedBrowsedTeam.hostRobloxUsername}'s team`
-						: 'Team of an unverified host'} · ${[
-						`Region: ${openedBrowsedTeam.region}`,
-						`Floor goal: ${openedBrowsedTeam.floorGoal}`,
-						`Dandy Run: ${openedBrowsedTeam.dandyRun}`,
-						`Early Dyle: ${openedBrowsedTeam.earlyDyle}`,
-					].join(' · ')}`
+						: 'Team of an unverified host'
+					: '',
+				openedBrowsedTeamMissingText: openedBrowsedTeam
+					? ''
 					: 'This team stopped searching, filled up, or has no slot for you anymore.',
+				openedBrowsedTeamSettings: openedBrowsedTeam ? [
+					{
+						name: 'Region',
+						value: openedBrowsedTeam.region,
+					},
+					{
+						name: 'Floor goal',
+						value: openedBrowsedTeam.floorGoal,
+					},
+					{
+						name: 'Dandy Run',
+						value: openedBrowsedTeam.dandyRun,
+					},
+					{
+						name: 'Early Dyle',
+						value: openedBrowsedTeam.earlyDyle,
+					},
+				] : [],
 				// Rows of the read-only table, with the Toon, Trinket A, Trinket B, Badges, Role and
 				// Player columns. "(Leave Empty)" rows are left out.
 				openedBrowsedTeamRows: (openedBrowsedTeam?.teamTableRows ?? []).flatMap((row, index) => (
 					row.isLeftEmpty ? [] : [{
 						key: index,
+						cardTitle: `Player Slot #${index + 1}`,
 						pictureCells: (['toonPicture', 'trinketAPicture', 'trinketBPicture'] as const)
 							.map((column) => ({
 								key: column,
+								cardBoxLabel: {
+									toonPicture: 'Toon',
+									trinketAPicture: 'Trinket A',
+									trinketBPicture: 'Trinket B',
+								}[column],
 								anyText: row[column] ? '' : '(Any)',
 								picture: row[column] ? {
 									src: `/pixelated/${column === 'toonPicture' ? 'toons' : 'trinkets'}/${

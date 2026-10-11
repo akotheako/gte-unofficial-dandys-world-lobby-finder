@@ -294,8 +294,239 @@ function ModalWindow({
 	)
 }
 
-// Grey window in the middle of the screen with a navy title bar, an × button, and a white list of
-// checkboxes, which the Badges and Role cells of the Find a Team table open
+// Modal with the selected Browse Teams card's settings, roster and Join action
+function BrowseTeamDetailsModal({ logic }: { logic: ReturnType<typeof useLogic> }) {
+	return (
+		<>
+			<style>{`
+				#browse-team-details[open] {
+					width: min(1100px, calc(100vw - 32px));
+					max-height: calc(100dvh - 24px);
+					box-sizing: border-box;
+					display: flex;
+					flex-direction: column;
+				}
+				#browse-team-details-body {
+					min-height: 0;
+					overflow-y: auto;
+					display: flex;
+					flex-direction: column;
+					gap: 10px;
+				}
+				#browse-team-details-host {
+					margin: 0;
+					font-size: 15px;
+				}
+				#browse-team-settings {
+					padding: 8px;
+					border: 1px solid var(--table-line);
+				}
+				#browse-team-settings h2 {
+					margin: 0 0 6px;
+					font-size: 12px;
+				}
+				#browse-team-settings-list {
+					display: grid;
+					grid-template-columns: repeat(4, minmax(0, 1fr));
+					gap: 6px;
+				}
+				.browse-team-setting {
+					min-width: 0;
+					padding: 5px;
+					display: flex;
+					flex-direction: column;
+					gap: 3px;
+					background: var(--field);
+					border: 1px solid var(--table-line);
+				}
+				.browse-team-setting span {
+					color: var(--hint-text);
+					font-size: 11px;
+				}
+				#browse-team-table-scroll {
+					min-height: 0;
+					max-height: 48vh;
+					overflow: auto;
+				}
+				#browse-team-table {
+					width: 100%;
+					border-collapse: collapse;
+					background: var(--field);
+				}
+				#browse-team-table th,
+				#browse-team-table td {
+					min-width: 60px;
+					height: 44px;
+					padding: 2px 6px;
+					border: 1px solid var(--table-line);
+					text-align: center;
+				}
+				#browse-team-table th {
+					height: 20px;
+					background: var(--window-face);
+				}
+				#browse-team-table img {
+					width: 40px;
+					height: 40px;
+					vertical-align: middle;
+				}
+				#browse-team-details-cards { display: none; }
+				#browse-team-details-join { display: flex; justify-content: flex-end; }
+				#browse-team-gone,
+				#browse-error {
+					margin: 0;
+					color: var(--error);
+				}
+				@media (max-width: 1320px) {
+					#browse-team-table-scroll { display: none; }
+					#browse-team-details-cards { display: flex; flex-direction: column; gap: 6px; }
+				}
+				@media (max-width: 640px) {
+					#browse-team-settings-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+				}
+			`}</style>
+			<ModalWindow
+				id="browse-team-details"
+				closedby="closerequest"
+				isOpen={logic.showOpenedBrowsedTeam}
+				close={logic.closeOpenedBrowsedTeam}
+			>
+				<div className="window-title">
+					Team Details
+					<button
+						className="window-close"
+						aria-label="Close"
+						onClick={logic.closeOpenedBrowsedTeam}>
+						×
+					</button>
+				</div>
+				<div id="browse-team-details-body">
+					{logic.openedBrowsedTeamMissingText ? (
+						<p id="browse-team-gone">{logic.openedBrowsedTeamMissingText}</p>
+					) : (
+						<>
+							<h2 id="browse-team-details-host">{logic.openedBrowsedTeamHostText}</h2>
+							<section id="browse-team-settings">
+								<h2>TEAM SETTINGS</h2>
+								<div id="browse-team-settings-list">
+									{logic.openedBrowsedTeamSettings.map((setting) => (
+										<div
+											key={setting.name}
+											className="browse-team-setting">
+											<span>{setting.name}</span><strong>{setting.value}</strong>
+										</div>
+									))}
+								</div>
+							</section>
+							<div id="browse-team-table-scroll">
+								<table id="browse-team-table">
+									<thead>
+										<tr>
+											<th>Toon</th>
+											<th>Trinket A</th>
+											<th>Trinket B</th>
+											<th>Badges</th>
+											<th>Role</th>
+											<th>Player</th>
+										</tr>
+									</thead>
+									<tbody>
+										{logic.openedBrowsedTeamRows.map((row) => (
+											<tr key={row.key}>
+												{row.pictureCells.map((cell) => (
+													<td key={cell.key}>
+														{cell.anyText && (
+															<span className="team-placeholder">{cell.anyText}</span>
+														)}
+														{cell.picture && (
+															<img
+																className="toon-or-trinket-picture"
+																src={cell.picture.src}
+																title={cell.picture.title}
+															/>
+														)}
+													</td>
+												))}
+												<td>
+													{row.noBadgesText && (
+														<span className="team-placeholder">{row.noBadgesText}</span>
+													)}
+													{row.badgeNames.map((name) => <div key={name}>{name}</div>)}
+												</td>
+												<td>
+													{row.noRolesText && (
+														<span className="team-placeholder">{row.noRolesText}</span>
+													)}
+													{row.roleNames.map((name) => <div key={name}>{name}</div>)}
+												</td>
+												<td className="team-placeholder">{row.playerName}</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
+							</div>
+							<div id="browse-team-details-cards">
+								{logic.openedBrowsedTeamRows.map((row) => (
+									<div key={row.key}>
+										<div className="team-card-title">{row.cardTitle}</div>
+										<div className="team-card">
+											{row.pictureCells.map((cell) => (
+												<div
+													key={cell.key}
+													className="team-card-box team-card-picture-box">
+													<span className="team-card-label">{cell.cardBoxLabel}</span>
+													{cell.anyText && <span className="team-placeholder">{cell.anyText}</span>}
+													{cell.picture && <img
+														className="toon-or-trinket-picture"
+														src={cell.picture.src}
+														title={cell.picture.title} />}
+												</div>
+											))}
+											<div className="team-card-box">
+												<span className="team-card-label">Badges</span>
+												{row.noBadgesText && (
+													<span className="team-placeholder">{row.noBadgesText}</span>
+												)}
+												{row.badgeNames.map((name) => <div key={name}>{name}</div>)}
+											</div>
+											<div className="team-card-box">
+												<span className="team-card-label">Role</span>
+												{row.noRolesText && (
+													<span className="team-placeholder">{row.noRolesText}</span>
+												)}
+												{row.roleNames.map((name) => <div key={name}>{name}</div>)}
+											</div>
+											<div className="team-card-box">
+												<span className="team-card-label">Player</span>
+												<span className="team-placeholder">{row.playerName}</span>
+											</div>
+										</div>
+									</div>
+								))}
+							</div>
+						</>
+					)}
+					{logic.showBrowsedTeamJoinButton && (
+						<div id="browse-team-details-join">
+							<span
+								id="browse-join"
+								title={logic.browsedTeamJoinButtonTooltip}>
+								<button
+									disabled={logic.isBrowsedTeamJoinButtonDisabled}
+									onClick={logic.toggleJoiningBrowsedTeam}>
+									{logic.browsedTeamJoinButtonText}
+								</button>
+							</span>
+						</div>
+					)}
+					{logic.browseTeamsError && <p id="browse-error">{logic.browseTeamsError}</p>}
+				</div>
+			</ModalWindow>
+		</>
+	)
+}
+
+// Grey window with a navy title bar and a white list of checkboxes for the Badges and Role cells
 function ChecklistWindow({
 	id,
 	title,
@@ -2160,131 +2391,7 @@ createRoot(document.getElementById('root')!).render(
 										</div>
 									</>
 								)}
-								{logic.showOpenedBrowsedTeam && (
-									<>
-										{/* "← All teams" button that goes back to the cards */}
-										<style>{`
-											#browse-back {
-												align-self: flex-start;
-											}
-										`}</style>
-										<button
-											id="browse-back"
-											onClick={logic.closeOpenedBrowsedTeam}
-										>
-											← All teams
-										</button>
-										<p>{logic.openedBrowsedTeamText}</p>
-										{/* White read-only table of the team without its "(Leave Empty)" rows, with
-										Toon, Trinket A, Trinket B, Badges, Role and Player columns and grey
-										placeholders, which scrolls sideways on a narrow screen */}
-										<style>{`
-											#browse-team-table-scroll {
-												min-height: 0;
-												overflow: auto;
-											}
-											#browse-team-table {
-												border-collapse: collapse;
-												background: var(--field);
-											}
-											#browse-team-table th,
-											#browse-team-table td {
-												min-width: 60px;
-												height: 44px;
-												padding: 2px 6px;
-												border: 1px solid var(--table-line);
-												text-align: center;
-											}
-											#browse-team-table th {
-												height: 20px;
-												background: var(--window-face);
-											}
-											#browse-team-table img {
-												width: 40px;
-												height: 40px;
-												vertical-align: middle;
-											}
-										`}</style>
-										<div id="browse-team-table-scroll">
-											<table id="browse-team-table">
-												<thead>
-													<tr>
-														<th>Toon</th>
-														<th>Trinket A</th>
-														<th>Trinket B</th>
-														<th>Badges</th>
-														<th>Role</th>
-														<th>Player</th>
-													</tr>
-												</thead>
-												<tbody>
-													{logic.openedBrowsedTeamRows.map((row) => (
-														<tr key={row.key}>
-															{/* Toon or trinket picture, or a grey "(Any)" */}
-															{row.pictureCells.map((cell) => (
-																<td key={cell.key}>
-																	{cell.anyText && (
-																		<span className="team-placeholder">{cell.anyText}</span>
-																	)}
-																	{cell.picture && (
-																		<img
-																			className="toon-or-trinket-picture"
-																			src={cell.picture.src}
-																			title={cell.picture.title}
-																		/>
-																	)}
-																</td>
-															))}
-															{/* Badge names stacked in the cell, or a grey "(none required)" */}
-															<td>
-																{row.noBadgesText && (
-																	<span className="team-placeholder">{row.noBadgesText}</span>
-																)}
-																{row.badgeNames.map((name) => <div key={name}>{name}</div>)}
-															</td>
-															{/* Role names stacked in the cell, or a grey "(none required)" */}
-															<td>
-																{row.noRolesText && (
-																	<span className="team-placeholder">{row.noRolesText}</span>
-																)}
-																{row.roleNames.map((name) => <div key={name}>{name}</div>)}
-															</td>
-															{/* Grey name of the player who took the row, or "(Free slot)" */}
-															<td className="team-placeholder">{row.playerName}</td>
-														</tr>
-													))}
-												</tbody>
-											</table>
-										</div>
-										{/* Join button on the right, greyed out with a tooltip while the user cannot
-										join */}
-										<style>{`
-											#browse-join {
-												align-self: flex-end;
-											}
-										`}</style>
-										{logic.showBrowsedTeamJoinButton && (
-											<span
-												id="browse-join"
-												title={logic.browsedTeamJoinButtonTooltip}
-											>
-												<button
-													disabled={logic.isBrowsedTeamJoinButtonDisabled}
-													onClick={logic.toggleJoiningBrowsedTeam}
-												>
-													{logic.browsedTeamJoinButtonText}
-												</button>
-											</span>
-										)}
-									</>
-								)}
-								{/* Red line at the bottom when the server ended the join */}
-								<style>{`
-									#browse-error {
-										color: var(--error);
-									}
-								`}</style>
-								<p id="browse-error">{logic.browseTeamsError}</p>
+								<BrowseTeamDetailsModal logic={logic} />
 							</div>
 						</DesktopWindow>
 						{/* Upvote Players icon, fourth in the row */}

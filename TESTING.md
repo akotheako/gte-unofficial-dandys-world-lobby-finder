@@ -241,6 +241,9 @@ These checks need two or three profiles that search at the same time.
 - TEAM SETTINGS of Browse Teams and of Find a Team are kept apart, and both survive a reload.
 - A card lists a searching team with a server link whose free slot the user fits, with its toons
   and a tag for every TEAM SETTING that is not Any.
+- Clicking a card opens its team details in a modal above Browse Teams. The wide layout uses a table,
+  the narrow layout uses labeled cards, and the TEAM SETTINGS appear as separate labeled values.
+- Closing the team details modal returns to the team list.
 - No card shows a team whose free slots need a toon that the user marked as missing, a role that the
   slot does not do, or a badge that the user's verified account lacks, nor a team whose TEAM
   SETTINGS disagree.
