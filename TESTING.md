@@ -252,20 +252,21 @@ These checks need two or three profiles that search at the same time.
 - With more than 20 fitting teams, the list shows 20 with "Loading more teams..." at its end, and
   scrolling to the end loads the rest.
 - The team details show the host's name and the team's table. Each free row that the user fits has
-  a Join button in its Player cell, or in its Player box on a narrow screen, and every other free
-  row shows "(Free slot)".
+  a Join button in its Player cell, or in its Player box on a narrow screen, every other free row
+  shows "(Requirements incompatible with you)", and every taken row shows "(Slot filled)".
+- With no fitting team, the list shows "Searching...".
 - Join merges the user into that team only and into the row of that button, which other browsing
   pages then show as taken. It greys out Find Players and locks YOUR SLOT and TEAM SETTINGS, and
   "Team found!" opens once every row has a player, even while Find a Team is closed.
-- While a join runs, the other free rows of that team show "(Free slot)" instead of a Join button.
+- The joined row, or its card on a narrow screen, turns light blue and reads "Joined this slot"
+  in bold in place of its button, and the other slots that the user fits keep their Join buttons. Clicking one of them moves the join to that slot.
 - While the host's team keeps searching, the row that the join took reads "Player found!" in the
   host's Find a Team table, and the other free rows keep "Finding player".
 - Closing "Team found!" ends the join and unlocks YOUR SLOT.
-- Clicking the button again while it waits cancels the join.
+- Closing Team Details while the join waits ends the join and unlocks YOUR SLOT.
 - When the team stops searching or no longer has a slot for the user, a red line says so and the
   join ends.
-- Join is greyed out with a tooltip while Find Players runs, while another join runs, and for an
-  invited friend.
+- Join is greyed out with a tooltip while Find Players runs, and for an invited friend.
 
 ## 10. Upvote Players
 

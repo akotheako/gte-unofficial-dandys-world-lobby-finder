@@ -89,8 +89,7 @@ export type CheckInAnswer = {
 		// The host's own table, with the players of the whole merged team in its rows
 		teamTableRows: TeamTableRow[]
 		playersInRows: (PlayerInRow | null)[]
-		// Free rows that the user fits, whose Player cell shows a Join button. Empty for the team
-		// that the user joined.
+		// Free rows that the user fits, whose Player cell shows a Join button
 		joinableRowIndexes: number[]
 	}[]
 	// More teams fit than Browse Teams asked for, so scrolling to the end of its list loads more

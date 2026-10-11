@@ -265,14 +265,14 @@ test('only fitting teams are listed, and a team that stops searching disappears'
 	await expect(card.locator('img')).toHaveAttribute('src', '/pixelated/toons/shelly.png')
 	await request.post('/api/check-in/leave', { data: { pageId: 'browse-fitting' } })
 	await expect(card).toHaveCount(0, { timeout: 10_000 })
-	await expect(page.locator('#browse-contents')).toContainText('No searching team has a slot for you')
+	await expect(page.locator('#browse-contents')).toContainText('Searching...')
 	// Find a Team keeps its own TEAM SETTINGS
 	await page.locator('#team-icon').click()
 	await expect(page.locator('#team-settings select').nth(2)).toHaveValue('Any')
 	await page.context().close()
 })
 
-test('a pending join can be cancelled and unlocks YOUR SLOT', async ({
+test('closing Team Details ends a pending join and unlocks YOUR SLOT', async ({
 	browser,
 	request,
 }) => {
@@ -286,13 +286,16 @@ test('a pending join can be cancelled and unlocks YOUR SLOT', async ({
 	})
 	const page = await openBrowseTeams({ browser })
 	await page.locator('.browse-card').click()
-	const joinButton = page.locator('#browse-team-table .browse-join button')
-	await joinButton.click()
-	await expect(joinButton).toHaveText('Waiting for the team to fill up (Click to Cancel)')
+	const freeRow = page.locator('#browse-team-table tbody tr').nth(1)
+	await freeRow.locator('.browse-join button').click()
+	await expect(freeRow.locator('td').last()).toHaveText('Joined this slot')
+	await expect(freeRow).toHaveClass('browse-joined-slot')
 	await expect(page.locator('#browse-toons')).toHaveClass(/team-locked/)
-	await joinButton.click()
-	await expect(joinButton).toHaveText('Join')
+	await page.locator('#browse-team-details .window-close').click()
 	await expect(page.locator('#browse-toons')).not.toHaveClass(/team-locked/)
+	// The details open again with the slot free to join
+	await page.locator('.browse-card').click()
+	await expect(freeRow.locator('.browse-join button')).toHaveText('Join')
 	await expect(page.locator('#team-found')).not.toHaveAttribute('open', '')
 	await page.context().close()
 })
@@ -319,15 +322,17 @@ test('only the free slots that the user fits have a Join button, which takes tha
 	const rows = page.locator('#browse-team-table tbody tr')
 	// An Astro slot does not fit the Vee row
 	await expect(rows.nth(1).locator('.browse-join')).toHaveCount(0)
-	await expect(rows.nth(1)).toContainText('(Free slot)')
+	await expect(rows.nth(1).locator('td').last()).toHaveText('(Requirements incompatible with you)')
+	await expect(rows.nth(0).locator('td').last()).toHaveText('(Slot filled)')
 	await expect(rows.nth(2).locator('.browse-join button')).toHaveText('Join')
 	await rows.nth(3).locator('.browse-join button').click()
-	await expect(rows.nth(3).locator('.browse-join button'))
-		.toHaveText('Waiting for the team to fill up (Click to Cancel)')
-	// While the join runs, the other free slot shows its name instead of a Join button
-	await expect(rows.nth(2).locator('.browse-join')).toHaveCount(0)
+	await expect(rows.nth(3).locator('td').last()).toHaveText('Joined this slot')
+	// Join on the other slot that the user fits moves the join there
+	await rows.nth(2).locator('.browse-join button').click()
+	await expect(rows.nth(2).locator('td').last()).toHaveText('Joined this slot')
+	await expect(rows.nth(3).locator('.browse-join button')).toHaveText('Join', { timeout: 10_000 })
 
-	// Another page that browses sees the user in the fourth row, and the third one still free
+	// Another page that browses sees the user in the third row, and the fourth one free again
 	await expect.poll(async () => {
 		const answer = await (await request.post('/api/check-in', {
 			data: {
@@ -353,8 +358,8 @@ test('only the free slots that the user fits have a Join button, which takes tha
 	}, { timeout: 10_000 }).toEqual([
 		true,
 		false,
-		false,
 		true,
+		false,
 		false,
 		false,
 		false,

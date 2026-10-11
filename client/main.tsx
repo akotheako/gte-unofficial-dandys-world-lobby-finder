@@ -307,7 +307,7 @@ function BrowsedTeamJoinButton({ joinButton }: {
 			title={joinButton.tooltip}>
 			<button
 				disabled={joinButton.isDisabled}
-				onClick={joinButton.toggleJoining}>
+				onClick={joinButton.join}>
 				{joinButton.text}
 			</button>
 		</span>
@@ -392,6 +392,15 @@ function BrowseTeamDetailsModal({ logic }: { logic: ReturnType<typeof useLogic> 
 					vertical-align: middle;
 				}
 				#browse-team-details-cards { display: none; }
+				/* Light blue row or card of the slot that the user joined, with its "Joined this
+				slot" in bold */
+				.browse-joined-slot td,
+				.browse-joined-slot .team-card-box {
+					background: var(--joined-slot);
+				}
+				.browse-joined-slot-text {
+					font-weight: bold;
+				}
 				#browse-team-gone,
 				#browse-error {
 					margin: 0;
@@ -452,7 +461,9 @@ function BrowseTeamDetailsModal({ logic }: { logic: ReturnType<typeof useLogic> 
 									</thead>
 									<tbody>
 										{logic.openedBrowsedTeamRows.map((row) => (
-											<tr key={row.key}>
+											<tr
+												key={row.key}
+												className={row.slotClass}>
 												{row.pictureCells.map((cell) => (
 													<td key={cell.key}>
 														{cell.anyText && (
@@ -484,7 +495,7 @@ function BrowseTeamDetailsModal({ logic }: { logic: ReturnType<typeof useLogic> 
 														<BrowsedTeamJoinButton joinButton={row.joinButton} />
 													</td>
 												) : (
-													<td className="team-placeholder">{row.playerName}</td>
+													<td className={row.playerNameClass}>{row.playerName}</td>
 												)}
 											</tr>
 										))}
@@ -493,7 +504,9 @@ function BrowseTeamDetailsModal({ logic }: { logic: ReturnType<typeof useLogic> 
 							</div>
 							<div id="browse-team-details-cards">
 								{logic.openedBrowsedTeamRows.map((row) => (
-									<div key={row.key}>
+									<div
+										key={row.key}
+										className={row.slotClass}>
 										<div className="team-card-title">{row.cardTitle}</div>
 										<div className="team-card">
 											{row.pictureCells.map((cell) => (
@@ -527,7 +540,7 @@ function BrowseTeamDetailsModal({ logic }: { logic: ReturnType<typeof useLogic> 
 												{row.joinButton ? (
 													<BrowsedTeamJoinButton joinButton={row.joinButton} />
 												) : (
-													<span className="team-placeholder">{row.playerName}</span>
+													<span className={row.playerNameClass}>{row.playerName}</span>
 												)}
 											</div>
 										</div>
@@ -2294,8 +2307,7 @@ createRoot(document.getElementById('root')!).render(
 									showMissingChoices={false}
 									logic={logic}
 								/>
-								{/* YOUR SLOT as a table with one row, or as one card on a narrow screen, followed
-								by a small grey line about the badges */}
+								{/* YOUR SLOT as a table with one row, or as one card on a narrow screen */}
 								<TeamTable
 									id="browse-slot-table"
 									rows={logic.browseTeamsTableRows}
@@ -2309,13 +2321,6 @@ createRoot(document.getElementById('root')!).render(
 									showBadgesBox={false}
 									showPlayerBox={false}
 								/>
-								<style>{`
-									#browse-slot-badges {
-										color: var(--hint-text);
-										font-size: 11px;
-									}
-								`}</style>
-								<p id="browse-slot-badges">{logic.browseTeamsSlotBadgesText}</p>
 								<TeamSettingsGroupBox
 									id="browse-settings"
 									settings={logic.browseTeamsSettings}
@@ -3216,6 +3221,7 @@ createRoot(document.getElementById('root')!).render(
 							--table-line: #808080;
 							--field: #fff;
 							--field-hover: #e0e0e0;
+							--joined-slot: #c4e4ff;
 							--button-hover: #dcdcdc;
 							--title-bar: #000080;
 							--link: #00e;
@@ -3233,6 +3239,7 @@ createRoot(document.getElementById('root')!).render(
 							--table-line: #4a4566;
 							--field: #1a1826;
 							--field-hover: #2c2840;
+							--joined-slot: #3a3480;
 							--button-hover: #423c5c;
 							--title-bar: #5a2a8c;
 							--link: #9cc0ff;

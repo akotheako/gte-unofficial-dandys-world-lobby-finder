@@ -950,11 +950,66 @@ checkIn.post('/', async (c) => {
 			const chosenHost = myTeam?.chosen_host_team_id
 				? teamsById.get(finalChosenHostIdOf(myTeam))
 				: undefined
+			// Free rows of the host's table that the user's slot fits once every player of its merged
+			// team has a row, leaving out the user's own running join
+			const joinableRowIndexesOf = ({
+				host,
+				playersInRows,
+			}: {
+				host: Team
+				playersInRows: (PlayerInRow | null)[]
+			}) => host.team_table_rows.flatMap((row, rowIndex) => {
+				if (row.isLeftEmpty || playersInRows[rowIndex]) return []
+				const userTeam: Team = {
+					team_id: pageId,
+					invite_code: '',
+					roblox_user_id: robloxAccount ? String(robloxAccount.id) : '',
+					roblox_username: robloxAccount?.username ?? '',
+					roblox_badge_names: ownedBadgeNames,
+					removed_roblox_usernames: [],
+					missing_toons: browse.missingToons.slice(0, 200).map(String),
+					missing_trinkets: browse.missingTrinkets.slice(0, 200).map(String),
+					team_table_rows: browseTeamsJoinTableRows({
+						browseTeamsSlot: {
+							toonPicture: String(browse.toonPicture),
+							trinketAPicture: String(browse.trinketAPicture),
+							trinketBPicture: String(browse.trinketBPicture),
+							roleNames: browse.roleNames.map(String),
+						},
+						rowCount: host.team_table_rows.filter((row) => !row.isLeftEmpty).length,
+					}),
+					server_link: '',
+					dandy_run: host.dandy_run,
+					early_dyle: host.early_dyle,
+					region: host.region,
+					floor_goal: host.floor_goal,
+					is_searching: true,
+					search_id: '',
+					chosen_host_team_id: host.team_id,
+					chosen_host_row_index: rowIndex,
+					joined_team_id: host.team_id,
+					found_status: null,
+					started_at: transactionTime,
+				}
+				const mergedTeam = [
+					...mergedTeamOf(host).filter((team) => team.team_id !== pageId),
+					userTeam,
+				]
+				return doPlayersFitMergedTeam({
+					mergedTeam,
+					players: allPlayersOf(mergedTeam),
+					teamsById: new Map(teamsById).set(pageId, userTeam),
+				}) ? [rowIndex] : []
+			})
 			if (chosenHost?.is_searching) {
+				const playersInRows = playersInRowsOf(chosenHost)
 				browsedTeams.push({
 					host: chosenHost,
-					playersInRows: playersInRowsOf(chosenHost),
-					joinableRowIndexes: [],
+					playersInRows,
+					joinableRowIndexes: joinableRowIndexesOf({
+						host: chosenHost,
+						playersInRows,
+					}),
 				})
 			}
 			for (const host of teams) {
@@ -977,45 +1032,9 @@ checkIn.post('/', async (c) => {
 					}).length
 				) continue
 				const playersInRows = playersInRowsOf(host)
-				const joinableRowIndexes = host.team_table_rows.flatMap((row, rowIndex) => {
-					if (row.isLeftEmpty || playersInRows[rowIndex]) return []
-					const userTeam: Team = {
-						team_id: pageId,
-						invite_code: '',
-						roblox_user_id: robloxAccount ? String(robloxAccount.id) : '',
-						roblox_username: robloxAccount?.username ?? '',
-						roblox_badge_names: ownedBadgeNames,
-						removed_roblox_usernames: [],
-						missing_toons: browse.missingToons.slice(0, 200).map(String),
-						missing_trinkets: browse.missingTrinkets.slice(0, 200).map(String),
-						team_table_rows: browseTeamsJoinTableRows({
-							browseTeamsSlot: {
-								toonPicture: String(browse.toonPicture),
-								trinketAPicture: String(browse.trinketAPicture),
-								trinketBPicture: String(browse.trinketBPicture),
-								roleNames: browse.roleNames.map(String),
-							},
-							rowCount: host.team_table_rows.filter((row) => !row.isLeftEmpty).length,
-						}),
-						server_link: '',
-						dandy_run: host.dandy_run,
-						early_dyle: host.early_dyle,
-						region: host.region,
-						floor_goal: host.floor_goal,
-						is_searching: true,
-						search_id: '',
-						chosen_host_team_id: host.team_id,
-						chosen_host_row_index: rowIndex,
-						joined_team_id: host.team_id,
-						found_status: null,
-						started_at: transactionTime,
-					}
-					const mergedTeam = [...mergedTeamOf(host), userTeam]
-					return doPlayersFitMergedTeam({
-						mergedTeam,
-						players: allPlayersOf(mergedTeam),
-						teamsById: new Map(teamsById).set(pageId, userTeam),
-					}) ? [rowIndex] : []
+				const joinableRowIndexes = joinableRowIndexesOf({
+					host,
+					playersInRows,
 				})
 				if (!joinableRowIndexes.length) continue
 				if (browsedTeams.length - (chosenHost?.is_searching ? 1 : 0) === browsedTeamCount) {

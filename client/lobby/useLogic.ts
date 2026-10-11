@@ -27,6 +27,7 @@ import { dragReservationFromTable } from './dragReservationFromTable.ts'
 import { dropReservationOnPlayerCell } from './dropReservationOnPlayerCell.ts'
 import { endPictureDragFromTable } from './endPictureDragFromTable.ts'
 import { endReservationDragFromTable } from './endReservationDragFromTable.ts'
+import { joinBrowsedTeamSlot } from './joinBrowsedTeamSlot.ts'
 import { leaveInvitingTeam } from './leaveInvitingTeam.ts'
 import { leaveRowEmpty } from './leaveRowEmpty.ts'
 import { loadLastFoundTeam } from './loadLastFoundTeam.ts'
@@ -49,7 +50,6 @@ import { saveTeamTable } from './saveTeamTable.ts'
 import { tapFindATeamCardBox } from './tapFindATeamCardBox.ts'
 import { toggleBadgeCheckbox } from './toggleBadgeCheckbox.ts'
 import { toggleFindingPlayers } from './toggleFindingPlayers.ts'
-import { toggleJoiningBrowsedTeam } from './toggleJoiningBrowsedTeam.ts'
 import { toggleNotificationCheckbox } from './toggleNotificationCheckbox.ts'
 import { toggleOptionsCheckbox } from './toggleOptionsCheckbox.ts'
 import { toggleOwnedPictureTile } from './toggleOwnedPictureTile.ts'
@@ -1925,10 +1925,6 @@ That is a row without a chip, or an extra row that shares a chip.`
 		// Toons and Trinkets side windows around Browse Teams, which grey out while a join runs.
 		// The row of YOUR SLOT is browseTeamsTableRows above.
 		browseTeamsSideWindowClass: state.joinedBrowsedTeam ? 'window team-locked' : 'window',
-		// Small grey line below YOUR SLOT about the badges
-		browseTeamsSlotBadgesText: isRobloxVerified
-			? 'The badges of your verified Roblox account count by themselves.'
-			: 'Verify your Roblox account in Roblox Verification to fit slots that require badges.',
 
 		// TEAM SETTINGS below YOUR SLOT, which pick the listed teams, and which a join locks
 		browseTeamsSettings: teamSettingsGroupBoxOf({
@@ -1951,7 +1947,7 @@ That is a row without a chip, or an extra row that shares a chip.`
 		browseTeamsListText: (() => {
 			if (!state.browsedTeams) return 'Looking for teams...'
 			if (!state.browsedTeams.length) {
-				return 'No searching team has a slot for you right now. This list updates every few seconds.'
+				return 'Searching...'
 			}
 			return 'Teams that are looking for players and have a slot for you. Click one to see it.'
 		})(),
@@ -2004,15 +2000,16 @@ That is a row without a chip, or an extra row that shares a chip.`
 				: -1
 			// Tooltip of a greyed-out Join button of a free slot
 			const joinButtonBlockedTooltip = (() => {
-				if (state.joinedBrowsedTeam) return 'Cancel the join of the other team first.'
 				if (state.isFindingPlayers) return 'Cancel Find Players in Find a Team first.'
 				if (isInvitedFriend) return 'You are in the team of the friend who invited you.'
 				return ''
 			})()
 			return {
 				showOpenedBrowsedTeam: Boolean(state.openedBrowsedHostTeamId),
+				// Closing Team Details also ends the join of one of its slots
 				closeOpenedBrowsedTeam: () => setState({
 					openedBrowsedHostTeamId: null,
+					joinedBrowsedTeam: null,
 				}),
 				// Line above the table with the host's name and the TEAM SETTINGS, or why the team
 				// is gone
@@ -2076,22 +2073,28 @@ That is a row without a chip, or an extra row that shares a chip.`
 							: [],
 						noRolesText: row.roleNames.length ? '' : '(none required)',
 						roleNames: row.roleNames,
-						playerName: `(${playerNameOf(openedBrowsedTeam!.playersInRows[index] ?? null)
-							|| 'Free slot'})`,
-						// Join button in the Player cell of a free slot that the user fits, which reads
-						// "Waiting for the team to fill up (Click to Cancel)" while its join runs, and is
-						// greyed out with a tooltip while the user cannot join. The other rows show the
-						// player's name instead.
-						joinButton: index === joinedRowIndex
-							|| openedBrowsedTeam!.joinableRowIndexes.includes(index)
+						// The slot that the user joined has a light blue background and a bold player
+						// name, and the other names are grey
+						slotClass: index === joinedRowIndex ? 'browse-joined-slot' : '',
+						playerNameClass: index === joinedRowIndex
+							? 'browse-joined-slot-text'
+							: 'team-placeholder',
+						playerName: (() => {
+							if (index === joinedRowIndex) return 'Joined this slot'
+							return openedBrowsedTeam!.playersInRows[index]
+								? '(Slot filled)'
+								: '(Requirements incompatible with you)'
+						})(),
+						// Join button in the Player cell of a free slot that the user fits, which is
+						// greyed out with a tooltip while the user cannot join. The other rows, and the
+						// slot that the user joined, show playerName instead.
+						joinButton: index !== joinedRowIndex
+							&& openedBrowsedTeam!.joinableRowIndexes.includes(index)
 							? {
-								text: index === joinedRowIndex
-									? 'Waiting for the team to fill up (Click to Cancel)'
-									: 'Join',
-								tooltip: index === joinedRowIndex ? '' : joinButtonBlockedTooltip,
-								isDisabled: index !== joinedRowIndex && Boolean(joinButtonBlockedTooltip),
-								toggleJoining: () => toggleJoiningBrowsedTeam({
-									getJoinedBrowsedTeam: () => getSyncState().joinedBrowsedTeam,
+								text: 'Join',
+								tooltip: joinButtonBlockedTooltip,
+								isDisabled: Boolean(joinButtonBlockedTooltip),
+								join: () => joinBrowsedTeamSlot({
 									setJoinedBrowsedTeam: (joinedBrowsedTeam) => setState({ joinedBrowsedTeam }),
 									setBrowseTeamsError: (browseTeamsError) => setState({ browseTeamsError }),
 									browsedTeam: openedBrowsedTeam!,
