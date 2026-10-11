@@ -1,7 +1,12 @@
 import { expect, test } from '@playwright/test'
 import { connectToTestDatabase } from './testDatabase.ts'
+import { verifyAsRobloxAccount } from './verifyAsRobloxAccount.ts'
 
 test.beforeEach(async ({ page }) => {
+	await page.addInitScript(() => {
+		localStorage.setItem('missingToons', '[]')
+		localStorage.setItem('missingTrinkets', '[]')
+	})
 	await page.goto('/')
 	await page.locator('#team-icon').click()
 	await expect(page.locator('#team-toons img').first()).toBeVisible()
@@ -35,6 +40,65 @@ test('Find Players is greyed out when no row is left to find', async ({ page }) 
 	await page.locator('#team-reserved .team-chip', { hasText: 'Me' })
 		.dragTo(rows.nth(1).locator('td').nth(4))
 	await expect(page.locator('#team-find button')).toBeEnabled()
+})
+
+test('Find Players is disabled when Me requires a toon marked missing', async ({ page }) => {
+	const firstRow = page.locator('#team-table tbody tr').first()
+	await page.locator('#team-reserved .team-chip', { hasText: 'Me' })
+		.dragTo(firstRow.locator('td').nth(4))
+	await page.locator('#team-toons img[title="poppy"]').dragTo(firstRow.locator('td').first())
+	await page.locator('#team-toons .team-drag-hint button').click()
+	await page.locator('#team-owned-pictures img[title="poppy"]').click()
+	await page.locator('#team-owned-pictures .window-close').click()
+	await expect(firstRow.locator('.team-picture-crossed-out'))
+		.toHaveAttribute('data-crossed-out', 'true')
+	await expect(page.locator('#team-find button')).toBeDisabled()
+	await expect(page.locator('#team-find')).toHaveAttribute(
+		'title',
+		'Your row requires a toon, trinket, or badge you marked as missing.',
+	)
+})
+
+test('Find Players is disabled when Me requires a trinket marked missing', async ({ page }) => {
+	const firstRow = page.locator('#team-table tbody tr').first()
+	await page.locator('#team-reserved .team-chip', { hasText: 'Me' })
+		.dragTo(firstRow.locator('td').nth(4))
+	await page.locator('#team-trinkets img[title="alarm"]').dragTo(firstRow.locator('td').nth(1))
+	await page.locator('#team-trinkets .team-drag-hint button').click()
+	await page.locator('#team-owned-pictures img[title="alarm"]').click()
+	await page.locator('#team-owned-pictures .window-close').click()
+	await expect(firstRow.locator('.team-picture-crossed-out'))
+		.toHaveAttribute('data-crossed-out', 'true')
+	await expect(page.locator('#team-find button')).toBeDisabled()
+})
+
+test('Find Players is disabled when Me requires a badge the account does not own', async ({
+	page,
+}) => {
+	await verifyAsRobloxAccount({
+		context: page.context(),
+		username: 'MissingBadgeHost',
+		ownedBadgeNames: [],
+	})
+	await page.evaluate(() => {
+		const rows = Array.from({ length: 8 }, (_, index) => ({
+			toonPicture: '',
+			trinketAPicture: '',
+			trinketBPicture: '',
+			badgeNames: index === 0 ? ['Hissy Fit'] : [],
+			roleNames: [],
+			isVerifiedPlayerRequired: index === 0,
+			reservedFor: index === 0 ? 'me' : '',
+			isLeftEmpty: false,
+		}))
+		localStorage.setItem('team', JSON.stringify(rows))
+	})
+	await page.reload()
+	await page.locator('#team-icon').click()
+	const firstRow = page.locator('#team-table tbody tr').first()
+	await expect(firstRow.locator('.team-badge-or-role', { hasText: 'Hissy Fit' }))
+		.toHaveAttribute('data-crossed-out', 'true')
+	await expect(page.locator('#team-find button')).toBeDisabled()
 })
 
 test.describe('with "Me" on the first row', () => {

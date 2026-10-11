@@ -3,6 +3,12 @@ import { allowClipboard } from './allowClipboard.ts'
 import { verifyAsRobloxAccount } from './verifyAsRobloxAccount.ts'
 
 test.beforeEach(async ({ page }) => {
+	await page.addInitScript(() => {
+		if (sessionStorage.getItem('preserveOwnership') !== 'true') {
+			localStorage.setItem('missingToons', '[]')
+			localStorage.setItem('missingTrinkets', '[]')
+		}
+	})
 	await page.goto('/')
 	await page.locator('#team-icon').click()
 	await expect(page.locator('#team-toons img').first()).toBeVisible()
@@ -78,26 +84,42 @@ test.describe('My Toons and My Trinkets windows', () => {
 		await expect(page.locator('#team-toons img[title="bobette"]')).toHaveCount(1)
 	})
 
-	test('Show all shows missing trinkets without unmarking them, and both survive a reload', async ({
+	test('missing trinkets stay hidden after reload and remain marked missing', async ({
 		page,
 	}) => {
 		await page.locator('#team-trinkets .team-drag-hint button').click()
 		await page.locator('#team-owned-pictures img[title="alarm"]').click()
 		await page.locator('#team-owned-pictures img[title="bone"]').click()
-		await page.locator('#team-owned-pictures-show-all').click()
+		await page.evaluate(() => sessionStorage.setItem('preserveOwnership', 'true'))
 		await page.reload()
 		await page.locator('#team-icon').click()
-		await expect(page.locator('#team-trinkets img')).toHaveCount(57)
+		await expect(page.locator('#team-trinkets img')).toHaveCount(55)
+		await expect(page.locator('#team-owned-pictures-show-all')).toHaveCount(0)
 		await expect(page.locator('#team-trinkets .team-drag-hint button')).toHaveText(
 			'55/57 Trinkets',
 		)
 		await page.locator('#team-trinkets .team-drag-hint button').click()
-		const showAllButton = page.locator('#team-owned-pictures-show-all')
-		await expect(showAllButton).toHaveAttribute('aria-pressed', 'true')
 		await expect(page.locator('.team-owned-pictures-missing-mark')).toHaveCount(2)
-		await showAllButton.click()
-		await expect(page.locator('#team-trinkets img')).toHaveCount(55)
 	})
+
+	test(
+		'a fresh profile starts with only Poppy and Boxten and no trinkets owned',
+		async ({ page }) => {
+			await page.evaluate(() => sessionStorage.setItem('preserveOwnership', 'true'))
+			await page.evaluate(() => {
+				localStorage.removeItem('missingToons')
+				localStorage.removeItem('missingTrinkets')
+			})
+			await page.reload()
+			await page.locator('#team-icon').click()
+			await expect(page.locator('#team-toons .team-drag-hint button')).toHaveText('2/40 Toons')
+			await expect(page.locator('#team-trinkets .team-drag-hint button')).toHaveText('0/57 Trinkets')
+			await expect(page.locator('#team-toons img')).toHaveCount(2)
+			await expect(page.locator('#team-toons img[title="poppy"]')).toBeVisible()
+			await expect(page.locator('#team-toons img[title="boxten"]')).toBeVisible()
+			await expect(page.locator('#team-trinkets img')).toHaveCount(0)
+		},
+	)
 
 	test('the Reserved window shows ME and UNVERIFIED FRIENDS', async ({ page }) => {
 		await expect(page.locator('#team-reserved legend')).toHaveText([
@@ -468,6 +490,8 @@ test.describe('after verifying', () => {
 	// or to fix.
 	test('badges are crossed out until "Verified only" is checked', async ({ page }) => {
 		const firstRow = page.locator('#team-table tbody tr').first()
+		await page.locator('#team-reserved .team-chip', { hasText: 'Me' })
+			.dragTo(page.locator('#team-table tbody tr').nth(1).locator('td').nth(4))
 		await firstRow.locator('td').nth(3).click()
 		await page.locator('#team-badges label', { hasText: 'Hissy Fit' }).click()
 		await page.locator('#team-badges .window-close').click()

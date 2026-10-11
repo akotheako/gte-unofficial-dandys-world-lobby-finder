@@ -19,6 +19,10 @@ async function openFindATeamAs({
 	path?: string
 }) {
 	const context = await browser.newContext()
+	await context.addInitScript(() => {
+		localStorage.setItem('missingToons', '[]')
+		localStorage.setItem('missingTrinkets', '[]')
+	})
 	await allowClipboard(context)
 	if (username) {
 		await verifyAsRobloxAccount({

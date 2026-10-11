@@ -101,6 +101,7 @@ test('on a phone, the boxes of a card open pick windows that fill them', async (
 test('on a phone, the Toons pick window opens My Toons, which hides missing toons', async ({
 	page,
 }) => {
+	await page.addInitScript(() => localStorage.setItem('missingToons', '[]'))
 	await page.setViewportSize({
 		width: 390,
 		height: 844,

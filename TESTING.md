@@ -81,9 +81,9 @@ and what should happen.
   titles. Every tile is tinted light grey and slightly see-through, with a big ✅ behind an owned
   tile's picture. Clicking a tile swaps its ✅ for a red X, hides it from the side window and the
   pick window, and lowers the count, and a second click brings it back.
-- "Show all" stays pressed in and brings the missing pictures back to the side window and the pick
-  window, while the marks in the window and the count stay the same. A second click hides them
-  again. The marks and "Show all" survive a reload.
+- A fresh profile starts with Poppy and Boxten owned and no trinkets owned. Missing pictures stay
+  out of the side and pick windows; their marks and counts survive a reload.
+- The My Toons and My Trinkets windows have no "Show all" control.
 - While Find Players runs, the "N/N Toons" and "N/N Trinkets" buttons are greyed out, and they
   work again once the search is cancelled.
 - A new `.png` in `public/toons` or `public/trinkets` appears after a reload.
@@ -170,6 +170,9 @@ These checks need profiles A and B, and A is verified.
 
 - Find Players is greyed out, with a tooltip that says why, when no row has "Me", when no row is
   left to find, and when a verified friend in the table left the team.
+- A "Me" row shows missing required toons and trinkets with the red X overlay, and missing required
+  badges with the same crossed-out style as an impossible role. Find Players stays disabled until
+  the requirements on that row are owned.
 - A filled-in link that does not look like a Roblox server link shows a red message, which
   disappears when the table, the link or TEAM SETTINGS change.
 - An empty link is allowed, and the search shows the grey line about searching without a server
@@ -206,6 +209,7 @@ These checks need two or three profiles that search at the same time.
 - A "Me" row never takes a row that asks for a toon or trinket that the user marked as missing in
   My Toons or My Trinkets, whether its own cell is "(Any)" or names that picture, while an "(Any)"
   cell on a friend's row still matches anything.
+- A "Me" row cannot search for a badge that the verified account does not own.
 - A "Verified only" row rejects an unverified player, accepts a harder badge of the same category,
   such as Marathon Runner for Speed Walker, and rejects an easier one.
 - The search with a server link hosts, or the older search when both have one, and a search that

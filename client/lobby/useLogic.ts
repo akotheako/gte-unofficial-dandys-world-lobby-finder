@@ -46,7 +46,6 @@ import { saveServerLinkField } from './saveServerLinkField.ts'
 import { scrollBrowseTeamsList } from './scrollBrowseTeamsList.ts'
 import { sendReport } from './sendReport.ts'
 import { saveTeamTable } from './saveTeamTable.ts'
-import { showAllOwnedPictures } from './showAllOwnedPictures.ts'
 import { tapFindATeamCardBox } from './tapFindATeamCardBox.ts'
 import { toggleBadgeCheckbox } from './toggleBadgeCheckbox.ts'
 import { toggleFindingPlayers } from './toggleFindingPlayers.ts'
@@ -158,9 +157,6 @@ export function useLogic() {
 		// windows and pick windows therefore hide
 		missingToons: string[]
 		missingTrinkets: string[]
-		// "Show all" of that window is pressed in, which shows the missing pictures anyway
-		isShowingAllToons: boolean
-		isShowingAllTrinkets: boolean
 		openOwnedPicturesWindowKind: 'toon' | 'trinket' | null
 		serverLinkFieldStartValue: string
 		serverLink: string
@@ -254,8 +250,6 @@ export function useLogic() {
 		trinketsWindowPictures: [],
 		missingToons: JSON.parse(localStorage.getItem('missingToons') ?? '[]'),
 		missingTrinkets: JSON.parse(localStorage.getItem('missingTrinkets') ?? '[]'),
-		isShowingAllToons: localStorage.getItem('showAllToons') === 'true',
-		isShowingAllTrinkets: localStorage.getItem('showAllTrinkets') === 'true',
 		openOwnedPicturesWindowKind: null,
 		serverLinkFieldStartValue: localStorage.getItem('serverLink') ?? '',
 		serverLink: localStorage.getItem('serverLink') ?? '',
@@ -343,8 +337,24 @@ export function useLogic() {
 
 	// Fills the Toons and Trinkets side windows with pictures
 	useEffect(() => loadSideWindowPictures({
-		setToonsWindowPictures: (toonsWindowPictures) => setState({ toonsWindowPictures }),
-		setTrinketsWindowPictures: (trinketsWindowPictures) => setState({ trinketsWindowPictures }),
+		setToonsWindowPictures: (toonsWindowPictures) => {
+			setState({ toonsWindowPictures })
+			if (localStorage.getItem('missingToons') === null) {
+				const missingToons = toonsWindowPictures.filter((picture) => (
+					!['poppy.png', 'boxten.png'].includes(picture)
+				))
+				localStorage.setItem('missingToons', JSON.stringify(missingToons))
+				setState({ missingToons })
+			}
+		},
+		setTrinketsWindowPictures: (trinketsWindowPictures) => {
+			setState({ trinketsWindowPictures })
+			if (localStorage.getItem('missingTrinkets') === null) {
+				const missingTrinkets = [...trinketsWindowPictures]
+				localStorage.setItem('missingTrinkets', JSON.stringify(missingTrinkets))
+				setState({ missingTrinkets })
+			}
+		},
 	}), [setState])
 
 	// Decides whether Roblox Verification opens on "Verified as <name>" or on the instructions
@@ -661,8 +671,8 @@ export function useLogic() {
 
 
 	// Pictures that the side windows and the pick windows leave out
-	const hiddenToons = state.isShowingAllToons ? [] : state.missingToons
-	const hiddenTrinkets = state.isShowingAllTrinkets ? [] : state.missingTrinkets
+	const hiddenToons = state.missingToons
+	const hiddenTrinkets = state.missingTrinkets
 
 	// Bugs in the game and players are reported on the official Discord server instead
 	const isReportTopicForDiscord = [
@@ -1067,20 +1077,6 @@ export function useLogic() {
 							}),
 						})),
 				})),
-				// "Show all" button at the bottom, which looks pressed in while it is on
-				ownedPicturesWindowShowAllButtonText: 'Show all',
-				isOwnedPicturesWindowShowAllPressed: isToonsWindow
-					? state.isShowingAllToons
-					: state.isShowingAllTrinkets,
-				showAllOwnedPictures: () => showAllOwnedPictures({
-					localStorageKey: isToonsWindow ? 'showAllToons' : 'showAllTrinkets',
-					getIsShowingAll: () => (
-						isToonsWindow ? getSyncState().isShowingAllToons : getSyncState().isShowingAllTrinkets
-					),
-					setIsShowingAll: (isShowingAll) => setState(isToonsWindow
-						? { isShowingAllToons: isShowingAll }
-						: { isShowingAllTrinkets: isShowingAll }),
-				}),
 			}
 		})(),
 
@@ -1478,6 +1474,14 @@ export function useLogic() {
 						picture: row[column] ? {
 							src: `/pixelated/${column === 'toonPicture' ? 'toons' : 'trinkets'}/${row[column]}`,
 							title: row[column].replace('.png', ''),
+							isMissingForMe: tableRowsKey === 'teamTableRows'
+								&& (row.reservedFor === 'me'
+									|| (!isInvitedFriend
+										&& !isRobloxVerified
+										&& shownTeamStatus?.hostRowIndex === index))
+								&& (column === 'toonPicture'
+									? state.missingToons.includes(row[column])
+									: state.missingTrinkets.includes(row[column])),
 							draggable: !isTableLocked,
 							dragPictureFromTable: () => dragPictureFromTable({
 								getPicture: () => getSyncState()[tableRowsKey][index][column],
@@ -1542,7 +1546,15 @@ export function useLogic() {
 					checkedBadgeNames: row.badgeNames,
 				})).map((name) => ({
 					name,
-					isCrossedOut: !row.isVerifiedPlayerRequired,
+					isCrossedOut: !row.isVerifiedPlayerRequired
+						|| (tableRowsKey === 'teamTableRows'
+							&& (row.reservedFor === 'me'
+								|| (!isInvitedFriend
+									&& !isRobloxVerified
+									&& shownTeamStatus?.hostRowIndex === index))
+							&& state.robloxBadgeChecklist?.some((badge) => (
+								badge.name === name && !badge.owned
+							))),
 				})),
 				badgesCellTooltip: row.isVerifiedPlayerRequired || !row.badgeNames.length
 					? 'Click to modify required badges'
@@ -1775,6 +1787,22 @@ That is a row without a chip, or an extra row that shares a chip.`
 					))
 				))) {
 					return 'A verified friend in the table left the team. Drag their name out of the table.'
+				}
+				const myRow = filledRows.find((row) => row.reservedFor === 'me')
+				if (myRow && (
+					(myRow.toonPicture && state.missingToons.includes(myRow.toonPicture))
+					|| [myRow.trinketAPicture, myRow.trinketBPicture]
+						.some((picture) => picture && state.missingTrinkets.includes(picture))
+					|| (myRow.isVerifiedPlayerRequired && myRow.badgeNames
+						.filter((name) => !isBadgeProvenByLaterCheckedBadge({
+							badgeName: name,
+							checkedBadgeNames: myRow.badgeNames,
+						}))
+						.some((name) => state.robloxBadgeChecklist?.some((badge) => (
+							badge.name === name && !badge.owned
+						))))
+				)) {
+					return 'Your row requires a toon, trinket, or badge you marked as missing.'
 				}
 				return ''
 			})()

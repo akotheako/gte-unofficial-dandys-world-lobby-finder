@@ -797,6 +797,21 @@ function TeamTable({
 					text-decoration: line-through;
 					cursor: help;
 				}
+				.team-picture-crossed-out[data-crossed-out="true"] {
+					position: relative;
+					display: inline-flex;
+				}
+				.team-picture-crossed-out[data-crossed-out="true"]::before {
+					content: '';
+					position: absolute;
+					inset: 0;
+					background: url('/redx.webp') center / contain no-repeat;
+				}
+				.team-picture-crossed-out[data-crossed-out="true"] img {
+					position: relative;
+					opacity: 0.6;
+					filter: grayscale(0.7) brightness(1.3);
+				}
 			`}</style>
 			<style>{`
 				.team-table {
@@ -943,7 +958,8 @@ function TeamTable({
 									{/* Toon or trinket picture */}
 									{cell.picture && (
 										<div
-											className="team-text"
+											className="team-text team-picture-crossed-out"
+											data-crossed-out={cell.picture.isMissingForMe}
 											draggable={cell.picture.draggable}
 											onDragStart={cell.picture.dragPictureFromTable}
 											onDragEnd={cell.picture.endPictureDragFromTable}
@@ -1162,11 +1178,16 @@ function TeamCards({
 									<span className="team-card-label">{cell.cardBoxLabel}</span>
 									{cell.anyText && <span className="team-placeholder">{cell.anyText}</span>}
 									{cell.picture && (
-										<img
-											className="toon-or-trinket-picture"
-											src={cell.picture.src}
-											title={cell.picture.title}
-										/>
+										<span
+											className="team-picture-crossed-out"
+											data-crossed-out={cell.picture.isMissingForMe}
+										>
+											<img
+												className="toon-or-trinket-picture"
+												src={cell.picture.src}
+												title={cell.picture.title}
+											/>
+										</span>
 									)}
 								</div>
 							))}
@@ -2790,15 +2811,6 @@ createRoot(document.getElementById('root')!).render(
 							line-height: 1;
 							pointer-events: none;
 						}
-						#team-owned-pictures-show-all {
-							width: 100%;
-							margin-top: 6px;
-						}
-						#team-owned-pictures-show-all[aria-pressed="true"] {
-							border-style: solid;
-							border-color: var(--bevel-shadow) var(--bevel-light) var(--bevel-light) var(--bevel-shadow);
-							background: var(--field-hover);
-						}
 					`}</style>
 					<ModalWindow
 						id="team-owned-pictures"
@@ -2857,15 +2869,6 @@ createRoot(document.getElementById('root')!).render(
 								</div>
 							))}
 						</div>
-						{/* Wide grey "Show all" button, which looks pressed in while the side window and the
-						pick window show every picture, missing ones too */}
-						<button
-							id="team-owned-pictures-show-all"
-							aria-pressed={logic.isOwnedPicturesWindowShowAllPressed}
-							onClick={logic.showAllOwnedPictures}
-						>
-							{logic.ownedPicturesWindowShowAllButtonText}
-						</button>
 					</ModalWindow>
 					{/* Window in the middle of the screen that says the team is found, with a Click to join
 					server button below the text, and the picture of everyone at the elevator sitting on top
