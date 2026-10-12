@@ -294,6 +294,30 @@ function ModalWindow({
 	)
 }
 
+// Row of small grey-bordered tags for the TEAM SETTINGS that are not Any, such as "Dandy Run" or
+// "Floors 50 to 60", on the Browse Teams cards, in "Team found!" and in Upvote Players
+function TeamSettingsTags({ tags }: { tags: string[] }) {
+	return (
+		<>
+			<style>{`
+				.team-settings-tags {
+					display: flex;
+					flex-wrap: wrap;
+					gap: 4px;
+				}
+				.team-settings-tags span {
+					padding: 0 4px;
+					background: var(--window-face);
+					border: 1px solid var(--table-line);
+				}
+			`}</style>
+			<span className="team-settings-tags">
+				{tags.map((tag) => <span key={tag}>{tag}</span>)}
+			</span>
+		</>
+	)
+}
+
 // Join button in the Player cell or Player box of a free slot of Team Details, which shows its
 // tooltip on hover even while it is greyed out
 function BrowsedTeamJoinButton({ joinButton }: {
@@ -337,32 +361,6 @@ function BrowseTeamDetailsModal({ logic }: { logic: ReturnType<typeof useLogic> 
 				#browse-team-details-host {
 					margin: 0;
 					font-size: 15px;
-				}
-				#browse-team-settings {
-					padding: 8px;
-					border: 1px solid var(--table-line);
-				}
-				#browse-team-settings h2 {
-					margin: 0 0 6px;
-					font-size: 12px;
-				}
-				#browse-team-settings-list {
-					display: grid;
-					grid-template-columns: repeat(4, minmax(0, 1fr));
-					gap: 6px;
-				}
-				.browse-team-setting {
-					min-width: 0;
-					padding: 5px;
-					display: flex;
-					flex-direction: column;
-					gap: 3px;
-					background: var(--field);
-					border: 1px solid var(--table-line);
-				}
-				.browse-team-setting span {
-					color: var(--hint-text);
-					font-size: 11px;
 				}
 				#browse-team-table-scroll {
 					min-height: 0;
@@ -410,9 +408,6 @@ function BrowseTeamDetailsModal({ logic }: { logic: ReturnType<typeof useLogic> 
 					#browse-team-table-scroll { display: none; }
 					#browse-team-details-cards { display: flex; flex-direction: column; gap: 6px; }
 				}
-				@media (max-width: 640px) {
-					#browse-team-settings-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-				}
 			`}</style>
 			<ModalWindow
 				id="browse-team-details"
@@ -435,18 +430,8 @@ function BrowseTeamDetailsModal({ logic }: { logic: ReturnType<typeof useLogic> 
 					) : (
 						<>
 							<h2 id="browse-team-details-host">{logic.openedBrowsedTeamHostText}</h2>
-							<section id="browse-team-settings">
-								<h2>TEAM SETTINGS</h2>
-								<div id="browse-team-settings-list">
-									{logic.openedBrowsedTeamSettings.map((setting) => (
-										<div
-											key={setting.name}
-											className="browse-team-setting">
-											<span>{setting.name}</span><strong>{setting.value}</strong>
-										</div>
-									))}
-								</div>
-							</section>
+							{/* Tags with the TEAM SETTINGS of the whole team */}
+							<TeamSettingsTags tags={logic.openedBrowsedTeamSettingsTags} />
 							<div id="browse-team-table-scroll">
 								<table id="browse-team-table">
 									<thead>
@@ -2363,16 +2348,6 @@ createRoot(document.getElementById('root')!).render(
 												width: 40px;
 												height: 40px;
 											}
-											.browse-card-tags {
-												display: flex;
-												flex-wrap: wrap;
-												gap: 4px;
-											}
-											.browse-card-tags span {
-												padding: 0 4px;
-												background: var(--window-face);
-												border: 1px solid var(--table-line);
-											}
 										`}</style>
 										<div
 											id="browse-cards"
@@ -2406,9 +2381,7 @@ createRoot(document.getElementById('root')!).render(
 																</span>
 															)))}
 													</span>
-													<span className="browse-card-tags">
-														{card.tags.map((tag) => <span key={tag}>{tag}</span>)}
-													</span>
+													<TeamSettingsTags tags={card.tags} />
 												</button>
 											))}
 											{logic.browseTeamsMoreText && (
@@ -2450,15 +2423,19 @@ createRoot(document.getElementById('root')!).render(
 								<p id="upvote-intro">{logic.upvotePlayersIntroText}</p>
 								{logic.showLastFoundTeam && (
 									<>
-										{/* TEAM SETTINGS of the team in one line, then its server link */}
+										{/* Tags with the TEAM SETTINGS of the team, then its server link below them */}
 										<style>{`
+										#upvote-settings {
+											display: flex;
+											flex-direction: column;
+											gap: 4px;
+										}
 										#upvote-settings a {
 											color: var(--link);
 										}
 									`}</style>
 										<p id="upvote-settings">
-											{logic.lastFoundTeamSettingsText}
-											<br />
+											<TeamSettingsTags tags={logic.lastFoundTeamSettingsTags} />
 											<a
 												href={logic.lastFoundTeamServerLink}
 												target="_blank"
@@ -3081,7 +3058,7 @@ createRoot(document.getElementById('root')!).render(
 					of the window */}
 					<style>{`
 						#team-found {
-							max-width: 520px;
+							max-width: min(760px, calc(100vw - 32px));
 							overflow: visible;
 							overflow-wrap: anywhere;
 						}
@@ -3090,7 +3067,7 @@ createRoot(document.getElementById('root')!).render(
 								max-width: calc(100vw - 16px);
 							}
 						}
-						#team-found img {
+						#team-found > img {
 							position: absolute;
 							bottom: 100%;
 							left: 50%;
@@ -3105,8 +3082,50 @@ createRoot(document.getElementById('root')!).render(
 						#team-found a {
 							color: var(--link);
 						}
-						#team-found #team-found-own-slot {
-							font-weight: bold;
+						#team-found-settings .team-settings-tags {
+							justify-content: center;
+							margin: 6px 0;
+						}
+						#team-found-table {
+							width: 100%;
+							border-collapse: collapse;
+							background: var(--field);
+						}
+						#team-found-table th,
+						#team-found-table td {
+							min-width: 60px;
+							height: 44px;
+							padding: 2px 6px;
+							border: 1px solid var(--table-line);
+							text-align: center;
+						}
+						#team-found-table th {
+							height: 20px;
+							background: var(--window-face);
+						}
+						#team-found-table img {
+							width: 40px;
+							height: 40px;
+							vertical-align: middle;
+						}
+						#team-found-cards {
+							display: none;
+						}
+						@media (max-width: 1320px) {
+							#team-found-table {
+								display: none;
+							}
+							#team-found-cards {
+								max-height: 50vh;
+								overflow-y: auto;
+								display: flex;
+								flex-direction: column;
+								gap: 6px;
+							}
+						}
+						.team-found-own-slot td,
+						.team-found-own-slot .team-card-box {
+							background: var(--joined-slot);
 						}
 						#team-found #team-found-join {
 							display: block;
@@ -3169,12 +3188,104 @@ createRoot(document.getElementById('root')!).render(
 							)}
 							{logic.teamFoundText.afterHost}
 						</p>
-						{/* Centered line with the TEAM SETTINGS of the whole team, then a bold line with
-						what the user's own slot asks for */}
-						<p>{logic.teamFoundSettingsText}</p>
-						{logic.teamFoundOwnSlotText && (
-							<p id="team-found-own-slot">{logic.teamFoundOwnSlotText}</p>
-						)}
+						{/* Centered row of tags with the TEAM SETTINGS of the whole team */}
+						<div id="team-found-settings">
+							<TeamSettingsTags tags={logic.teamFoundSettingsTags} />
+						</div>
+						{/* White read-only table of the whole team, one row per slot, with Toon, Trinket A,
+						Trinket B, Badges, Role and Player columns and grey placeholders, where the
+						user's own row is light blue */}
+						<table id="team-found-table">
+							<thead>
+								<tr>
+									<th>Toon</th>
+									<th>Trinket A</th>
+									<th>Trinket B</th>
+									<th>Badges</th>
+									<th>Role</th>
+									<th>Player</th>
+								</tr>
+							</thead>
+							<tbody>
+								{logic.teamFoundRows.map((row) => (
+									<tr
+										key={row.key}
+										className={row.slotClass}>
+										{row.pictureCells.map((cell) => (
+											<td key={cell.key}>
+												{cell.anyText && <span className="team-placeholder">{cell.anyText}</span>}
+												{cell.picture && (
+													<img
+														className="toon-or-trinket-picture"
+														src={cell.picture.src}
+														title={cell.picture.title}
+													/>
+												)}
+											</td>
+										))}
+										<td>
+											{row.noBadgesText && (
+												<span className="team-placeholder">{row.noBadgesText}</span>
+											)}
+											{row.badgeNames.map((name) => <div key={name}>{name}</div>)}
+										</td>
+										<td>
+											{row.noRolesText && (
+												<span className="team-placeholder">{row.noRolesText}</span>
+											)}
+											{row.roleNames.map((name) => <div key={name}>{name}</div>)}
+										</td>
+										<td className="team-placeholder">{row.playerName}</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+						{/* Column of read-only white cards that replaces the table on a narrow screen, one
+						per slot with "Player Slot #N" above it, where the user's own card is light blue */}
+						<div id="team-found-cards">
+							{logic.teamFoundRows.map((row) => (
+								<div
+									key={row.key}
+									className={row.slotClass}>
+									<div className="team-card-title">{row.cardTitle}</div>
+									<div className="team-card">
+										{row.pictureCells.map((cell) => (
+											<div
+												key={cell.key}
+												className="team-card-box team-card-picture-box">
+												<span className="team-card-label">{cell.cardBoxLabel}</span>
+												{cell.anyText && <span className="team-placeholder">{cell.anyText}</span>}
+												{cell.picture && (
+													<img
+														className="toon-or-trinket-picture"
+														src={cell.picture.src}
+														title={cell.picture.title}
+													/>
+												)}
+											</div>
+										))}
+										<div className="team-card-box">
+											<span className="team-card-label">Badges</span>
+											{row.noBadgesText && (
+												<span className="team-placeholder">{row.noBadgesText}</span>
+											)}
+											{row.badgeNames.map((name) => <div key={name}>{name}</div>)}
+										</div>
+										<div className="team-card-box">
+											<span className="team-card-label">Role</span>
+											{row.noRolesText && (
+												<span className="team-placeholder">{row.noRolesText}</span>
+											)}
+											{row.roleNames.map((name) => <div key={name}>{name}</div>)}
+										</div>
+										<div className="team-card-box">
+											<span className="team-card-label">Player</span>
+											<span className="team-placeholder">{row.playerName}</span>
+										</div>
+									</div>
+								</div>
+							))}
+						</div>
 						{/* Raised grey Click to join server button that opens the server in Roblox */}
 						<a
 							id="team-found-join"

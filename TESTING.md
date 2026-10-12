@@ -206,7 +206,11 @@ These checks need two or three profiles that search at the same time.
   narrows to the floors that every range shares. Browse Teams and Upvote Players show these
   settings, and a Browse Teams join adds the TEAM SETTINGS of Browse Teams to them.
 - No merge happens when the Region differs and neither side is Any, when the Floor goal ranges share
-  no floor, when Dandy Run or Early Dyle differs and neither side is Any, when the number of rows differs, or when neither side has a link.
+  no floor, when Dandy Run or Early Dyle differs and neither side is Any, when the number of rows
+  differs, or when the merge would give every slot a player while no search has a server link.
+- Searches without a server link merge while the team still has free slots.
+- Two merged searches merge as a whole: two players with many upvotes and two without any each
+  merge first, and once the upvote gap fits, the two pairs become one team of four.
 - The same verified account never ends up twice in one team.
 - A search with 0 upvotes waiting next to one with 0 upvotes and one with many upvotes merges with
   the 0-upvote search first. A 0-upvote search and a search with many upvotes, alone in the queue,
@@ -216,17 +220,19 @@ These checks need two or three profiles that search at the same time.
 - The rows of a merged team combine into slots: after a search with three Boxten rows joins an
   all-"(Any)" host, a search with three Poppy rows no longer merges with that team, and Browse
   Teams shows the Boxten in the host's rows.
-- "Team found!" shows the TEAM SETTINGS of the whole team and a bold "Your slot: ..." line with
-  what the user's own slot asks for, such as "Your slot: Vee · Extractor".
+- "Team found!" shows the TEAM SETTINGS of the whole team as tags, and a read-only table of the
+  whole team, one row per slot, where the user's own row is light blue and reads "(You)". On a
+  narrow screen, the table becomes cards.
 - A "Me" row never takes a row that asks for a toon or trinket that the user marked as missing in
   My Toons or My Trinkets, whether its own cell is "(Any)" or names that picture, while an "(Any)"
   cell on a friend's row still matches anything.
 - A "Me" row cannot search for a badge that the verified account does not own.
 - A "Verified only" row rejects an unverified player, accepts a harder badge of the same category,
   such as Marathon Runner for Speed Walker, and rejects an easier one.
-- The search with a server link hosts, or the older search when both have one, and a search that
-  others joined cannot join another one.
-- Everyone gets the host's link, and invited friends get it too.
+- Everyone gets the server link of the oldest search of the team that has one, and "Team found!"
+  names that search's player as the host. Invited friends get the link too.
+- When the oldest search of a merged search leaves, the others keep searching together with
+  their wishes, and when another search leaves, only its wishes leave with it.
 - Players who join later keep appearing in the team's status.
 - "Team found!" opens only once every row of the merged team has a player. Before that, the merged
   team keeps searching, with the spinner and "Finding player..." on its empty rows.
@@ -252,7 +258,8 @@ These checks need two or three profiles that search at the same time.
 - A card lists a searching team with a server link whose free slot the user fits, with its toons
   and a tag for every TEAM SETTING that is not Any.
 - Clicking a card opens its team details in a modal above Browse Teams. The wide layout uses a table,
-  the narrow layout uses labeled cards, and the TEAM SETTINGS appear as separate labeled values.
+  the narrow layout uses labeled cards, and the TEAM SETTINGS appear as the same tags as on the
+  cards.
 - Closing the team details modal returns to the team list.
 - No card shows a team whose free slots need a toon that the user marked as missing, a role that the
   slot does not do, or a badge that the user's verified account lacks, nor a team whose TEAM
@@ -271,17 +278,20 @@ These checks need two or three profiles that search at the same time.
   in bold in place of its button, and the other slots that the user fits keep their Join buttons. Clicking one of them moves the join to that slot.
 - While the host's team keeps searching, the row that the join took reads "Player found!" in the
   host's Find a Team table, and the other free rows keep "Finding player".
-- Closing "Team found!" ends the join and unlocks YOUR SLOT.
+- Team Details closes behind "Team found!" without an error line, YOUR SLOT stays locked, and
+  closing "Team found!" ends the join and unlocks YOUR SLOT.
 - Closing Team Details while the join waits ends the join and unlocks YOUR SLOT.
 - When the team stops searching or no longer has a slot for the user, a red line says so and the
   join ends.
+- A join still merges when the host of its team leaves before the join's check-in, and when its
+  team merges into an older team first, as long as the chosen slot is still free there.
 - Join is greyed out with a tooltip while Find Players runs, and for an invited friend.
 
 ## 10. Upvote Players
 
 - Before any found team, the window says "You'll be able to upvote other players here after you
   find a team!"
-- After a merge, the window shows the TEAM SETTINGS, the server link, and the user's own table
+- After a merge, the window shows the TEAM SETTINGS as tags, the server link, and the user's own table
   with the pictures, badges, roles and players of its rows, without its "(Leave Empty)" rows.
 - The Upvote column, the last one, holds the Upvote button of each other verified player. The
   cell of the user's own row reads "(You cannot upvote yourself)", the cell of an unverified

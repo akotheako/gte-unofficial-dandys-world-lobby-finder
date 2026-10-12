@@ -16,6 +16,13 @@ export type TeamTableRow = {
 	isLeftEmpty: boolean
 }
 
+// Slot of a merged search in Browse Teams, as the row of each of its searches in that slot, so
+// that any of these searches finds the slot again, even after others left
+export type ChosenSlot = {
+	teamId: string
+	rowIndex: number
+}[]
+
 // TEAM SETTINGS of a whole merged team, which hold the most specific choice of its searches
 export type MergedTeamSettings = {
 	dandyRun: string
@@ -106,6 +113,12 @@ export type CheckInAnswer = {
 		playersInRows: (PlayerInRow | null)[]
 		// Free rows that the user fits, whose Player cell shows a Join button
 		joinableRowIndexes: number[]
+		// Searches of the merged team, by which the page finds the team again once its host changed
+		searchIds: string[]
+		// What the Join button of each row sends
+		chosenSlotsByRow: ChosenSlot[]
+		// Row that the page's own Browse Teams join takes in this team, or -1
+		joinedRowIndex: number
 	}[]
 	// More teams fit than Browse Teams asked for, so scrolling to the end of its list loads more
 	hasMoreBrowsedTeams: boolean

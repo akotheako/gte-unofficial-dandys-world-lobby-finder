@@ -16,6 +16,7 @@ export function checkInWithServer({
 	getShownTeamStatus,
 	getJoinedBrowsedTeam,
 	getBrowseTeamsFilter,
+	getOpenedBrowsedSearchIds,
 	setOnThisPageCount,
 	setFindingPlayersCount,
 	setInvitingTeam,
@@ -28,6 +29,7 @@ export function checkInWithServer({
 	setHasMoreBrowsedTeams,
 	setJoinedBrowsedTeam,
 	setBrowseTeamsError,
+	setOpenedBrowsedSearchIds,
 }: {
 	pageId: string
 	inviteCode: string
@@ -64,6 +66,7 @@ export function checkInWithServer({
 		floorGoal: string
 		browsedTeamCount: number
 	} | null
+	getOpenedBrowsedSearchIds: () => string[] | null
 	setOnThisPageCount: (onThisPageCount: number) => void
 	setFindingPlayersCount: (findingPlayersCount: number) => void
 	setInvitingTeam: (invitingTeam: CheckInAnswer['invitingTeam']) => void
@@ -74,8 +77,9 @@ export function checkInWithServer({
 	setIsVerificationNeededToJoin: (isVerificationNeededToJoin: boolean) => void
 	setBrowsedTeams: (browsedTeams: CheckInAnswer['browsedTeams']) => void
 	setHasMoreBrowsedTeams: (hasMoreBrowsedTeams: boolean) => void
-	setJoinedBrowsedTeam: (joinedBrowsedTeam: null) => void
+	setJoinedBrowsedTeam: (joinedBrowsedTeam: JoinedBrowsedTeam | null) => void
 	setBrowseTeamsError: (browseTeamsError: string) => void
+	setOpenedBrowsedSearchIds: (openedBrowsedSearchIds: string[]) => void
 }) {
 	// The ids survive reloads, so a reloaded tab keeps its team and its friend's invite link
 	sessionStorage.setItem('pageId', pageId)
@@ -107,8 +111,7 @@ export function checkInWithServer({
 					floorGoal: joinedBrowsedTeam.floorGoal,
 					isFindingPlayers: true,
 					searchId: joinedBrowsedTeam.searchId,
-					chosenHostTeamId: joinedBrowsedTeam.hostTeamId,
-					chosenHostRowIndex: joinedBrowsedTeam.hostRowIndex,
+					chosenSlot: joinedBrowsedTeam.chosenSlot,
 				}
 			}
 			return isFindingPlayers || getIsInviteLinkCopied() ? {
@@ -156,6 +159,23 @@ export function checkInWithServer({
 			setIsVerificationNeededToJoin(answer.isVerificationNeededToJoin)
 			setBrowsedTeams(answer.browsedTeams)
 			setHasMoreBrowsedTeams(answer.hasMoreBrowsedTeams)
+			// Team Details and a join keep following their team through any of its searches that is
+			// still in it, even after every search that the user saw left
+			const followedTeamOf = (searchIds: string[]) => answer.browsedTeams.find((browsedTeam) => (
+				browsedTeam.searchIds.some((searchId) => searchIds.includes(searchId))
+			))
+			const openedSearchIds = getOpenedBrowsedSearchIds()
+			const openedTeam = openedSearchIds && followedTeamOf(openedSearchIds)
+			if (openedTeam && openedTeam.searchIds.join() !== openedSearchIds.join()) {
+				setOpenedBrowsedSearchIds(openedTeam.searchIds)
+			}
+			const joinedTeam = joinedBrowsedTeam && followedTeamOf(joinedBrowsedTeam.searchIds)
+			if (joinedTeam && joinedTeam.searchIds.join() !== joinedBrowsedTeam.searchIds.join()) {
+				setJoinedBrowsedTeam({
+					...joinedBrowsedTeam,
+					searchIds: joinedTeam.searchIds,
+				})
+			}
 			if (answer.error) {
 				if (invite) {
 					setFindPlayersError(answer.error)

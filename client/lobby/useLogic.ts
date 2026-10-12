@@ -2,7 +2,9 @@ import { useEffect } from 'react'
 import { isBadgeProvenByLaterCheckedBadge } from '../../shared/badgeCategories.ts'
 import type {
 	CheckInAnswer,
+	ChosenSlot,
 	LastFoundTeam,
+	MergedTeamSettings,
 	PlayerInRow,
 	ReservedFor,
 	TeamTableRow,
@@ -119,9 +121,13 @@ function ownedPicturesFirst(pictures: string[], missingPictures: string[]) {
 // Team whose Join button the user clicked in Browse Teams, with the table that the join searches
 // with, while it waits for the team to fill up
 export type JoinedBrowsedTeam = {
-	hostTeamId: string
-	// Row of the host's table whose Join button the user clicked
-	hostRowIndex: number
+	// Searches of the team, by which the page finds its card again once the team's host changed
+	searchIds: string[]
+	// Row whose Join button the user clicked, which reads "Joined this slot" until the server
+	// tells the row of the join
+	rowIndex: number
+	// What the Join button sent, which the server finds the team and the slot by
+	chosenSlot: ChosenSlot
 	searchId: string
 	teamTableRows: TeamTableRow[]
 	dandyRun: string
@@ -140,6 +146,24 @@ function playerNameOf(playerInRow: PlayerInRow | null) {
 	return playerInRow.unverifiedFriendOf
 		? `Friend of @${playerInRow.unverifiedFriendOf}`
 		: 'Unverified friend'
+}
+
+// Small tags for the TEAM SETTINGS that are not Any, such as "Dandy Run", "No Early Dyle", the
+// region, and "Floors 50 to 60", which the Browse Teams cards, "Team found!" and Upvote Players
+// show
+function teamSettingsTagsOf(teamSettings: MergedTeamSettings) {
+	return [
+		{
+			Yes: 'Dandy Run',
+			No: 'No Dandy Run',
+		}[teamSettings.dandyRun] ?? '',
+		{
+			Yes: 'Early Dyle',
+			No: 'No Early Dyle',
+		}[teamSettings.earlyDyle] ?? '',
+		teamSettings.region === 'Any' ? '' : teamSettings.region,
+		`Floors ${teamSettings.floorGoal}`,
+	].filter(Boolean)
 }
 
 export function useLogic() {
@@ -229,8 +253,9 @@ export function useLogic() {
 		hasMoreBrowsedTeams: boolean
 		// How many cards Browse Teams asks the server for, which grows while the user scrolls
 		browsedTeamCount: number
-		// Card whose full table Browse Teams shows, or null for the list of cards
-		openedBrowsedHostTeamId: string | null
+		// Searches of the team that Team Details shows, by which the page finds the team's card
+		// again once its host changed, or null while Team Details is closed
+		openedBrowsedSearchIds: string[] | null
 		joinedBrowsedTeam: JoinedBrowsedTeam | null
 		// Red line below the Join button when the server ended the join
 		browseTeamsError: string
@@ -339,7 +364,7 @@ export function useLogic() {
 		browsedTeams: null,
 		hasMoreBrowsedTeams: false,
 		browsedTeamCount: 20,
-		openedBrowsedHostTeamId: null,
+		openedBrowsedSearchIds: null,
 		joinedBrowsedTeam: null,
 		browseTeamsError: '',
 	}))
@@ -449,6 +474,7 @@ export function useLogic() {
 			}`,
 			browsedTeamCount: getSyncState().browsedTeamCount,
 		} : null),
+		getOpenedBrowsedSearchIds: () => getSyncState().openedBrowsedSearchIds,
 		setOnThisPageCount: (onThisPageCount) => setState({ onThisPageCount }),
 		setFindingPlayersCount: (findingPlayersCount) => setState({ findingPlayersCount }),
 		setInvitingTeam: (invitingTeam) => setState({ invitingTeam }),
@@ -463,6 +489,7 @@ export function useLogic() {
 		setHasMoreBrowsedTeams: (hasMoreBrowsedTeams) => setState({ hasMoreBrowsedTeams }),
 		setJoinedBrowsedTeam: (joinedBrowsedTeam) => setState({ joinedBrowsedTeam }),
 		setBrowseTeamsError: (browseTeamsError) => setState({ browseTeamsError }),
+		setOpenedBrowsedSearchIds: (openedBrowsedSearchIds) => setState({ openedBrowsedSearchIds }),
 	}), [
 		state.isFindingPlayers,
 		state.inviteFromLink,
@@ -520,11 +547,15 @@ export function useLogic() {
 	}
 
 	// Opens the team found window as soon as the server link of the team arrives, together with the
-	// Ding!, the flashing tab, the notification and the automatic join that Options turned on
+	// Ding!, the flashing tab, the notification and the automatic join that Options turned on. Team
+	// Details of Browse Teams closes, since a found team leaves the list of searching teams.
 	const teamServerLink = state.shownTeamStatus?.teamServerLink ?? ''
 	useEffect(() => {
 		if (!teamServerLink) return
-		setState({ isTeamFoundWindowOpen: true })
+		setState({
+			isTeamFoundWindowOpen: true,
+			openedBrowsedSearchIds: null,
+		})
 		return announceTeamFound({
 			teamServerLink,
 			isDingSoundCheckboxChecked: getSyncState().isDingSoundCheckboxChecked,
@@ -1850,9 +1881,9 @@ That is a row without a chip, or an extra row that shares a chip.`
 			)),
 		findPlayersError: state.findPlayersError,
 		// Line below Find Players, visible while a search without a server link waits for players,
-		// since two searches only match when at least one of them has a server link
+		// since a team is only complete once one of its searches has a server link
 		findingWithoutServerLinkHint:
-			'Without a server link, you can only match a team that has one. Adding yours finds a team faster.',
+			'Without a server link, your team needs someone who has one. Adding yours finds a team faster.',
 		findingWithoutServerLinkHintClass: isSearching && !hasJoinedATeam && !state.serverLink.trim()
 			? ''
 			: 'team-invisible',
@@ -1903,34 +1934,52 @@ That is a row without a chip, or an extra row that shares a chip.`
 				afterHost: '\'s team! Everyone meets in this server:',
 			}
 		})(),
-		// Line below the text with the TEAM SETTINGS of the whole team, which hold the most specific
+		// Tags below the text with the TEAM SETTINGS of the whole team, which hold the most specific
 		// choice of every search in it
-		teamFoundSettingsText: state.shownTeamStatus ? [
-			`Region: ${state.shownTeamStatus.teamSettings.region}`,
-			`Floor goal: ${state.shownTeamStatus.teamSettings.floorGoal}`,
-			`Dandy Run: ${state.shownTeamStatus.teamSettings.dandyRun}`,
-			`Early Dyle: ${state.shownTeamStatus.teamSettings.earlyDyle}`,
-		].join(' · ') : '',
-		// Line with what the user's own slot asks for once the rows of every table in it count
-		// together, such as "Your slot: Poppy · Magnifying Glass · Extractor", or empty for an
-		// invited friend, whose slot is in the host's table
-		teamFoundOwnSlotText: (() => {
-			const ownSlotRow = state.shownTeamStatus?.slotRows[state.shownTeamStatus.hostRowIndex]
-			if (isInvitedFriend || !ownSlotRow) return ''
-			// "magnifying_glass.png" reads "Magnifying Glass"
-			const pictureNameOf = (picture: string) => picture.replace('.png', '').split('_')
-				.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-				.join(' ')
-			const requirements = [
-				ownSlotRow.toonPicture,
-				ownSlotRow.trinketAPicture,
-				ownSlotRow.trinketBPicture,
-			].filter(Boolean).map(pictureNameOf).concat(
-				ownSlotRow.roleNames,
-				ownSlotRow.isVerifiedPlayerRequired ? ownSlotRow.badgeNames : [],
-			)
-			return `Your slot: ${requirements.join(' · ') || 'no requirements'}`
-		})(),
+		teamFoundSettingsTags: state.shownTeamStatus
+			? teamSettingsTagsOf(state.shownTeamStatus.teamSettings)
+			: [],
+		// Rows of the read-only table of the whole team, one for each slot, with what the slot asks
+		// for once the rows of every table in it count together, and the player in it. The user's
+		// own row is light blue and reads "(You)". "(Leave Empty)" rows are left out.
+		teamFoundRows: (state.shownTeamStatus?.slotRows ?? []).flatMap((row, index) => {
+			if (row.isLeftEmpty) return []
+			const isOwnRow = !isInvitedFriend && index === state.shownTeamStatus!.hostRowIndex
+			return [{
+				key: index,
+				cardTitle: `Player Slot #${index + 1}`,
+				slotClass: isOwnRow ? 'team-found-own-slot' : '',
+				pictureCells: (['toonPicture', 'trinketAPicture', 'trinketBPicture'] as const)
+					.map((column) => ({
+						key: column,
+						cardBoxLabel: {
+							toonPicture: 'Toon',
+							trinketAPicture: 'Trinket A',
+							trinketBPicture: 'Trinket B',
+						}[column],
+						anyText: row[column] ? '' : '(Any)',
+						picture: row[column] ? {
+							src: `/pixelated/${column === 'toonPicture' ? 'toons' : 'trinkets'}/${row[column]}`,
+							title: row[column].replace('.png', ''),
+						} : null,
+					})),
+				// Badges only count on a "Verified only" row, as in Find a Team
+				noBadgesText: row.badgeNames.length && row.isVerifiedPlayerRequired
+					? ''
+					: '(none required)',
+				badgeNames: row.isVerifiedPlayerRequired
+					? row.badgeNames.filter((name) => !isBadgeProvenByLaterCheckedBadge({
+						badgeName: name,
+						checkedBadgeNames: row.badgeNames,
+					}))
+					: [],
+				noRolesText: row.roleNames.length ? '' : '(none required)',
+				roleNames: row.roleNames,
+				playerName: isOwnRow
+					? '(You)'
+					: `(${playerNameOf(state.shownTeamStatus!.playersInRows[index] ?? null) || 'Free slot'})`,
+			}]
+		}),
 		teamServerLink,
 
 
@@ -1946,7 +1995,7 @@ That is a row without a chip, or an extra row that shares a chip.`
 			}),
 			close: () => setState({
 				openDesktopWindowName: null,
-				openedBrowsedHostTeamId: null,
+				openedBrowsedSearchIds: null,
 			}),
 		},
 
@@ -1990,20 +2039,13 @@ That is a row without a chip, or an extra row that shares a chip.`
 				title: row.toonPicture.replace('.png', ''),
 			}])),
 			tags: [
-				browsedTeam.hostTeamId === state.joinedBrowsedTeam?.hostTeamId ? 'Joined' : '',
-				{
-					Yes: 'Dandy Run',
-					No: 'No Dandy Run',
-				}[browsedTeam.dandyRun] ?? '',
-				{
-					Yes: 'Early Dyle',
-					No: 'No Early Dyle',
-				}[browsedTeam.earlyDyle] ?? '',
-				browsedTeam.region === 'Any' ? '' : browsedTeam.region,
-				`Floors ${browsedTeam.floorGoal}`,
+				browsedTeam.searchIds.some((searchId) => (
+					state.joinedBrowsedTeam?.searchIds.includes(searchId)
+				)) ? 'Joined' : '',
+				...teamSettingsTagsOf(browsedTeam),
 			].filter(Boolean),
 			open: () => setState({
-				openedBrowsedHostTeamId: browsedTeam.hostTeamId,
+				openedBrowsedSearchIds: browsedTeam.searchIds,
 				browseTeamsError: '',
 			}),
 		})),
@@ -2019,13 +2061,19 @@ That is a row without a chip, or an extra row that shares a chip.`
 		// Modal with the selected team's details and Join action
 		...(() => {
 			const openedBrowsedTeam = state.browsedTeams?.find((browsedTeam) => (
-				browsedTeam.hostTeamId === state.openedBrowsedHostTeamId
+				browsedTeam.searchIds.some((searchId) => state.openedBrowsedSearchIds?.includes(searchId))
 			))
-			// Row of the opened team that the user's running join takes, or -1
-			const joinedRowIndex = openedBrowsedTeam
-				&& openedBrowsedTeam.hostTeamId === state.joinedBrowsedTeam?.hostTeamId
-				? state.joinedBrowsedTeam.hostRowIndex
-				: -1
+			// Row of the opened team that the user's running join takes, or -1. Until the server tells
+			// the row, it is the row whose Join button the user clicked.
+			const joinedRowIndex = (() => {
+				const isOpenedBrowsedTeamJoined = openedBrowsedTeam?.searchIds.some((searchId) => (
+					state.joinedBrowsedTeam?.searchIds.includes(searchId)
+				))
+				if (!openedBrowsedTeam || !state.joinedBrowsedTeam || !isOpenedBrowsedTeamJoined) return -1
+				return openedBrowsedTeam.joinedRowIndex === -1
+					? state.joinedBrowsedTeam.rowIndex
+					: openedBrowsedTeam.joinedRowIndex
+			})()
 			// Tooltip of a greyed-out Join button of a free slot
 			const joinButtonBlockedTooltip = (() => {
 				if (state.isFindingPlayers) return 'Cancel Find Players in Find a Team first.'
@@ -2033,11 +2081,12 @@ That is a row without a chip, or an extra row that shares a chip.`
 				return ''
 			})()
 			return {
-				showOpenedBrowsedTeam: Boolean(state.openedBrowsedHostTeamId),
-				// Closing Team Details also ends the join of one of its slots
+				showOpenedBrowsedTeam: Boolean(state.openedBrowsedSearchIds),
+				// Closing Team Details also ends the join of one of its slots, unless its team was found,
+				// whose join ends when "Team found!" closes
 				closeOpenedBrowsedTeam: () => setState({
-					openedBrowsedHostTeamId: null,
-					joinedBrowsedTeam: null,
+					openedBrowsedSearchIds: null,
+					...getSyncState().shownTeamStatus?.teamServerLink ? {} : { joinedBrowsedTeam: null },
 				}),
 				// Line above the table with the host's name and the TEAM SETTINGS, or why the team
 				// is gone
@@ -2046,27 +2095,14 @@ That is a row without a chip, or an extra row that shares a chip.`
 						? `@${openedBrowsedTeam.hostRobloxUsername}'s team`
 						: 'Team of an unverified host'
 					: '',
-				openedBrowsedTeamMissingText: openedBrowsedTeam
+				// A found team leaves the list too, and then Team Details closes behind "Team found!"
+				openedBrowsedTeamMissingText: openedBrowsedTeam || state.shownTeamStatus?.teamServerLink
 					? ''
 					: 'This team stopped searching, filled up, or has no slot for you anymore.',
-				openedBrowsedTeamSettings: openedBrowsedTeam ? [
-					{
-						name: 'Region',
-						value: openedBrowsedTeam.region,
-					},
-					{
-						name: 'Floor goal',
-						value: openedBrowsedTeam.floorGoal,
-					},
-					{
-						name: 'Dandy Run',
-						value: openedBrowsedTeam.dandyRun,
-					},
-					{
-						name: 'Early Dyle',
-						value: openedBrowsedTeam.earlyDyle,
-					},
-				] : [],
+				// Tags below the host's name with the TEAM SETTINGS of the whole team
+				openedBrowsedTeamSettingsTags: openedBrowsedTeam
+					? teamSettingsTagsOf(openedBrowsedTeam)
+					: [],
 				// Rows of the read-only table, with the Toon, Trinket A, Trinket B, Badges, Role and
 				// Player columns. "(Leave Empty)" rows are left out.
 				openedBrowsedTeamRows: (openedBrowsedTeam?.teamTableRows ?? []).flatMap((row, index) => (
@@ -2126,7 +2162,7 @@ That is a row without a chip, or an extra row that shares a chip.`
 									setJoinedBrowsedTeam: (joinedBrowsedTeam) => setState({ joinedBrowsedTeam }),
 									setBrowseTeamsError: (browseTeamsError) => setState({ browseTeamsError }),
 									browsedTeam: openedBrowsedTeam!,
-									hostRowIndex: index,
+									rowIndex: index,
 									browseTeamsSlot: getSyncState().browseTeamsTableRows[0],
 									browseTeamSettings: {
 										dandyRun: getSyncState().browseTeamsChosenSettings.dandyRun,
@@ -2184,12 +2220,7 @@ Verify your account in Roblox Verification, and the players of the last team tha
 		})(),
 		showLastFoundTeam: isRobloxVerified && Boolean(state.lastFoundTeam),
 		// TEAM SETTINGS and server link of the last found team, below the line at the top
-		lastFoundTeamSettingsText: state.lastFoundTeam ? [
-			`Region: ${state.lastFoundTeam.region}`,
-			`Floor goal: ${state.lastFoundTeam.floorGoal}`,
-			`Dandy Run: ${state.lastFoundTeam.dandyRun}`,
-			`Early Dyle: ${state.lastFoundTeam.earlyDyle}`,
-		].join(' · ') : '',
+		lastFoundTeamSettingsTags: state.lastFoundTeam ? teamSettingsTagsOf(state.lastFoundTeam) : [],
 		lastFoundTeamServerLink: state.lastFoundTeam?.serverLink ?? '',
 		// Rows of the read-only table, with the same columns as Find a Team once verified and an
 		// Upvote column at the end. "(Leave Empty)" rows are left out.

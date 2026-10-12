@@ -9,15 +9,15 @@ export function joinBrowsedTeamSlot({
 	setJoinedBrowsedTeam,
 	setBrowseTeamsError,
 	browsedTeam,
-	hostRowIndex,
+	rowIndex,
 	browseTeamsSlot,
 	browseTeamSettings,
 }: {
 	setJoinedBrowsedTeam: (joinedBrowsedTeam: JoinedBrowsedTeam) => void
 	setBrowseTeamsError: (browseTeamsError: string) => void
 	browsedTeam: CheckInAnswer['browsedTeams'][number]
-	// Row of the host's table whose Join button was clicked
-	hostRowIndex: number
+	// Row of Team Details whose Join button was clicked
+	rowIndex: number
 	// The row of YOUR SLOT
 	browseTeamsSlot: TeamTableRow
 	// TEAM SETTINGS of Browse Teams, which the join searches with, so that a more specific choice of
@@ -31,8 +31,9 @@ export function joinBrowsedTeamSlot({
 }) {
 	setBrowseTeamsError('')
 	setJoinedBrowsedTeam({
-		hostTeamId: browsedTeam.hostTeamId,
-		hostRowIndex,
+		searchIds: browsedTeam.searchIds,
+		rowIndex,
+		chosenSlot: browsedTeam.chosenSlotsByRow[rowIndex],
 		// The server tells a new join apart from an earlier one with the same team
 		searchId: crypto.randomUUID(),
 		teamTableRows: browseTeamsJoinTableRows({

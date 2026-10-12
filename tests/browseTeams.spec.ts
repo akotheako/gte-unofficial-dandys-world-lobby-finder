@@ -4,8 +4,10 @@ import {
 	type APIRequestContext,
 	type Browser,
 } from '@playwright/test'
-import type { TeamTableRow } from '../shared/teamTypes.ts'
+import { browseTeamsJoinTableRows } from '../shared/browseTeamsJoinTableRows.ts'
+import type { CheckInAnswer, TeamTableRow } from '../shared/teamTypes.ts'
 import { connectToTestDatabase } from './testDatabase.ts'
+import { verifyAsRobloxAccount } from './verifyAsRobloxAccount.ts'
 
 const serverLinkA = 'https://www.roblox.com/share?code=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&type=Server'
 
@@ -27,7 +29,8 @@ test.beforeEach(async ({ request }) => {
 })
 
 // Starts the search of an unverified host without a browser, with one check-in, which keeps it on
-// the server for 90 seconds. Every row that is not given is "(Leave Empty)".
+// the server for 90 seconds. Every row that is not given is "(Leave Empty)", and the server link is
+// serverLinkA unless it is given.
 async function startHostSearchWithoutBrowser({
 	request,
 	pageId,
@@ -35,6 +38,7 @@ async function startHostSearchWithoutBrowser({
 	region,
 	dandyRun,
 	earlyDyle,
+	serverLink,
 }: {
 	request: APIRequestContext
 	pageId: string
@@ -42,6 +46,7 @@ async function startHostSearchWithoutBrowser({
 	region?: string
 	dandyRun?: string
 	earlyDyle?: string
+	serverLink?: string
 }) {
 	const response = await request.post('/api/check-in', {
 		data: {
@@ -62,7 +67,7 @@ async function startHostSearchWithoutBrowser({
 				missingToons: [],
 				missingTrinkets: [],
 				inviteCode: `${pageId}-invite`,
-				serverLink: serverLinkA,
+				serverLink: serverLink ?? serverLinkA,
 				dandyRun: dandyRun ?? 'Any',
 				earlyDyle: earlyDyle ?? 'Any',
 				region: region ?? 'Any',
@@ -74,6 +79,103 @@ async function startHostSearchWithoutBrowser({
 		},
 	})
 	expect(response.ok()).toBe(true)
+}
+
+// Number of players and the toons that the slots ask for of every card that
+// browsedTeamsWithoutBrowser answers with
+async function browseTeamsWithoutBrowser({
+	request,
+	pageId,
+}: {
+	request: APIRequestContext
+	pageId: string
+}) {
+	return (await browsedTeamsWithoutBrowser({
+		request,
+		pageId,
+	})).map((browsedTeam) => ({
+		playerCount: browsedTeam.playersInRows.filter(Boolean).length,
+		toons: browsedTeam.teamTableRows.filter((row) => !row.isLeftEmpty)
+			.map((row) => row.toonPicture)
+			.sort(),
+	}))
+}
+
+// Checks in as a page with Browse Teams open and an "(Any)" slot, which answers with every
+// searching team that has a slot for it
+async function browsedTeamsWithoutBrowser({
+	request,
+	pageId,
+}: {
+	request: APIRequestContext
+	pageId: string
+}): Promise<CheckInAnswer['browsedTeams']> {
+	const answer = await (await request.post('/api/check-in', {
+		data: {
+			pageId,
+			team: null,
+			invite: null,
+			browse: {
+				toonPicture: '',
+				trinketAPicture: '',
+				trinketBPicture: '',
+				roleNames: [],
+				missingToons: [],
+				missingTrinkets: [],
+				dandyRun: 'Any',
+				earlyDyle: 'Any',
+				region: 'Any',
+				floorGoal: '50 to 50',
+				browsedTeamCount: 20,
+			},
+		},
+	})).json() as CheckInAnswer
+	return answer.browsedTeams
+}
+
+// Checks in as a page that clicked a Join button of Browse Teams with an "(Any)" slot, and answers
+// with the status of the page's own join
+async function joinBrowsedTeamWithoutBrowser({
+	request,
+	pageId,
+	browsedTeam,
+	rowIndex,
+}: {
+	request: APIRequestContext
+	pageId: string
+	browsedTeam: CheckInAnswer['browsedTeams'][number]
+	rowIndex: number
+}) {
+	const answer = await (await request.post('/api/check-in', {
+		data: {
+			pageId,
+			team: {
+				teamTableRows: browseTeamsJoinTableRows({
+					browseTeamsSlot: {
+						toonPicture: '',
+						trinketAPicture: '',
+						trinketBPicture: '',
+						roleNames: [],
+					},
+					rowCount: browsedTeam.teamTableRows.filter((row) => !row.isLeftEmpty).length,
+				}),
+				removedRobloxUsernames: [],
+				missingToons: [],
+				missingTrinkets: [],
+				inviteCode: `${pageId}-invite`,
+				serverLink: '',
+				dandyRun: 'Any',
+				earlyDyle: 'Any',
+				region: 'Any',
+				floorGoal: '50 to 50',
+				isFindingPlayers: true,
+				searchId: `${pageId}-search`,
+				chosenSlot: browsedTeam.chosenSlotsByRow[rowIndex],
+			},
+			invite: null,
+		},
+	})).json() as CheckInAnswer
+	return answer
 }
 
 // Opens Browse Teams in a new browser profile with the given slot and TEAM SETTINGS
@@ -161,7 +263,7 @@ test('a card shows the toons and tags of a fitting team, and Join gets its serve
 	const card = page.locator('.browse-card')
 	await expect(card).toHaveCount(1, { timeout: 10_000 })
 	await expect(card.locator('img')).toHaveCount(2)
-	await expect(card.locator('.browse-card-tags span')).toHaveText([
+	await expect(card.locator('.team-settings-tags span')).toHaveText([
 		'Dandy Run',
 		'Europe',
 		'Floors 50 to 50',
@@ -175,11 +277,22 @@ test('a card shows the toons and tags of a fitting team, and Join gets its serve
 	await freeSlotJoinButton.click()
 	await expect(page.locator('#team-found')).toHaveAttribute('open', '', { timeout: 10_000 })
 	await expect(page.locator('#team-found')).toContainText('You joined a team! Join its server:')
-	// The TEAM SETTINGS of the whole team, and what the user's own slot asks for
-	await expect(page.locator('#team-found')).toContainText(
-		'Region: Europe · Floor goal: 50 to 50 · Dandy Run: Yes · Early Dyle: Any',
-	)
-	await expect(page.locator('#team-found-own-slot')).toHaveText('Your slot: Vee · Extractor')
+	// Team Details closes behind "Team found!", without saying that the team stopped searching
+	await expect(page.locator('#browse-team-details')).not.toHaveAttribute('open')
+	await expect(page.locator('#browse-team-gone')).toHaveCount(0)
+	// Tags with the TEAM SETTINGS of the whole team, and its table, where the user's own row is
+	// light blue and shows what the user's slot asks for
+	await expect(page.locator('#team-found-settings .team-settings-tags span')).toHaveText([
+		'Dandy Run',
+		'Europe',
+		'Floors 50 to 50',
+	])
+	const teamFoundRows = page.locator('#team-found-table tbody tr')
+	await expect(teamFoundRows).toHaveCount(2)
+	const ownRow = page.locator('#team-found-table tbody tr.team-found-own-slot')
+	await expect(ownRow.locator('td').last()).toHaveText('(You)')
+	await expect(ownRow.locator('img')).toHaveAttribute('title', 'vee')
+	await expect(ownRow).toContainText('Extractor')
 	await expect(page.locator('#team-found-join')).toHaveAttribute('href', serverLinkA)
 	// YOUR SLOT and its side windows stay locked until the join ends
 	await expect(page.locator('#browse-toons')).toHaveClass(/team-locked/)
@@ -578,6 +691,234 @@ test('a new requirement goes to a free slot, which a later search\'s own player 
 	expect(answer.browsedTeams.map((browsedTeam: { playersInRows: unknown[] }) => (
 		browsedTeam.playersInRows.filter(Boolean).length
 	))).toEqual([3])
+})
+
+test('searches without a server link merge while slots are still free', async ({ request }) => {
+	for (const pageId of ['no-link-first', 'no-link-second']) {
+		await startHostSearchWithoutBrowser({
+			request,
+			pageId,
+			rows: [
+				{ reservedFor: 'me' },
+				{},
+				{},
+				{},
+			],
+			serverLink: '',
+		})
+	}
+	// A Browse Teams join has no server link, so it could not take the last slot of this team,
+	// but it can take the third one
+	expect(await browseTeamsWithoutBrowser({
+		request,
+		pageId: 'no-link-observer',
+	})).toEqual([
+		{
+			playerCount: 2,
+			toons: [
+				'',
+				'',
+				'',
+				'',
+			],
+		},
+	])
+})
+
+test('when the host of a merged search leaves, the others keep searching together', async ({
+	request,
+}) => {
+	const startSearch = (pageId: string, secondRow: Partial<TeamTableRow>) => (
+		startHostSearchWithoutBrowser({
+			request,
+			pageId,
+			rows: [
+				{ reservedFor: 'me' },
+				secondRow,
+				{},
+				{},
+			],
+		})
+	)
+	await startSearch('host-leaves-host', {})
+	await startSearch('host-leaves-boxten', { toonPicture: 'boxten.png' })
+	await startSearch('host-leaves-third', {})
+	await request.post('/api/check-in/leave', { data: { pageId: 'host-leaves-host' } })
+	// The Boxten of the search that is still there stays in the merged search
+	expect(await browseTeamsWithoutBrowser({
+		request,
+		pageId: 'host-leaves-observer',
+	})).toEqual([
+		{
+			playerCount: 2,
+			toons: [
+				'',
+				'',
+				'',
+				'boxten.png',
+			],
+		},
+	])
+})
+
+test('when a search that is not the host leaves, only its wishes leave with it', async ({
+	request,
+}) => {
+	const startSearch = (pageId: string, secondRow: Partial<TeamTableRow>) => (
+		startHostSearchWithoutBrowser({
+			request,
+			pageId,
+			rows: [
+				{ reservedFor: 'me' },
+				secondRow,
+				{},
+				{},
+			],
+		})
+	)
+	await startSearch('joiner-leaves-host', {})
+	await startSearch('joiner-leaves-boxten', { toonPicture: 'boxten.png' })
+	await startSearch('joiner-leaves-third', {})
+	await request.post('/api/check-in/leave', { data: { pageId: 'joiner-leaves-boxten' } })
+	expect(await browseTeamsWithoutBrowser({
+		request,
+		pageId: 'joiner-leaves-observer',
+	})).toEqual([
+		{
+			playerCount: 2,
+			toons: [
+				'',
+				'',
+				'',
+				'',
+			],
+		},
+	])
+})
+
+test('a Browse Teams join still merges after the host of its team left', async ({ request }) => {
+	const fourRows = [
+		{ reservedFor: 'me' as const },
+		{},
+		{},
+		{},
+	]
+	await startHostSearchWithoutBrowser({
+		request,
+		pageId: 'follow-host',
+		rows: fourRows,
+	})
+	await startHostSearchWithoutBrowser({
+		request,
+		pageId: 'follow-member',
+		rows: fourRows,
+	})
+	const [browsedTeam] = await browsedTeamsWithoutBrowser({
+		request,
+		pageId: 'follow-joiner',
+	})
+	// The host leaves between the click on Join and the join's check-in
+	await request.post('/api/check-in/leave', { data: { pageId: 'follow-host' } })
+	const answer = await joinBrowsedTeamWithoutBrowser({
+		request,
+		pageId: 'follow-joiner',
+		browsedTeam,
+		rowIndex: browsedTeam.joinableRowIndexes[0],
+	})
+	expect(answer.error).toBe('')
+	expect(answer.shownTeamStatus?.hasJoinedATeam).toBe(true)
+	expect(await browseTeamsWithoutBrowser({
+		request,
+		pageId: 'follow-observer',
+	})).toEqual([
+		{
+			playerCount: 2,
+			toons: [
+				'',
+				'',
+				'',
+				'',
+			],
+		},
+	])
+})
+
+test('a Browse Teams join follows its team into the team that it merged with', async ({
+	browser,
+	request,
+}) => {
+	// The new search only merges with the veteran once the upvote gap fits, after about 36 seconds
+	test.setTimeout(120_000)
+	const veteranUserId = Math.floor(Math.random() * 1e9)
+	const testDatabase = connectToTestDatabase()
+	await testDatabase.query(`
+		INSERT INTO upvotes (voter_roblox_user_id, receiver_roblox_user_id)
+		SELECT 'test-voter-' || voter_number, $1 FROM generate_series(1, 63) AS voter_number
+	`, [String(veteranUserId)])
+	await testDatabase.end()
+	const fourRows = [
+		{ reservedFor: 'me' as const },
+		{},
+		{},
+		{},
+	]
+	const veteranContext = await browser.newContext()
+	await verifyAsRobloxAccount({
+		context: veteranContext,
+		username: 'FollowVeteran',
+		robloxUserId: veteranUserId,
+	})
+	await startHostSearchWithoutBrowser({
+		request: veteranContext.request,
+		pageId: 'follow-merge-veteran',
+		rows: fourRows,
+	})
+	await startHostSearchWithoutBrowser({
+		request,
+		pageId: 'follow-merge-new',
+		rows: fourRows,
+	})
+	const browsedTeam = (await browsedTeamsWithoutBrowser({
+		request,
+		pageId: 'follow-merge-joiner',
+	})).find((team) => team.searchIds.includes('follow-merge-new'))!
+	// The chosen search merges into the older veteran's search before the join's check-in
+	await expect.poll(async () => {
+		await startHostSearchWithoutBrowser({
+			request,
+			pageId: 'follow-merge-new',
+			rows: fourRows,
+		})
+		return (await browseTeamsWithoutBrowser({
+			request,
+			pageId: 'follow-merge-observer',
+		})).map((team) => team.playerCount)
+	}, {
+		timeout: 60_000,
+		intervals: [5_000],
+	}).toEqual([2])
+	// The row of the card that the join's page still shows whose slot is still free after the merge
+	const [mergedTeam] = await browsedTeamsWithoutBrowser({
+		request,
+		pageId: 'follow-merge-observer',
+	})
+	const rowIndex = mergedTeam.joinableRowIndexes.map((slot) => (
+		mergedTeam.chosenSlotsByRow[slot].find((chosenRow) => chosenRow.teamId === 'follow-merge-new')!
+			.rowIndex
+	))[0]
+	const answer = await joinBrowsedTeamWithoutBrowser({
+		request,
+		pageId: 'follow-merge-joiner',
+		browsedTeam,
+		rowIndex,
+	})
+	expect(answer.error).toBe('')
+	expect(answer.shownTeamStatus?.hasJoinedATeam).toBe(true)
+	expect((await browseTeamsWithoutBrowser({
+		request,
+		pageId: 'follow-merge-observer',
+	})).map((team) => team.playerCount)).toEqual([3])
+	await veteranContext.close()
 })
 
 test('the host sees "Player found!" in the row that a Browse Teams player joined', async ({

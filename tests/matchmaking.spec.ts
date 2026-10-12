@@ -202,6 +202,69 @@ test('searches with close upvotes merge first, and any upvotes merge after a wai
 	await lateHostPage.context().close()
 })
 
+test('two merged searches merge as a whole', async ({ browser }) => {
+	// The two pairs only merge once the wider upvote gap fits, after about 36 seconds
+	test.setTimeout(120_000)
+	const firstVeteranUserId = Math.floor(Math.random() * 1e9)
+	const secondVeteranUserId = Math.floor(Math.random() * 1e9)
+	// 63 upvotes each are 6 upvote levels above a player without upvotes
+	const testDatabase = connectToTestDatabase()
+	await testDatabase.query(`
+		INSERT INTO upvotes (voter_roblox_user_id, receiver_roblox_user_id)
+		SELECT 'test-voter-' || voter_number, receiver
+		FROM generate_series(1, 63) AS voter_number, unnest($1::text[]) AS receiver
+	`, [[String(firstVeteranUserId), String(secondVeteranUserId)]])
+	await testDatabase.end()
+	const meAndThreeOpenRows: Partial<TeamTableRow>[] = [
+		{ reservedFor: 'me' },
+		{},
+		{},
+		{},
+	]
+	const firstVeteranPage = await startSearch({
+		browser,
+		username: 'FirstVeteran',
+		robloxUserId: firstVeteranUserId,
+		rows: meAndThreeOpenRows,
+		serverLink: serverLinkA,
+	})
+	const secondVeteranPage = await startSearch({
+		browser,
+		username: 'SecondVeteran',
+		robloxUserId: secondVeteranUserId,
+		rows: meAndThreeOpenRows,
+	})
+	const firstNewPage = await startSearch({
+		browser,
+		username: 'FirstNewPlayer',
+		rows: meAndThreeOpenRows,
+	})
+	const secondNewPage = await startSearch({
+		browser,
+		username: 'SecondNewPlayer',
+		rows: meAndThreeOpenRows,
+	})
+	// Each pair merges on its own first
+	await expect(firstVeteranPage.locator('#team-table tbody')).toContainText('(@SecondVeteran)', {
+		timeout: 20_000,
+	})
+	await expect(firstNewPage.locator('#team-table tbody')).toContainText('(@SecondNewPlayer)', {
+		timeout: 20_000,
+	})
+	await expect(firstNewPage.locator('#team-table tbody')).not.toContainText('(@FirstVeteran)')
+	// Then the two merged searches merge into one team of four
+	for (const page of [firstVeteranPage, secondVeteranPage, firstNewPage, secondNewPage]) {
+		await expect(page.locator('#team-found')).toHaveAttribute('open', '', { timeout: 60_000 })
+		await expect(page.locator('#team-found-join')).toHaveAttribute('href', serverLinkA)
+	}
+	await expect(secondNewPage.locator('#team-table tbody')).toContainText('(@FirstVeteran)')
+	await expect(secondNewPage.locator('#team-table tbody')).toContainText('(@SecondVeteran)')
+	await expect(secondNewPage.locator('#team-table tbody')).toContainText('(@FirstNewPlayer)')
+	for (const page of [firstVeteranPage, secondVeteranPage, firstNewPage, secondNewPage]) {
+		await page.context().close()
+	}
+})
+
 test('"Team found!" waits until every row has a player', async ({ browser }) => {
 	const meAndTwoOpenRows: Partial<TeamTableRow>[] = [
 		{ reservedFor: 'me' },
@@ -705,7 +768,7 @@ test.describe('Upvote Players', () => {
 		await closeTeamFoundWindow(hostPage)
 		await openUpvotePlayers(hostPage)
 		// The record holds the floors that both ranges share
-		await expect(hostPage.locator('#upvote-settings')).toContainText('Floor goal: 80 to 80')
+		await expect(hostPage.locator('#upvote-settings')).toContainText('Floors 80 to 80')
 		await expect(hostPage.locator('#upvote-settings a')).toHaveText(serverLinkA)
 		const recordRows = hostPage.locator('#upvote-table tbody tr')
 		await expect(recordRows.nth(0).locator('img')).toHaveAttribute('title', 'bobette')

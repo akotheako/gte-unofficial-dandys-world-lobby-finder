@@ -6,6 +6,7 @@ import { browseTeamsJoinTableRows } from '../shared/browseTeamsJoinTableRows.ts'
 import { robloxServerLinkPattern } from '../shared/robloxServerLinkPattern.ts'
 import type {
 	CheckInAnswer,
+	ChosenSlot,
 	MergedTeamSettings,
 	PlayerInRow,
 	ReservedFor,
@@ -37,12 +38,12 @@ type Team = {
 	is_searching: boolean
 	// Random id of the search that the page started with its last click on Find Players
 	search_id: string
-	// Host whose card the user joined in Browse Teams, which is the only team that the search
-	// merges with, or empty for a search of Find a Team
-	chosen_host_team_id: string
-	// Row of the chosen host's table whose Join button the user clicked, which is the only row that
-	// the user takes there, or -1 for a search of Find a Team
-	chosen_host_row_index: number
+	// Slot whose Join button the user clicked in Browse Teams, as the row of each search of the
+	// chosen merged search in that slot. The search only merges with the merged search that one of
+	// these searches is in, and the user only takes that slot there. Any search that is still
+	// searching finds both, even after others left or the merged search merged into another one.
+	// Empty for a search of Find a Team.
+	chosen_slot: ChosenSlot
 	joined_team_id: string | null
 	// Slot of the host's merged team that each row of the table was paired with when the search
 	// joined the host, which is a row index of the host's table, or -1 for a "(Leave Empty)" row.
@@ -232,6 +233,57 @@ function rowsInSlot({
 	)))
 }
 
+// The row of every search of the merged team in the slot, which is what a Join button of that slot
+// in Browse Teams sends
+function chosenSlotOf({
+	mergedTeam,
+	host,
+	slot,
+}: {
+	mergedTeam: Team[]
+	host: Team
+	slot: number
+}): ChosenSlot {
+	return rowsInSlot({
+		mergedTeam,
+		host,
+		slot,
+	}).map(({
+		team,
+		rowIndex,
+	}) => ({
+		teamId: team.team_id,
+		rowIndex,
+	}))
+}
+
+// Slot of the merged team that a Browse Teams join chose, found through the first of its chosen
+// searches that is in the merged team, or -1 when none of them is
+function chosenSlotIn({
+	team,
+	mergedTeam,
+	host,
+}: {
+	team: Team
+	mergedTeam: Team[]
+	host: Team
+}) {
+	for (const {
+		teamId,
+		rowIndex,
+	} of team.chosen_slot) {
+		const chosenTeam = mergedTeam.find((other) => other.team_id === teamId)
+		if (chosenTeam && chosenTeam.team_table_rows[rowIndex]) {
+			return slotOfRow({
+				team: chosenTeam,
+				host,
+				rowIndex,
+			})
+		}
+	}
+	return -1
+}
+
 // Whether rows of different tables can share a slot, which one player then has to fit: they ask for
 // at most one toon and at most two trinkets between them
 function canRowsShareSlot(rows: TeamTableRow[]) {
@@ -339,13 +391,13 @@ function placePlayersInSlots({
 		if (host.team_table_rows[slot].isLeftEmpty || playersInSlots[slot]) return false
 		const playerTeam = mergedTeam.find((team) => team.team_id === player.teamId)
 		if (!playerTeam) return false
-		// A user who clicked Join on a slot in Browse Teams takes only that slot of that host
-		if (
-			player.isHost
-			&& playerTeam.chosen_host_team_id === host.team_id
-			&& playerTeam.chosen_host_row_index !== -1
-			&& playerTeam.chosen_host_row_index !== slot
-		) return false
+		// A user who clicked Join on a slot in Browse Teams takes only that slot
+		const chosenSlot = chosenSlotIn({
+			team: playerTeam,
+			mergedTeam,
+			host,
+		})
+		if (player.isHost && chosenSlot !== -1 && chosenSlot !== slot) return false
 		const ownSlotRow = slotRowsBySlot[slot].find(({ team }) => team === playerTeam)
 		return Boolean(ownSlotRow)
 			&& player.reservedRowIndexes.includes(ownSlotRow!.rowIndex)
@@ -412,21 +464,25 @@ function playersInRowsOf({
 	})] ?? null)
 }
 
-// Pairs each row of a search that joins the host with a slot of the host's merged team, so that
-// the rows of every slot can share it and every player of the team fits a slot, or returns null
-// when no pairing works. The slots that the row asks the least new things of come first, and
-// among those the slots without a seated player, which leaves later searches the most room. A
-// closed tab keeps its search for up to 90 seconds, so the same verified player can search twice,
-// and must not end up twice in one team.
-function pairJoinerWithHost({
+// Merges two merged searches, where a single search counts as a merged search of its own. Pairs
+// each slot of the joining merged search with a different slot of the host's merged search, so
+// that the rows of every slot can share it and every player of both fits a slot. Returns the new
+// row pairing of every search of the joining merged search, or null when no pairing works. The
+// slots that a joining slot asks the least new things of come first, and among those the slots
+// without a seated player, which leaves later searches the most room. A closed tab keeps its search
+// for up to 90 seconds, so the same verified player can search twice, and must not end up twice in
+// one team.
+function pairMergedSearches({
 	host,
 	mergedTeam,
-	joiner,
+	joiningHost,
+	joiningMergedTeam,
 	players,
 }: {
 	host: Team
 	mergedTeam: Team[]
-	joiner: Team
+	joiningHost: Team
+	joiningMergedTeam: Team[]
 	players: TeamPlayer[]
 }) {
 	const verifiedUsernames = players.flatMap(({ playerInRow }) => (
@@ -435,110 +491,133 @@ function pairJoinerWithHost({
 			: []
 	))
 	if (new Set(verifiedUsernames).size !== verifiedUsernames.length) return null
-	const slots = [...host.team_table_rows.keys()].filter((slot) => (
-		!host.team_table_rows[slot].isLeftEmpty
+	const slotsOf = (team: Team) => [...team.team_table_rows.keys()].filter((slot) => (
+		!team.team_table_rows[slot].isLeftEmpty
 	))
-	const joinerRowIndexes = [...joiner.team_table_rows.keys()].filter((rowIndex) => (
-		!joiner.team_table_rows[rowIndex].isLeftEmpty
-	))
-	if (slots.length !== joinerRowIndexes.length) return null
+	const slots = slotsOf(host)
+	const joiningSlots = slotsOf(joiningHost)
+	if (slots.length !== joiningSlots.length) return null
 	const slotRowsBySlot = new Map(slots.map((slot) => [slot, rowsInSlot({
 		mergedTeam,
 		host,
 		slot,
-	}).map(({ row }) => row)]))
+	})]))
+	const joiningSlotRowsBySlot = new Map(joiningSlots.map((joiningSlot) => [joiningSlot, rowsInSlot({
+		mergedTeam: joiningMergedTeam,
+		host: joiningHost,
+		slot: joiningSlot,
+	})]))
 	// Slots whose player already sits in them. A free slot can still go to the own player of a
 	// later search, who can then play what it asks for, so new requirements go to free slots first.
 	const playersInCurrentSlots = placePlayersInSlots({
 		host,
 		mergedTeam,
-		players: players.filter((player) => player.teamId !== joiner.team_id),
+		players: players.filter((player) => mergedTeam.some((team) => team.team_id === player.teamId)),
 	})
 	const seatedSlots = new Set(slots.filter((slot) => playersInCurrentSlots?.[slot]))
-	const pairing = joiner.team_table_rows.map(() => -1)
+	// Slot of the host's merged search that each slot of the joining merged search is paired with
+	const pairing = new Map<number, number>()
 	const takenSlots = new Set<number>()
-	// Number of things that the row asks for and that the slot does not ask for yet
+	// Number of things that the joining slot asks for and that the slot does not ask for yet
 	const newRequirementCountOf = ({
-		row,
+		joiningSlot,
 		slot,
 	}: {
-		row: TeamTableRow
+		joiningSlot: number
 		slot: number
 	}) => {
-		const slotRow = slotRowOf(slotRowsBySlot.get(slot)!.map((slotRow) => ({
-			team: host,
-			row: slotRow,
-		})))
-		return Number(Boolean(row.toonPicture) && !slotRow.toonPicture)
-			+ [row.trinketAPicture, row.trinketBPicture, ...row.roleNames].filter((name) => (
+		const joiningSlotRow = slotRowOf(joiningSlotRowsBySlot.get(joiningSlot)!)
+		const slotRow = slotRowOf(slotRowsBySlot.get(slot)!)
+		return Number(Boolean(joiningSlotRow.toonPicture) && !slotRow.toonPicture)
+			+ [
+				joiningSlotRow.trinketAPicture,
+				joiningSlotRow.trinketBPicture,
+				...joiningSlotRow.roleNames,
+			].filter((name) => (
 				name && ![slotRow.trinketAPicture, slotRow.trinketBPicture, ...slotRow.roleNames]
 					.includes(name)
 			)).length
 	}
-	const pairRow = (joinerRowNumber: number): number[] | null => {
-		if (joinerRowNumber === joinerRowIndexes.length) {
-			const pairedJoiner = {
-				...joiner,
-				row_pairing: [...pairing],
-			}
+	// Row pairing of every search of the joining merged search, with its rows in the slots that
+	// their joining slots are paired with
+	const rowPairingsOf = () => new Map(joiningMergedTeam.map((team) => [
+		team.team_id,
+		team.team_table_rows.map((_row, rowIndex) => pairing.get(slotOfRow({
+			team,
+			host: joiningHost,
+			rowIndex,
+		})) ?? -1),
+	]))
+	const contentsOf = (slotRows: ReturnType<typeof rowsInSlot>) => JSON.stringify(slotRows
+		.map(({
+			team,
+			row,
+		}) => [team.team_id, row]))
+	const pairSlot = (joiningSlotNumber: number): Map<string, number[]> | null => {
+		if (joiningSlotNumber === joiningSlots.length) {
+			const rowPairings = rowPairingsOf()
 			return placePlayersInSlots({
 				host,
-				mergedTeam: [...mergedTeam, pairedJoiner],
+				mergedTeam: [
+					...mergedTeam,
+					...joiningMergedTeam.map((team) => ({
+						...team,
+						row_pairing: rowPairings.get(team.team_id)!,
+					})),
+				],
 				players,
-			}) ? [...pairing] : null
+			}) ? rowPairings : null
 		}
-		const rowIndex = joinerRowIndexes[joinerRowNumber]
-		const row = joiner.team_table_rows[rowIndex]
-		const previousRowIndex = joinerRowIndexes[joinerRowNumber - 1]
-		// Two equal rows in a row would only try the same pairings in another order
-		const isSameAsPreviousRow = previousRowIndex !== undefined
-			&& JSON.stringify(joiner.team_table_rows[previousRowIndex]) === JSON.stringify(row)
+		const joiningSlot = joiningSlots[joiningSlotNumber]
+		const joiningSlotRows = joiningSlotRowsBySlot.get(joiningSlot)!
+		const previousJoiningSlot = joiningSlots[joiningSlotNumber - 1]
+		// Two equal joining slots in a row would only try the same pairings in another order
+		const isSameAsPreviousJoiningSlot = previousJoiningSlot !== undefined
+			&& contentsOf(joiningSlotRowsBySlot.get(previousJoiningSlot)!) === contentsOf(joiningSlotRows)
 		// Two slots with equal rows would give the same result
 		const triedSlotContents = new Set<string>()
 		const candidateSlots = slots
 			.filter((slot) => !takenSlots.has(slot)
-				&& !(isSameAsPreviousRow && slot < pairing[previousRowIndex])
-				&& canRowsShareSlot([...slotRowsBySlot.get(slot)!, row]))
+				&& !(isSameAsPreviousJoiningSlot && slot < pairing.get(previousJoiningSlot)!)
+				&& canRowsShareSlot([...slotRowsBySlot.get(slot)!, ...joiningSlotRows]
+					.map(({ row }) => row)))
 			.sort((a, b) => {
 				const newRequirementCountA = newRequirementCountOf({
-					row,
+					joiningSlot,
 					slot: a,
 				})
 				const newRequirementCountB = newRequirementCountOf({
-					row,
+					joiningSlot,
 					slot: b,
 				})
 				if (newRequirementCountA !== newRequirementCountB) {
 					return newRequirementCountA - newRequirementCountB
 				}
-				// A row that asks for nothing new can go anywhere
+				// A joining slot that asks for nothing new can go anywhere
 				if (!newRequirementCountA) return 0
 				return Number(seatedSlots.has(a)) - Number(seatedSlots.has(b))
 			})
 		for (const slot of candidateSlots) {
-			// The slot whose Join button the user clicked in Browse Teams differs from the others
-			const isChosenSlot = joiner.chosen_host_team_id === host.team_id
-				&& joiner.chosen_host_row_index === slot
-			const slotContents = JSON.stringify([isChosenSlot, ...rowsInSlot({
+			// The slot whose Join button a user of the joining merged search clicked in Browse Teams
+			// differs from the others
+			const isChosenSlot = joiningMergedTeam.some((team) => chosenSlotIn({
+				team,
 				mergedTeam,
 				host,
-				slot,
-			}).map(({
-				team,
-				row,
-			}) => [team.team_id, row])])
+			}) === slot)
+			const slotContents = JSON.stringify([isChosenSlot, contentsOf(slotRowsBySlot.get(slot)!)])
 			if (triedSlotContents.has(slotContents)) continue
 			triedSlotContents.add(slotContents)
-			pairing[rowIndex] = slot
+			pairing.set(joiningSlot, slot)
 			takenSlots.add(slot)
-			const result = pairRow(joinerRowNumber + 1)
+			const result = pairSlot(joiningSlotNumber + 1)
 			if (result) return result
 			takenSlots.delete(slot)
-			pairing[rowIndex] = -1
+			pairing.delete(joiningSlot)
 		}
 		return null
 	}
-	return pairRow(0)
+	return pairSlot(0)
 }
 
 type TeamSettings = Pick<Team, 'dandy_run' | 'early_dyle' | 'region' | 'floor_goal'>
@@ -648,8 +727,9 @@ checkIn.use(async (_c, next) => {
 		ALTER TABLE teams ADD COLUMN IF NOT EXISTS early_dyle text NOT NULL DEFAULT 'Any';
 		ALTER TABLE teams DROP COLUMN IF EXISTS is_dandy_run;
 		ALTER TABLE teams DROP COLUMN IF EXISTS is_early_dyle;
-		ALTER TABLE teams ADD COLUMN IF NOT EXISTS chosen_host_team_id text NOT NULL DEFAULT '';
-		ALTER TABLE teams ADD COLUMN IF NOT EXISTS chosen_host_row_index int NOT NULL DEFAULT -1;
+		ALTER TABLE teams DROP COLUMN IF EXISTS chosen_host_team_id;
+		ALTER TABLE teams DROP COLUMN IF EXISTS chosen_host_row_index;
+		ALTER TABLE teams ADD COLUMN IF NOT EXISTS chosen_slot jsonb NOT NULL DEFAULT '[]';
 		ALTER TABLE teams ADD COLUMN IF NOT EXISTS row_pairing jsonb NOT NULL DEFAULT '[]';
 		-- Record of every team that got together, which Upvote Players shows
 		CREATE TABLE IF NOT EXISTS found_teams (
@@ -698,8 +778,7 @@ checkIn.post('/', async (c) => {
 			isFindingPlayers: boolean
 			searchId: string
 			// Absent from a page that still runs an older version of the site
-			chosenHostTeamId?: string
-			chosenHostRowIndex?: number
+			chosenSlot?: ChosenSlot
 		} | null
 		// The invite link that the page was opened with
 		invite: { inviteCode: string } | null
@@ -844,10 +923,13 @@ checkIn.post('/', async (c) => {
 				floor_goal: String(sentTeam.floorGoal),
 				is_searching: Boolean(sentTeam.isFindingPlayers),
 				search_id: searchId,
-				chosen_host_team_id: String(sentTeam.chosenHostTeamId ?? ''),
-				chosen_host_row_index: Number.isInteger(sentTeam.chosenHostRowIndex)
-					? Number(sentTeam.chosenHostRowIndex)
-					: -1,
+				// A merged search has at most one search for each of its 8 slots
+				chosen_slot: (sentTeam.chosenSlot ?? []).slice(0, 8).flatMap((chosenRow) => (
+					Number.isInteger(chosenRow.rowIndex) ? [{
+						teamId: String(chosenRow.teamId),
+						rowIndex: Number(chosenRow.rowIndex),
+					}] : []
+				)),
 				joined_team_id: null,
 				row_pairing: [],
 				found_status: null,
@@ -875,8 +957,7 @@ checkIn.post('/', async (c) => {
 					floor_goal,
 					is_searching,
 					search_id,
-					chosen_host_team_id,
-					chosen_host_row_index
+					chosen_slot
 				)
 				VALUES (
 					${sqlLiteral(team.team_id)},
@@ -895,8 +976,7 @@ checkIn.post('/', async (c) => {
 					${sqlLiteral(team.floor_goal)},
 					${team.is_searching},
 					${sqlLiteral(team.search_id)},
-					${sqlLiteral(team.chosen_host_team_id)},
-					${team.chosen_host_row_index}
+					${sqlLiteral(team.chosen_slot)}
 				)
 				ON CONFLICT (team_id) DO UPDATE SET
 					invite_code = excluded.invite_code,
@@ -914,8 +994,7 @@ checkIn.post('/', async (c) => {
 					floor_goal = excluded.floor_goal,
 					is_searching = excluded.is_searching,
 					search_id = excluded.search_id,
-					chosen_host_team_id = excluded.chosen_host_team_id,
-					chosen_host_row_index = excluded.chosen_host_row_index,
+					chosen_slot = excluded.chosen_slot,
 					joined_team_id = NULL,
 					row_pairing = '[]',
 					found_status = NULL,
@@ -993,15 +1072,38 @@ checkIn.post('/', async (c) => {
 		const teamsById = new Map(teams.map((team) => [team.team_id, team]))
 		const changedTeams = new Set<Team>()
 
-		// Puts searches whose host left or stopped searching back into the search. A found search
-		// leaves its host once the host started a new search, and stays found.
+		// A found search leaves its merged search once the host started a new search, and stays
+		// found
 		for (const team of teams) {
-			const host = team.joined_team_id ? teamsById.get(team.joined_team_id) : undefined
-			if (team.joined_team_id && (
-				!host?.is_searching || host.found_status?.foundTeamId !== team.found_status?.foundTeamId
-			)) {
-				team.joined_team_id = null
-				team.row_pairing = []
+			if (!team.joined_team_id || !team.found_status) continue
+			const host = teamsById.get(team.joined_team_id)
+			if (host?.found_status?.foundTeamId === team.found_status.foundTeamId) continue
+			team.joined_team_id = null
+			team.row_pairing = []
+			changedTeams.add(team)
+		}
+		// When the host of a merged search, whose rows number its slots, leaves or stops searching,
+		// only its own wishes leave with it. The oldest search that is left becomes the host, and
+		// every search keeps its slots under the new host's numbering.
+		const formerHostIds = new Set(teams.flatMap((team) => (
+			team.joined_team_id && !teamsById.get(team.joined_team_id)?.is_searching
+				? [team.joined_team_id]
+				: []
+		)))
+		for (const formerHostId of formerHostIds) {
+			// The teams are ordered by the time at which their search started
+			const remainingTeams = teams.filter((team) => team.joined_team_id === formerHostId)
+			const newHost = remainingTeams[0]
+			// The new host's row in each slot of the former host's numbering
+			const newHostRowIndexOfSlot = new Map(newHost.row_pairing.map((slot, rowIndex) => [
+				slot,
+				rowIndex,
+			]))
+			for (const team of remainingTeams) {
+				team.joined_team_id = team === newHost ? null : newHost.team_id
+				team.row_pairing = team === newHost ? [] : team.row_pairing.map((slot) => (
+					slot === -1 ? -1 : newHostRowIndexOfSlot.get(slot) ?? -1
+				))
 				changedTeams.add(team)
 			}
 		}
@@ -1015,14 +1117,49 @@ checkIn.post('/', async (c) => {
 		}))
 
 		const myTeam = teamsById.get(pageId)
-		// The chosen host of a Browse Teams join, or the host that it joined meanwhile
-		const finalChosenHostIdOf = (team: Team) => (
-			teamsById.get(team.chosen_host_team_id)?.joined_team_id ?? team.chosen_host_team_id
-		)
-		if (myTeam?.is_searching && !myTeam.joined_team_id && !myTeam.found_status) {
-			const chosenHost = teamsById.get(finalChosenHostIdOf(myTeam))
-			if (myTeam.chosen_host_team_id && (!chosenHost?.is_searching || chosenHost.found_status)) {
+		// Host of the merged search that a Browse Teams join chose, found through the first of its
+		// chosen searches that still searches, which is in that merged search even after the merged
+		// search merged into another one
+		const chosenHostOf = (team: Team) => {
+			for (const { teamId } of team.chosen_slot) {
+				const chosenTeam = teamsById.get(teamId)
+				if (!chosenTeam?.is_searching || chosenTeam.found_status) continue
+				return chosenTeam.joined_team_id ? teamsById.get(chosenTeam.joined_team_id) : chosenTeam
+			}
+			return undefined
+		}
+		// Host of the merged search that the page's own search is in, which is the search itself
+		// while it has not merged
+		const myHost = myTeam?.joined_team_id ? teamsById.get(myTeam.joined_team_id) : myTeam
+		if (
+			myTeam?.is_searching
+			&& !myTeam.found_status
+			&& myHost?.is_searching
+			&& !myHost.found_status
+		) {
+			const chosenHost = chosenHostOf(myTeam)
+			// A Browse Teams join that already merged stays in its merged search
+			if (myTeam.chosen_slot.length && !myTeam.joined_team_id && !chosenHost) {
 				error = 'This team stopped searching or filled up'
+			}
+			// The chosen slot follows the searches that are in the chosen merged search now, so that
+			// it is found again after every search that the user saw left
+			if (chosenHost) {
+				const chosenMergedTeam = mergedTeamOf(chosenHost).filter((team) => team !== myTeam)
+				const slot = chosenSlotIn({
+					team: myTeam,
+					mergedTeam: chosenMergedTeam,
+					host: chosenHost,
+				})
+				const chosenSlot = slot === -1 ? myTeam.chosen_slot : chosenSlotOf({
+					mergedTeam: chosenMergedTeam,
+					host: chosenHost,
+					slot,
+				})
+				if (JSON.stringify(chosenSlot) !== JSON.stringify(myTeam.chosen_slot)) {
+					myTeam.chosen_slot = chosenSlot
+					changedTeams.add(myTeam)
+				}
 			}
 			// Search as the server log names it, such as "@name (1a2b3c4d)", with the start of its
 			// page id, since a host who did not verify has no name
@@ -1041,89 +1178,97 @@ checkIn.post('/', async (c) => {
 				))?.upvoteCount ?? 0), 0)
 				return Math.log2(upvoteSum / Math.max(players.length, 1) + 1)
 			}
-			const myUpvoteLevel = upvoteLevelOf(myTeam)
+			const myUpvoteLevel = upvoteLevelOf(myHost)
 			const upvoteGaps = new Map(teams.map((team) => [
 				team,
 				Math.abs(upvoteLevelOf(team) - myUpvoteLevel),
 			]))
 			// The closest upvote level is tried first, and the oldest search among equal ones
 			const otherTeamsByUpvoteGap = [...teams].sort((a, b) => upvoteGaps.get(a)! - upvoteGaps.get(b)!)
+			// Only the host of each other merged search counts, since its merged search merges as a
+			// whole
 			for (const other of otherTeamsByUpvoteGap) {
 				if (
-					other === myTeam
+					other === myHost
 					|| !other.is_searching
 					|| other.joined_team_id
 					|| other.found_status
 				) continue
-				// A Browse Teams join only merges with the host that the user chose
-				if (myTeam.chosen_host_team_id && other !== chosenHost) continue
-				if (other.chosen_host_team_id && finalChosenHostIdOf(other) !== myTeam.team_id) continue
-				const isBrowseTeamsJoin = Boolean(
-					myTeam.chosen_host_team_id || other.chosen_host_team_id,
-				)
+				// A Browse Teams join only merges with the merged search that the user chose
+				if (myHost.chosen_slot.length && other !== chosenHostOf(myHost)) continue
+				if (other.chosen_slot.length && chosenHostOf(other) !== myHost) continue
+				const isBrowseTeamsJoin = Boolean(myHost.chosen_slot.length || other.chosen_slot.length)
 				const differences = [
 					...teamSettingsDifferences({
-						teamA: mergedTeamSettingsOf(mergedTeamOf(myTeam)),
+						teamA: mergedTeamSettingsOf(mergedTeamOf(myHost)),
 						teamB: mergedTeamSettingsOf(mergedTeamOf(other)),
 					}),
-					!other.server_link && !myTeam.server_link && 'neither has a server link',
-					// Both teams want the same number of players, counting every row that is not
-					// "(Leave Empty)"
+					// Both merged searches want the same number of players, counting every row that is
+					// not "(Leave Empty)"
 					other.team_table_rows.filter((row) => !row.isLeftEmpty).length
-						!== myTeam.team_table_rows.filter((row) => !row.isLeftEmpty).length
+						!== myHost.team_table_rows.filter((row) => !row.isLeftEmpty).length
 						&& 'number of rows differs',
 					// The allowed upvote gap widens by one level for every 6 seconds that the older of
 					// the two searches has waited, and any gap fits after 60 seconds, so that two lone
 					// searches always match. A user who chose the team in Browse Teams accepts any gap.
+					// A host is the oldest search of its merged search.
 					!isBrowseTeamsJoin && (() => {
 						const waitedSeconds = (transactionTime.getTime() - Math.min(
 							other.started_at.getTime(),
-							myTeam.started_at.getTime(),
+							myHost.started_at.getTime(),
 						)) / 1000
 						return waitedSeconds < 60 && upvoteGaps.get(other)! > waitedSeconds / 6
 					})() && 'upvotes differ too much for the time waited',
 				].filter(Boolean)
 				if (differences.length) {
-					console.log(`No merge of ${logNameOf(myTeam)} with ${logNameOf(other)}: ${
+					console.log(`No merge of ${logNameOf(myHost)} with ${logNameOf(other)}: ${
 						differences.join(', ')
 					}`)
-					if (myTeam.chosen_host_team_id) error = 'This team has no slot for you anymore'
+					if (myHost.chosen_slot.length) error = 'This team has no slot for you anymore'
 					continue
 				}
-				// The host is the search whose server link everyone uses, so it needs a link. The
-				// older search hosts when both ways fit, and a search that others already joined can
-				// only host.
-				const [olderTeam, newerTeam] = other.started_at <= myTeam.started_at
-					? [other, myTeam]
-					: [myTeam, other]
-				const merge = [[olderTeam, newerTeam], [newerTeam, olderTeam]]
-					.filter(([host, joiner]) => host.server_link && mergedTeamOf(joiner).length === 1)
-					.map(([host, joiner]) => ({
-						host,
-						joiner,
-						rowPairing: pairJoinerWithHost({
-							host,
-							mergedTeam: mergedTeamOf(host),
-							joiner,
-							players: allPlayersOf([...mergedTeamOf(host), joiner]),
-						}),
-					}))
-					.find(({ rowPairing }) => rowPairing)
-				if (!merge) {
-					console.log(`No merge of ${logNameOf(myTeam)} with ${logNameOf(other)}: no pairing of the rows lets every player fit, a verified player is in both, or the only side with a server link would have to join, while others already joined the other side`)
-					if (myTeam.chosen_host_team_id) error = 'This team has no slot for you anymore'
+				// The older host stays the host, so that a host is always the oldest search of its
+				// merged search
+				const [host, joiningHost] = other.started_at <= myHost.started_at
+					? [other, myHost]
+					: [myHost, other]
+				const joiningMergedTeam = mergedTeamOf(joiningHost)
+				const rowPairings = pairMergedSearches({
+					host,
+					mergedTeam: mergedTeamOf(host),
+					joiningHost,
+					joiningMergedTeam,
+					players: allPlayersOf([...mergedTeamOf(host), ...joiningMergedTeam]),
+				})
+				// A merged search whose slots all have a player is only complete with a server link
+				// from one of its searches
+				const isFullWithoutServerLink = rowPairings
+					&& ![...mergedTeamOf(host), ...joiningMergedTeam].some((team) => team.server_link)
+					&& allPlayersOf([...mergedTeamOf(host), ...joiningMergedTeam]).length
+						=== host.team_table_rows.filter((row) => !row.isLeftEmpty).length
+				if (!rowPairings || isFullWithoutServerLink) {
+					console.log(`No merge of ${logNameOf(myHost)} with ${logNameOf(other)}: ${
+						isFullWithoutServerLink
+							? 'every slot would have a player, but no search has a server link'
+							: 'no pairing of the rows lets every player fit, or a verified player is in both'
+					}`)
+					if (myHost.chosen_slot.length) error = 'This team has no slot for you anymore'
 					continue
 				}
-				console.log(`Merged ${logNameOf(merge.joiner)} into ${logNameOf(merge.host)}`)
-				merge.joiner.joined_team_id = merge.host.team_id
-				merge.joiner.row_pairing = merge.rowPairing!
-				changedTeams.add(merge.host)
-				changedTeams.add(merge.joiner)
+				console.log(`Merged ${logNameOf(joiningHost)} into ${logNameOf(host)}`)
+				for (const team of joiningMergedTeam) {
+					team.joined_team_id = host.team_id
+					team.row_pairing = rowPairings.get(team.team_id)!
+					changedTeams.add(team)
+				}
+				changedTeams.add(host)
 
-				const mergedTeam = mergedTeamOf(merge.host)
+				const mergedTeam = mergedTeamOf(host)
+				// The search whose server everyone joins, which is the oldest one with a server link
+				const serverLinkTeam = mergedTeam.find((team) => team.server_link)
 				const players = allPlayersOf(mergedTeam)
 				const playersInSlots = placePlayersInSlots({
-					host: merge.host,
+					host: host,
 					mergedTeam,
 					players,
 				}) ?? []
@@ -1137,7 +1282,7 @@ checkIn.post('/', async (c) => {
 				))
 				const mergedTeamSettings = mergedTeamSettingsOf(mergedTeam)
 				const foundTeam: FoundTeam = {
-					serverLink: merge.host.server_link,
+					serverLink: serverLinkTeam?.server_link ?? '',
 					dandyRun: mergedTeamSettings.dandy_run,
 					earlyDyle: mergedTeamSettings.early_dyle,
 					region: mergedTeamSettings.region,
@@ -1147,33 +1292,34 @@ checkIn.post('/', async (c) => {
 						teamTableRows: team.team_table_rows,
 						playersInRows: playersInRowsOf({
 							team,
-							host: merge.host,
+							host: host,
 							playersInSlots,
 						}).map((player) => player?.playerInRow ?? null),
 					})),
 					verifiedPlayers,
 				}
 				// The team is found, and its search ends, once every slot has a player
-				const isEverySlotTaken = merge.host.team_table_rows.every((row, slot) => (
+				const isEverySlotTaken = host.team_table_rows.every((row, slot) => (
 					row.isLeftEmpty || playersInSlots[slot]
 				))
 				if (!isEverySlotTaken) break
-				const foundTeamId = `${merge.host.team_id} ${merge.host.started_at.toISOString()}`
+				const foundTeamId = `${host.team_id} ${host.started_at.toISOString()}`
 				for (const team of mergedTeam) {
 					const playersInRows = playersInRowsOf({
 						team,
-						host: merge.host,
+						host: host,
 						playersInSlots,
 					})
 					team.found_status = {
 						foundTeamId,
-						teamServerLink: merge.host.server_link,
-						hostRobloxUsername: merge.host.roblox_username,
+						teamServerLink: serverLinkTeam!.server_link,
+						hostRobloxUsername: serverLinkTeam!.roblox_username,
 						playersInRows: playersInRows.map((player) => player?.playerInRow ?? null),
 						hostRowIndex: playersInRows.findIndex((player) => (
 							player?.isHost && player.teamId === team.team_id
 						)),
-						hasJoinedATeam: team !== merge.host,
+						// Everyone except the search whose server the team joins
+						hasJoinedATeam: team !== serverLinkTeam,
 						teamSettings: {
 							dandyRun: mergedTeamSettings.dandy_run,
 							earlyDyle: mergedTeamSettings.early_dyle,
@@ -1182,7 +1328,7 @@ checkIn.post('/', async (c) => {
 						},
 						slotRows: slotRowsOfTable({
 							team,
-							host: merge.host,
+							host: host,
 							mergedTeam,
 						}),
 					}
@@ -1208,6 +1354,7 @@ checkIn.post('/', async (c) => {
 				UPDATE teams SET
 					joined_team_id = ${team.joined_team_id ? sqlLiteral(team.joined_team_id) : 'NULL'},
 					row_pairing = ${sqlLiteral(team.row_pairing)},
+					chosen_slot = ${sqlLiteral(team.chosen_slot)},
 					found_status = ${team.found_status ? sqlLiteral(team.found_status) : 'NULL'},
 					server_link = ${sqlLiteral(team.server_link)}
 				WHERE team_id = ${sqlLiteral(team.team_id)}
@@ -1247,9 +1394,7 @@ checkIn.post('/', async (c) => {
 				floor_goal: String(browse.floorGoal),
 			}
 			const browsedTeamCount = Math.min(Number(browse.browsedTeamCount) || 0, 200)
-			const chosenHost = myTeam?.chosen_host_team_id
-				? teamsById.get(finalChosenHostIdOf(myTeam))
-				: undefined
+			const chosenHost = myTeam ? chosenHostOf(myTeam) : undefined
 			// Free rows of the host's table that the user's slot fits once every player of its merged
 			// team has a row, leaving out the user's own running join
 			const joinableRowIndexesOf = ({
@@ -1282,19 +1427,27 @@ checkIn.post('/', async (c) => {
 					...browseTeamSettings,
 					is_searching: true,
 					search_id: '',
-					chosen_host_team_id: host.team_id,
-					chosen_host_row_index: rowIndex,
+					chosen_slot: chosenSlotOf({
+						mergedTeam: mergedTeamOf(host).filter((team) => team.team_id !== pageId),
+						host,
+						slot: rowIndex,
+					}),
 					joined_team_id: host.team_id,
 					row_pairing: [],
 					found_status: null,
 					started_at: transactionTime,
 				}
 				const mergedTeam = mergedTeamOf(host).filter((team) => team.team_id !== pageId)
-				return pairJoinerWithHost({
+				const players = allPlayersOf([...mergedTeam, userTeam])
+				// A join that would give every slot a player needs a server link from the team
+				const isFullWithoutServerLink = !mergedTeam.some((team) => team.server_link)
+					&& players.length === host.team_table_rows.filter((row) => !row.isLeftEmpty).length
+				return !isFullWithoutServerLink && pairMergedSearches({
 					host,
 					mergedTeam,
-					joiner: userTeam,
-					players: allPlayersOf([...mergedTeam, userTeam]),
+					joiningHost: userTeam,
+					joiningMergedTeam: [userTeam],
+					players,
 				}) ? [rowIndex] : []
 			})
 			if (chosenHost?.is_searching) {
@@ -1311,12 +1464,12 @@ checkIn.post('/', async (c) => {
 			for (const host of teams) {
 				if (
 					host === chosenHost
-					|| host.team_id === pageId
 					|| !host.is_searching
 					|| host.joined_team_id
 					|| host.found_status
-					|| host.chosen_host_team_id
-					|| !host.server_link
+					|| host.chosen_slot.length
+					// The page's own merged search
+					|| mergedTeamOf(host).some((team) => team.team_id === pageId)
 					|| teamSettingsDifferences({
 						teamA: mergedTeamSettingsOf(mergedTeamOf(host)),
 						teamB: browseTeamSettings,
@@ -1409,7 +1562,7 @@ checkIn.post('/', async (c) => {
 						player?.isHost && player.teamId === shownTeam.team_id
 					)) ?? -1,
 					browseTeamsPlayerRowIndexes: (playersInShownRows ?? []).flatMap((player, rowIndex) => (
-						player && teamsById.get(player.teamId)?.chosen_host_team_id ? [rowIndex] : []
+						player && teamsById.get(player.teamId)?.chosen_slot.length ? [rowIndex] : []
 					)),
 					isSearching: shownTeam.is_searching,
 					hasJoinedATeam: Boolean(shownTeam.joined_team_id),
@@ -1451,6 +1604,26 @@ checkIn.post('/', async (c) => {
 				}),
 				playersInRows,
 				joinableRowIndexes,
+				...(() => {
+					const otherSearches = mergedTeamOf(host).filter((team) => team.team_id !== pageId)
+					return {
+						searchIds: otherSearches.map((team) => team.team_id),
+						chosenSlotsByRow: host.team_table_rows.map((row, slot) => (
+							row.isLeftEmpty ? [] : chosenSlotOf({
+								mergedTeam: otherSearches,
+								host,
+								slot,
+							})
+						)),
+						joinedRowIndex: myTeam?.chosen_slot.length && host === chosenHostOf(myTeam)
+							? chosenSlotIn({
+								team: myTeam,
+								mergedTeam: otherSearches,
+								host,
+							})
+							: -1,
+					}
+				})(),
 			})),
 			hasMoreBrowsedTeams,
 		} satisfies CheckInAnswer)
