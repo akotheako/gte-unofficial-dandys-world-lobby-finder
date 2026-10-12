@@ -1660,14 +1660,23 @@ function TeamSettingsGroupBox({
 				className="team-settings"
 			>
 				<legend>TEAM SETTINGS</legend>
-				{/* Column of two labeled Any / Yes / No dropdowns, Dandy Run and Early Dyle, that explain
-				themselves on hover */}
+				{/* Column of two labeled Any / Yes / No dropdowns, Dandy Run and Early Dyle, with the
+				dropdowns lined up on the right and equally wide, that explain themselves on hover */}
 				<style>{`
 					.team-dandy-run-and-early-dyle {
-						display: contents;
+						display: grid;
+						grid-row: span 2;
+						grid-template-columns: auto auto;
+						justify-content: space-between;
+						align-items: center;
+						gap: 6px 8px;
+						cursor: help;
 					}
 					.team-dandy-run-and-early-dyle label {
-						cursor: help;
+						display: contents;
+					}
+					.team-dandy-run-and-early-dyle select {
+						width: 100%;
 					}
 				`}</style>
 				<div className="team-dandy-run-and-early-dyle">
@@ -2029,7 +2038,7 @@ createRoot(document.getElementById('root')!).render(
 								gap: 8px;
 								margin-top: 12px;
 							}
-							#team-form label {
+							#team-server-link-row label {
 								display: flex;
 								align-items: center;
 								gap: 4px;
