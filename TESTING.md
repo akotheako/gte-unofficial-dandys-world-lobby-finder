@@ -77,8 +77,9 @@ and what should happen.
   titles, with an "N/N Toons" or "N/N Trinkets" button on the right of that line.
 - The Toons and Trinkets pick windows of a narrow screen show the same button above their tiles.
 - That button opens the My Toons or My Trinkets window, which groups the pictures under category
-  titles. Every tile is tinted light grey and slightly see-through, with a big ✅ behind an owned
-  tile's picture. Clicking a tile swaps its ✅ for a red X and lowers the count. The marks and the
+  titles. Every tile is tinted light grey and slightly see-through, with a big 🟩 behind an owned
+  toon's picture and a big 🟢 behind an owned trinket's picture. Clicking a tile swaps that mark
+  for a ❌ and lowers the count. The marks and the
   counts survive a reload.
 - The Toons and Trinkets side windows and pick windows divide choices into separate "Owned" and
   "Missing" sections, omitting either section when it has no choices. Every option remains
@@ -172,7 +173,7 @@ These checks need profiles A and B, and A is verified.
 
 - Find Players is greyed out, with a tooltip that says why, when no row has "Me", when no row is
   left to find, and when a verified friend in the table left the team.
-- A "Me" row shows missing required toons and trinkets with the red X overlay, and missing required
+- A "Me" row shows missing required toons and trinkets with a big ❌ behind them, and missing required
   badges with the same crossed-out style as an impossible role. Find Players stays disabled until
   the requirements on that row are owned.
 - A filled-in link that does not look like a Roblox server link shows a red message, which

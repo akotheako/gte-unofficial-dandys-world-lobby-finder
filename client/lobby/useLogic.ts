@@ -1124,7 +1124,7 @@ export function useLogic() {
 					title: visibleTexts.ownedPicturesWindow.abilityCooldown,
 					names: [
 						'ghost_snakes_in_a_can',
-						'savory_charm',
+						'sweet_charm',
 					],
 				},
 				{
@@ -1132,7 +1132,7 @@ export function useLogic() {
 					names: [
 						'blushy_bat',
 						'cardboard_armor',
-						'sweet_charm',
+						'savory_charm',
 					],
 				},
 				{
@@ -1170,7 +1170,7 @@ export function useLogic() {
 					],
 				},
 				{
-					title: visibleTexts.ownedPicturesWindow.otherTrinkets,
+					title: visibleTexts.ownedPicturesWindow.visibilityTrinkets,
 					names: [
 						'fishing_rod',
 						'moon_pack_heirloom',
@@ -1211,12 +1211,15 @@ export function useLogic() {
 							src: `/pixelated/${isToonsWindow ? 'toons' : 'trinkets'}/${name}`,
 							title: name.replace('.png', ''),
 							isMissing: missingPictures.includes(name),
-							// Small green check in the bottom right corner of an owned tile
+							isToon: isToonsWindow,
 							ownedMark: missingPictures.includes(name)
 								? ''
-								: visibleTexts.ownedPicturesWindow.ownedMark,
-							// Red X behind a missing tile, which shows through the see-through picture
-							missingMarkSrc: missingPictures.includes(name) ? '/redx.webp' : '',
+								: isToonsWindow
+									? visibleTexts.ownedPicturesWindow.ownedToonMark
+									: visibleTexts.ownedPicturesWindow.ownedTrinketMark,
+							missingMark: missingPictures.includes(name)
+								? visibleTexts.ownedPicturesWindow.missingMark
+								: '',
 							toggle: () => toggleOwnedPictureTile({
 								localStorageKey,
 								getMissingPictures: () => (

@@ -1157,11 +1157,15 @@ function TeamTable({
 					position: relative;
 					display: inline-flex;
 				}
-				.team-picture-crossed-out[data-crossed-out="true"]::before {
-					content: '';
+				.team-picture-missing-mark {
 					position: absolute;
 					inset: 0;
-					background: url('/redx.webp') center / contain no-repeat;
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					font-size: 32px;
+					line-height: 1;
+					pointer-events: none;
 				}
 				.team-picture-crossed-out[data-crossed-out="true"] img {
 					position: relative;
@@ -1331,6 +1335,12 @@ function TeamTable({
 											onDragStart={cell.picture.dragPictureFromTable}
 											onDragEnd={cell.picture.endPictureDragFromTable}
 										>
+											{/* Big ❌ behind a picture that the user does not own */}
+											{cell.picture.isMissingForMe && (
+												<span className="team-picture-missing-mark">
+													{visibleTexts.teamTable.missingForMeMark}
+												</span>
+											)}
 											<img
 												className="toon-or-trinket-picture"
 												src={cell.picture.src}
@@ -1553,6 +1563,12 @@ function TeamCards({
 											className="team-picture-crossed-out"
 											data-crossed-out={cell.picture.isMissingForMe}
 										>
+											{/* Big ❌ behind a picture that the user does not own */}
+											{cell.picture.isMissingForMe && (
+												<span className="team-picture-missing-mark">
+													{visibleTexts.teamTable.missingForMeMark}
+												</span>
+											)}
 											<img
 												className="toon-or-trinket-picture"
 												src={cell.picture.src}
@@ -3092,8 +3108,8 @@ createRoot(document.getElementById('root')!).render(
 					</ModalWindow>
 					{/* My Toons or My Trinkets window in the middle of the screen, which the "N/N" buttons
 					open, with a bold title above each category's grid of tiles. Every tile has a light grey
-					tint and is slightly see-through, with a big ✅ behind an owned tile's picture and a red
-					X behind a missing one's. */}
+					tint and is slightly see-through, with a big 🟩 behind an owned toon's picture, a big
+					🟢 behind an owned trinket's picture and a big ❌ behind a missing one's. */}
 					<style>{`
 						#team-owned-pictures-categories {
 							max-height: 70dvh;
@@ -3116,17 +3132,13 @@ createRoot(document.getElementById('root')!).render(
 						#team-owned-pictures .team-palette img {
 							cursor: pointer;
 						}
-						.team-owned-pictures-missing-mark {
-							position: absolute;
-							inset: 0;
-							pointer-events: none;
-						}
 						.team-owned-pictures-tile .toon-or-trinket-picture {
 							position: relative;
 							opacity: 0.6;
 							filter: grayscale(0.7) brightness(1.3);
 						}
-						.team-owned-pictures-owned-mark {
+						.team-owned-pictures-owned-mark,
+						.team-owned-pictures-missing-mark {
 							position: absolute;
 							inset: 0;
 							display: flex;
@@ -3135,6 +3147,11 @@ createRoot(document.getElementById('root')!).render(
 							font-size: 40px;
 							line-height: 1;
 							pointer-events: none;
+						}
+						/* The 🟩 glyph fills most of its font size, and 54px makes it as big as the
+						48px tile on Windows. The mark is absolute, so its size never moves the tiles. */
+						.team-owned-pictures-owned-mark[data-toon="true"] {
+							font-size: 54px;
 						}
 					`}</style>
 					<ModalWindow
@@ -3168,16 +3185,18 @@ createRoot(document.getElementById('root')!).render(
 												key={tile.name}
 												className="team-owned-pictures-tile"
 											>
-												{/* Red X behind a missing tile's picture */}
-												{tile.missingMarkSrc && (
-													<img
-														className="team-owned-pictures-missing-mark"
-														src={tile.missingMarkSrc}
-													/>
+												{/* Big ❌ behind a missing tile's picture */}
+												{tile.missingMark && (
+													<span className="team-owned-pictures-missing-mark">
+														{tile.missingMark}
+													</span>
 												)}
-												{/* Big ✅ behind an owned tile's picture */}
+												{/* Big 🟩 or 🟢 behind an owned tile's picture */}
 												{tile.ownedMark && (
-													<span className="team-owned-pictures-owned-mark">
+													<span
+														className="team-owned-pictures-owned-mark"
+														data-toon={tile.isToon}
+													>
 														{tile.ownedMark}
 													</span>
 												)}

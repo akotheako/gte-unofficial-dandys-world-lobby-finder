@@ -101,6 +101,8 @@ export const visibleTexts = {
 	// Tables and narrow-screen cards of Find a Team, YOUR SLOT, Team Details, "Team found!" and
 	// Upvote Players
 	teamTable: {
+		// Mark behind a toon or trinket of a "Me" row that the user does not own
+		missingForMeMark: '❌',
 		// Column headers, which are also the labels of the boxes of the cards
 		toonColumn: 'Toon',
 		trinketAColumn: 'Trinket A',
@@ -192,8 +194,12 @@ export const visibleTexts = {
 		trinketsTitle: 'My Trinkets',
 		// Grey line below the title
 		hint: 'Click to mark as missing or owned',
-		// Mark behind an owned tile's picture
-		ownedMark: '✅',
+		// Mark behind an owned toon's picture in My Toons
+		ownedToonMark: '🟩',
+		// Mark behind an owned trinket's picture in My Trinkets
+		ownedTrinketMark: '🟢',
+		// Mark behind a missing tile's picture
+		missingMark: '❌',
 		// Category titles of My Toons
 		mainCharacters: 'Main Characters',
 		secondaryCharacters: 'Secondary Characters',
@@ -212,7 +218,7 @@ export const visibleTexts = {
 		toonSpecificTrinkets: 'Toon-specific Trinkets',
 		tapeTrinkets: 'Tape Trinkets',
 		researchAndHolidayCurrencyTrinkets: 'Research & Holiday Currency Trinkets',
-		otherTrinkets: 'Other',
+		visibilityTrinkets: 'Visibility Trinkets',
 		// Last category, only when a picture fits no other one
 		more: 'More',
 	},
