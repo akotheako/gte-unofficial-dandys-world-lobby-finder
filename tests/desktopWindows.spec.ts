@@ -83,3 +83,30 @@ test('Options remembers its checkboxes, and a refused notification stays uncheck
 		'Notifications are blocked for this site in the browser settings.',
 	)
 })
+
+test('Show a notification explains where to allow notifications while the browser waits', async ({
+	page,
+}) => {
+	await page.goto('/')
+	await page.evaluate(() => {
+		Notification.requestPermission = () => new Promise((resolve) => {
+			Object.assign(window, { answerNotificationPermission: resolve })
+		})
+	})
+	await page.locator('#options-icon').click()
+	const teamFoundBox = page.locator('#options-team-found')
+	const notificationCheckbox = teamFoundBox.getByLabel('Show a notification')
+	await notificationCheckbox.click()
+	await expect(teamFoundBox).toContainText(`Click "Allow" in the browser's popup.`)
+	await expect(teamFoundBox).toContainText('click the bell icon at the right end of the address bar')
+	await expect(notificationCheckbox).not.toBeChecked()
+
+	await page.evaluate(() => {
+		(window as unknown as {
+			answerNotificationPermission: (permission: string) => void
+		}).answerNotificationPermission('granted')
+	})
+	await expect(notificationCheckbox).toBeChecked()
+	await expect(teamFoundBox).toContainText('Clicking the notification directly join the server')
+	await expect(teamFoundBox).not.toContainText('bell icon')
+})

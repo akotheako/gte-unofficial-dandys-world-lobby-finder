@@ -257,6 +257,7 @@ export function useLogic() {
 		isDingSoundCheckboxChecked: boolean
 		isNotificationCheckboxChecked: boolean
 		notificationCheckboxError: string
+		isNotificationPermissionPending: boolean
 		isJoinAutomaticallyCheckboxChecked: boolean
 		chosenDandyRunDropdownOption: string
 		chosenEarlyDyleDropdownOption: string
@@ -353,6 +354,7 @@ export function useLogic() {
 			&& 'Notification' in window
 			&& Notification.permission === 'granted',
 		notificationCheckboxError: '',
+		isNotificationPermissionPending: false,
 		isJoinAutomaticallyCheckboxChecked: localStorage.getItem('joinAutomatically') === 'true',
 		chosenDandyRunDropdownOption: localStorage.getItem('dandyRunOption') ?? 'Any',
 		chosenEarlyDyleDropdownOption: localStorage.getItem('earlyDyleOption') ?? 'Any',
@@ -2479,6 +2481,10 @@ Verify your account in Roblox Verification, and the players of the last team tha
 							return `This browser cannot show notifications here.
 On an iPhone, add this site to the Home Screen first.`
 						}
+						if (state.isNotificationPermissionPending) {
+							return `Click "Allow" in the browser's popup.
+If no popup appeared, click the bell icon at the right end of the address bar and allow notifications.`
+						}
 						return state.notificationCheckboxError
 						|| 'Clicking the notification directly join the server'
 					})(),
@@ -2491,6 +2497,9 @@ On an iPhone, add this site to the Home Screen first.`
 						}),
 						setNotificationCheckboxError: (notificationCheckboxError) => setState({
 							notificationCheckboxError,
+						}),
+						setIsNotificationPermissionPending: (isNotificationPermissionPending) => setState({
+							isNotificationPermissionPending,
 						}),
 						isChecked,
 					}),

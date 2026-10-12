@@ -30,8 +30,9 @@ and what should happen.
   - shows a "Team found!" notification, also on Android, and clicking it opens the server in
     Roblox,
   - opens the server in a new tab once pop-ups are allowed for the site.
-- Checking "Show a notification" asks the browser for permission, and when that is refused, the
-  box stays unchecked with a red line below it.
+- Checking "Show a notification" asks the browser for permission. While the browser waits for an
+  answer, a grey line below the box points to the browser's popup or the bell icon in the address
+  bar. When the permission is refused, the box stays unchecked with a red line below it.
 - At 1920x1080, a tablet size such as 1024x768, and a phone size such as 390x844, every window
   and every side window of Find a Team fits on the screen, and the page never scrolls sideways.
 - At 1320px of width or less, the open window covers the desktop icons, and Find a Team shows one
