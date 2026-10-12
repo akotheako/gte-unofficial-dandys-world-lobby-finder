@@ -1,3 +1,5 @@
+import { visibleTexts } from '../../shared/visibleTexts.ts'
+
 // Sends the message of the Contact/Report window, and empties the message box once it arrived
 export async function sendReport({
 	topic,
@@ -10,7 +12,7 @@ export async function sendReport({
 	setReportMessage: (reportMessage: string) => void
 	setReportStatusText: (reportStatusText: string) => void
 }) {
-	setReportStatusText('Sending...')
+	setReportStatusText(visibleTexts.contactReport.sending)
 	const res = await fetch('/api/reports', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
@@ -24,5 +26,5 @@ export async function sendReport({
 		return
 	}
 	setReportMessage('')
-	setReportStatusText('Sent! Thank you for your message.')
+	setReportStatusText(visibleTexts.contactReport.sent)
 }

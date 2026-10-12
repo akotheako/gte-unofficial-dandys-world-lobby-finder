@@ -3,6 +3,7 @@ import type { QueryResult } from '@neondatabase/serverless'
 import { Hono } from 'hono'
 import { getSignedCookie } from 'hono/cookie'
 import { reportsReaderRobloxUserId, type Report } from '../shared/reports.ts'
+import { visibleTexts } from '../shared/visibleTexts.ts'
 import { database } from './database.ts'
 
 const cookieSecret = process.env.COOKIE_SECRET
@@ -41,14 +42,17 @@ reports.post('/', async (c) => {
 		message: string
 	}>()
 	// Bugs in the game and players are reported on the official Discord server instead
-	if (!['Report a bug in the website', 'Other'].includes(topic)) {
-		return c.json({ error: 'This form is only for issues about this website' }, 400)
+	if (![
+		visibleTexts.contactReport.bugInTheWebsiteTopic,
+		visibleTexts.contactReport.otherTopic,
+	].includes(topic)) {
+		return c.json({ error: visibleTexts.contactReport.onlyForThisWebsiteError }, 400)
 	}
 	if (typeof message !== 'string' || !message.trim()) {
-		return c.json({ error: 'Write a message first' }, 400)
+		return c.json({ error: visibleTexts.contactReport.emptyMessageError }, 400)
 	}
 	if (message.length > 2000) {
-		return c.json({ error: 'The message is longer than 2000 characters' }, 400)
+		return c.json({ error: visibleTexts.contactReport.messageTooLongError }, 400)
 	}
 	const cookie = await getSignedCookie(c, cookieSecret, 'roblox')
 	const robloxAccount = cookie
@@ -89,7 +93,7 @@ reports.post('/', async (c) => {
 		client.release()
 	}
 	if (!isReportStored) {
-		return c.json({ error: 'You can only send one report per minute. Please try again soon.' }, 429)
+		return c.json({ error: visibleTexts.contactReport.tooManyReportsError }, 429)
 	}
 	return c.body(null, 204)
 })
@@ -98,7 +102,7 @@ reports.post('/', async (c) => {
 reports.get('/', async (c) => {
 	const cookie = await getSignedCookie(c, cookieSecret, 'roblox')
 	if (!cookie || (JSON.parse(cookie) as { id: number }).id !== reportsReaderRobloxUserId) {
-		return c.json({ error: 'Only the owner of the site can read the reports' }, 403)
+		return c.json({ error: visibleTexts.reports.notOwnerError }, 403)
 	}
 	const { rows } = await database.query<{
 		id: number

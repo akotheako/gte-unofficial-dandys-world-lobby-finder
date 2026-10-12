@@ -301,6 +301,8 @@ These checks need two or three profiles that search at the same time.
 
 - Before any found team, the window says "You'll be able to upvote other players here after you
   find a team!"
+- When the server crashes while the last team loads, the window shows "Something went wrong on
+  the server, try again in a minute" in place of "Loading your last team...".
 - After a merge, the window shows the TEAM SETTINGS as tags, the server link, and the user's own table
   with the pictures, badges, roles and players of its rows, without its "(Leave Empty)" rows.
 - The Upvote column, the last one, holds the Upvote button of each other verified player. The

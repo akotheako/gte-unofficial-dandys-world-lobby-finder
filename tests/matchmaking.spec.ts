@@ -918,6 +918,26 @@ test.describe('Upvote Players', () => {
 		await unverifiedPage.context().close()
 	})
 
+	test('a crash while the last team loads shows its error in place of the loading line', async ({
+		browser,
+	}) => {
+		const context = await browser.newContext()
+		await verifyAsRobloxAccount({
+			context,
+			username: 'CrashWitness',
+		})
+		const page = await context.newPage()
+		await page.route('/api/upvotes/last-team', (route) => route.fulfill({
+			status: 500,
+			json: { error: 'Something went wrong on the server, try again in a minute' },
+		}))
+		await page.goto('/')
+		await openUpvotePlayers(page)
+		await expect(page.locator('#upvote-intro'))
+			.toHaveText('Something went wrong on the server, try again in a minute')
+		await context.close()
+	})
+
 	test('the server refuses upvotes that the window would not offer', async ({ browser }) => {
 		const hostPage = await startSearch({
 			browser,

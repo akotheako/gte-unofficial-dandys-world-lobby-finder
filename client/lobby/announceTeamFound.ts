@@ -1,4 +1,5 @@
 import { robloxServerLinkPattern } from '../../shared/robloxServerLinkPattern.ts'
+import { visibleTexts } from '../../shared/visibleTexts.ts'
 
 // Plays the bell, shows the notification and joins the server, as far as the Options window
 // turned them on
@@ -31,8 +32,8 @@ export function announceTeamFound({
 		// registration
 		navigator.serviceWorker.register('/teamFoundNotificationWorker.js')
 			.then(() => navigator.serviceWorker.ready)
-			.then((registration) => registration.showNotification('Team found!', {
-				body: isRobloxServerLink ? 'Click to join the server' : '',
+			.then((registration) => registration.showNotification(visibleTexts.teamFound.title, {
+				body: isRobloxServerLink ? visibleTexts.teamFound.notificationBody : '',
 				icon: '/pixelated/Everyone_at_elevator.webp',
 				tag: 'team-found',
 				// Without it, a notification that replaces an earlier one with the same tag pops up

@@ -1,3 +1,5 @@
+import { visibleTexts } from '../../shared/visibleTexts.ts'
+
 // Checking the box asks the browser for permission first, and the box stays unchecked when the
 // user or the browser refuses. Chrome can show its request as a small bell icon in the address bar
 // instead of a popup, and the request then stays unanswered until the user finds that icon.
@@ -18,7 +20,7 @@ export async function toggleNotificationCheckbox({
 		const permission = await Notification.requestPermission()
 		setIsNotificationPermissionPending(false)
 		if (permission !== 'granted') {
-			setNotificationCheckboxError('Notifications are blocked for this site in the browser settings.')
+			setNotificationCheckboxError(visibleTexts.options.notificationsBlockedError)
 			return
 		}
 	}

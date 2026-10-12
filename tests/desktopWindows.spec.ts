@@ -107,6 +107,6 @@ test('Show a notification explains where to allow notifications while the browse
 		}).answerNotificationPermission('granted')
 	})
 	await expect(notificationCheckbox).toBeChecked()
-	await expect(teamFoundBox).toContainText('Clicking the notification directly join the server')
+	await expect(teamFoundBox).toContainText('Clicking the notification joins the server directly')
 	await expect(teamFoundBox).not.toContainText('bell icon')
 })

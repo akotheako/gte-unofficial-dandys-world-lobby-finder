@@ -4,7 +4,8 @@
 for its logic, so reading it tells you everything that the page can do and every value that it can
 show. `server/main.ts` is the wiring file for the backend. Each backend feature lives in its own
 module next to it, such as `server/roblox.ts`, and `server/main.ts` mounts it. Code that both the
-frontend and the backend can use goes in `shared/`.
+frontend and the backend can use goes in `shared/`. `shared/visibleTexts.ts` holds every text that
+the page shows, grouped by window, with a comment that says where each one appears.
 `README.md` explains how to run the project and how to recreate it from zero. `TESTING.md` lists every
 check of the site, and the Playwright tests in `tests/` automate them. `PRODUCTION.md` describes the
 live site on Vercel and Neon, its limits and log lines, and the steps of a check of production.
@@ -45,8 +46,17 @@ live site on Vercel and Neon, its limits and log lines, and the steps of a check
   - The frontend logic is the exception. Every reaction of the page, meaning every click, input,
     drag, drop, fetch or timer, gets its own file in `client/lobby/`, and `useLogic` wires it. All
     state lives in `useLogic`.
+  - Every text that the page shows is the other exception. It goes in `shared/visibleTexts.ts`,
+    in the group of the window that shows it, with a comment above it that says where it appears,
+    even when only one place uses it. This includes labels, tooltips, placeholders, screen reader
+    labels, image descriptions and the errors that the server sends to the page. A text that
+    holds a value, such as a count or a username, is a function there that fills the value in.
+    Values that the page saves or that the server compares, such as dropdown options, badge names
+    and role names, stay in the code that uses them.
   - The view only shows the values that `useLogic` returns, as they are, and calls the functions
-    that it returns. Every label, image path and condition is computed in `useLogic`, and its
+    that it returns. The view takes a text that never changes directly from `visibleTexts`, and
+    `useLogic` picks every text that depends on the state. Every image path and condition is
+    computed in `useLogic`, and its
     functions take plain values, such as a string or a boolean. The view does only the minimum that the browser requires on top of that: it turns an event into
     plain values, such as `event.target.checked`, it calls `preventDefault()` where the browser
     needs it, and it opens, closes and animates the `<dialog>` elements through refs, following the

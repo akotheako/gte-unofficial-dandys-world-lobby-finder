@@ -8,9 +8,10 @@ import { setSignedCookie } from 'hono/cookie'
 const cookieSecret = parseEnv(readFileSync('.env', 'utf8')).COOKIE_SECRET!
 
 // Makes a browser profile verified as a Roblox account, with the same signed "roblox" cookie that
-// the server sets after a real verification, so the tests need no Roblox account. Without
-// ownedBadgeNames, the cookie holds no badges, like right after verifying. Without robloxUserId,
-// the account gets a random one.
+// the server sets after a real verification, so the tests need no Roblox account. The cookie
+// always holds the badge list, with only ownedBadgeNames owned, because a cookie without one makes
+// the server ask Roblox for 15 badges, and a full test run then gets 429 answers from Roblox.
+// Without robloxUserId, the account gets a random one.
 export async function verifyAsRobloxAccount({
 	context,
 	username,
@@ -43,9 +44,9 @@ export async function verifyAsRobloxAccount({
 		await setSignedCookie(c, 'roblox', JSON.stringify({
 			id: robloxUserId ?? Math.floor(Math.random() * 1e9),
 			username,
-			badges: ownedBadgeNames && allBadgeNames.map((name) => ({
+			badges: allBadgeNames.map((name) => ({
 				name,
-				owned: ownedBadgeNames.includes(name),
+				owned: Boolean(ownedBadgeNames?.includes(name)),
 			})),
 		}), cookieSecret)
 		return c.body(null)

@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { deleteCookie, getSignedCookie, setSignedCookie } from 'hono/cookie'
+import { visibleTexts } from '../shared/visibleTexts.ts'
 
 const cookieSecret = process.env.COOKIE_SECRET
 if (!cookieSecret) throw new Error('COOKIE_SECRET is not set, see README.md')
@@ -23,7 +24,7 @@ roblox.get('/code', async (c) => {
 		(n) => emojis[n % emojis.length],
 	).join('')
 	// The sentence tells anyone who pastes the code that it verifies their account for GTE.
-	const code = `This is my verification code for DW Team Finder! ${emojiCode}`
+	const code = visibleTexts.robloxVerification.emojiCode(emojiCode)
 	await setSignedCookie(c, 'roblox_code', code, cookieSecret, {
 		httpOnly: true,
 		sameSite: 'Lax',
@@ -34,7 +35,7 @@ roblox.get('/code', async (c) => {
 
 roblox.post('/check', async (c) => {
 	const code = await getSignedCookie(c, cookieSecret, 'roblox_code')
-	if (!code) return c.json({ error: 'The code expired, reload the page' }, 400)
+	if (!code) return c.json({ error: visibleTexts.robloxVerification.codeExpiredError }, 400)
 	const { username } = await c.req.json() as { username: string }
 	const lookupRes = await fetch('https://users.roblox.com/v1/usernames/users', {
 		method: 'POST',
@@ -47,7 +48,7 @@ roblox.post('/check', async (c) => {
 	// Roblox answers 429 when the server's IP address sent too many requests
 	if (!lookupRes.ok) {
 		console.error(`Roblox username lookup answered ${lookupRes.status}`)
-		return c.json({ error: 'Roblox is busy right now, try again in a minute' }, 503)
+		return c.json({ error: visibleTexts.robloxVerification.robloxBusyError }, 503)
 	}
 	const { data } = await lookupRes.json() as {
 		data: {
@@ -55,15 +56,17 @@ roblox.post('/check', async (c) => {
 			name: string
 		}[]
 	}
-	if (!data?.length) return c.json({ error: 'No Roblox account has that username' }, 404)
+	if (!data?.length) {
+		return c.json({ error: visibleTexts.robloxVerification.usernameNotFoundError }, 404)
+	}
 	const profileRes = await fetch(`https://users.roblox.com/v1/users/${data[0].id}`)
 	if (!profileRes.ok) {
 		console.error(`Roblox profile lookup answered ${profileRes.status}`)
-		return c.json({ error: 'Roblox is busy right now, try again in a minute' }, 503)
+		return c.json({ error: visibleTexts.robloxVerification.robloxBusyError }, 503)
 	}
 	const { description } = await profileRes.json() as { description: string }
 	if (!description?.includes(code)) {
-		return c.json({ error: 'The code is not in your profile description yet' }, 400)
+		return c.json({ error: visibleTexts.robloxVerification.codeNotInProfileError }, 400)
 	}
 	deleteCookie(c, 'roblox_code')
 	const user = {
@@ -98,7 +101,7 @@ const badgeChecks = new Map<number, Promise<{
 
 roblox.get('/badges', async (c) => {
 	const cookie = await getSignedCookie(c, cookieSecret, 'roblox')
-	if (!cookie) return c.json({ error: 'Verify your Roblox account first' }, 401)
+	if (!cookie) return c.json({ error: visibleTexts.robloxVerification.notVerifiedError }, 401)
 	const user = JSON.parse(cookie) as {
 		id: number
 		username: string
@@ -157,7 +160,7 @@ roblox.get('/badges', async (c) => {
 	try {
 		const badges = await check
 		if (badges === 'private') {
-			return c.json({ error: 'Make your Roblox inventory public to show your badges' }, 403)
+			return c.json({ error: visibleTexts.robloxVerification.privateInventoryError }, 403)
 		}
 		await setSignedCookie(c, 'roblox', JSON.stringify({
 			...user,
@@ -170,7 +173,7 @@ roblox.get('/badges', async (c) => {
 		return c.json(badges)
 	} catch (error) {
 		console.error('Roblox badge check failed:', (error as Error).message)
-		return c.json({ error: 'Roblox is busy right now, try again in a minute' }, 503)
+		return c.json({ error: visibleTexts.robloxVerification.robloxBusyError }, 503)
 	}
 })
 

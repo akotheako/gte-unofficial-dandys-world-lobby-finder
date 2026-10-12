@@ -4,6 +4,7 @@ export function loadVerifiedRobloxAccount({
 	setVerifiedRobloxAccount,
 }: { setVerifiedRobloxAccount: (verifiedRobloxAccount: RobloxAccount | null) => void }) {
 	fetch('/api/roblox/me')
-		.then((res) => res.json())
+		// A crashed server leaves the page unverified until the next reload
+		.then((res) => (res.ok ? res.json() : null))
 		.then(setVerifiedRobloxAccount)
 }

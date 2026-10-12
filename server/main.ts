@@ -1,6 +1,7 @@
 import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
+import { visibleTexts } from '../shared/visibleTexts.ts'
 import { checkIn } from './checkIn.ts'
 import { images } from './images.ts'
 import { reports } from './reports.ts'
@@ -10,10 +11,11 @@ import { upvotes } from './upvotes.ts'
 // Instantiate app:
 export const app = new Hono()
 
-// Every crashed request goes into the log with its route, which Vercel shows under Logs
+// Every crashed request goes into the log with its route, which Vercel shows under Logs, and
+// answers with an error that the page shows in the window's red error line
 app.onError((error, c) => {
 	console.error(`${c.req.method} ${c.req.path} failed:`, error)
-	return c.text('Internal Server Error', 500)
+	return c.json({ error: visibleTexts.serverCrashError }, 500)
 })
 
 // Set API routes:

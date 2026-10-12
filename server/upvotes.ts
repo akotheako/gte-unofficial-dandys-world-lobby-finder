@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { getSignedCookie } from 'hono/cookie'
 import type { LastFoundTeam } from '../shared/teamTypes.ts'
+import { visibleTexts } from '../shared/visibleTexts.ts'
 import type { FoundTeam } from './checkIn.ts'
 import { database } from './database.ts'
 
@@ -109,7 +110,7 @@ upvotes.get('/last-team', async (c) => {
 // Upvotes a player, which only counts once for each pair of accounts
 upvotes.post('/', async (c) => {
 	const cookie = await getSignedCookie(c, cookieSecret, 'roblox')
-	if (!cookie) return c.json({ error: 'Verify your Roblox account to upvote players' }, 401)
+	if (!cookie) return c.json({ error: visibleTexts.upvotePlayers.notVerifiedError }, 401)
 	const voterRobloxUserId = String((JSON.parse(cookie) as { id: number }).id)
 	const { robloxUserId } = await c.req.json<{ robloxUserId: string }>()
 	const receiverRobloxUserId = String(robloxUserId)
@@ -124,7 +125,7 @@ upvotes.post('/', async (c) => {
 		voterRobloxUserId,
 		receiverRobloxUserId,
 	}))) {
-		return c.json({ error: 'You can only upvote players from a team that you found' }, 403)
+		return c.json({ error: visibleTexts.upvotePlayers.notYourTeamError }, 403)
 	}
 	await database.query(`
 		INSERT INTO upvotes (voter_roblox_user_id, receiver_roblox_user_id) VALUES ($1, $2)
@@ -136,7 +137,7 @@ upvotes.post('/', async (c) => {
 // Takes an upvote back
 upvotes.delete('/', async (c) => {
 	const cookie = await getSignedCookie(c, cookieSecret, 'roblox')
-	if (!cookie) return c.json({ error: 'Verify your Roblox account to upvote players' }, 401)
+	if (!cookie) return c.json({ error: visibleTexts.upvotePlayers.notVerifiedError }, 401)
 	const voterRobloxUserId = String((JSON.parse(cookie) as { id: number }).id)
 	const { robloxUserId } = await c.req.json<{ robloxUserId: string }>()
 	await database.query(`

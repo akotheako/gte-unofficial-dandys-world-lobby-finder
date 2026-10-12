@@ -4,6 +4,7 @@ import { getSignedCookie } from 'hono/cookie'
 import { badgeCategories } from '../shared/badgeCategories.ts'
 import { browseTeamsJoinTableRows } from '../shared/browseTeamsJoinTableRows.ts'
 import { robloxServerLinkPattern } from '../shared/robloxServerLinkPattern.ts'
+import { visibleTexts } from '../shared/visibleTexts.ts'
 import type {
 	CheckInAnswer,
 	ChosenSlot,
@@ -883,7 +884,7 @@ checkIn.post('/', async (c) => {
 		const sentTeam = body.team
 		const serverLink = String(sentTeam?.serverLink ?? '').trim()
 		if (sentTeam?.isFindingPlayers && serverLink && !robloxServerLinkPattern.test(serverLink)) {
-			error = 'The server link is invalid!'
+			error = visibleTexts.findATeam.invalidServerLinkError
 		}
 		const savedTeamIndex = teams.findIndex((team) => team.team_id === pageId)
 		const savedTeam = teams[savedTeamIndex]
@@ -1020,7 +1021,7 @@ checkIn.post('/', async (c) => {
 			))
 			const hasJoined = friendsInTeam.some((friend) => friend.page_id === pageId)
 			if (!invitingTeam) {
-				error = 'This invite link expired'
+				error = visibleTexts.findATeam.inviteLinkExpiredError
 			} else if (!robloxAccount) {
 				isVerificationNeededToJoin = true
 			} else if (
@@ -1028,15 +1029,15 @@ checkIn.post('/', async (c) => {
 				// The host's account in another tab
 				|| invitingTeam.roblox_username === robloxAccount.username
 			) {
-				error = 'This invite link is for your friends, send it to them'
+				error = visibleTexts.findATeam.ownInviteLinkError
 			} else if (invitingTeam.removed_roblox_usernames.includes(robloxAccount.username)) {
-				error = 'The host took you out of the team'
+				error = visibleTexts.findATeam.removedByHostError
 			} else if (friendsInTeam.some((friend) => (
 				friend.page_id !== pageId && friend.roblox_username === robloxAccount.username
 			))) {
-				error = 'You already joined this team in another tab'
+				error = visibleTexts.findATeam.joinedInAnotherTabError
 			} else if (!hasJoined && invitingTeam.is_searching) {
-				error = 'The team already started finding players'
+				error = visibleTexts.findATeam.teamAlreadySearchingError
 			} else {
 				const friend: VerifiedFriend = {
 					page_id: pageId,
@@ -1149,7 +1150,7 @@ checkIn.post('/', async (c) => {
 			const chosenHost = chosenHostOf(myTeam)
 			// A Browse Teams join that already merged stays in its merged search
 			if (myTeam.chosen_slot.length && !myTeam.joined_team_id && !chosenHost) {
-				error = 'This team stopped searching or filled up'
+				error = visibleTexts.teamDetails.teamStoppedError
 			}
 			// The chosen slot follows the searches that are in the chosen merged search now, so that
 			// it is found again after every search that the user saw left
@@ -1233,7 +1234,7 @@ checkIn.post('/', async (c) => {
 					console.log(`No merge of ${logNameOf(myHost)} with ${logNameOf(other)}: ${
 						differences.join(', ')
 					}`)
-					if (myHost.chosen_slot.length) error = 'This team has no slot for you anymore'
+					if (myHost.chosen_slot.length) error = visibleTexts.teamDetails.noSlotAnymoreError
 					continue
 				}
 				// The older host stays the host, so that a host is always the oldest search of its
@@ -1261,7 +1262,7 @@ checkIn.post('/', async (c) => {
 							? 'every slot would have a player, but no search has a server link'
 							: 'no pairing of the rows lets every player fit, or a verified player is in both'
 					}`)
-					if (myHost.chosen_slot.length) error = 'This team has no slot for you anymore'
+					if (myHost.chosen_slot.length) error = visibleTexts.teamDetails.noSlotAnymoreError
 					continue
 				}
 				console.log(`Merged ${logNameOf(joiningHost)} into ${logNameOf(host)}`)

@@ -7,6 +7,7 @@ import {
 	type ReactNode,
 } from 'react'
 import { createRoot } from 'react-dom/client'
+import { visibleTexts } from '../shared/visibleTexts.ts'
 import { useLogic } from './lobby/useLogic.ts'
 
 // Desktop icon that opens an old-style grey window with a navy title bar and an × button. The
@@ -248,10 +249,10 @@ function DesktopWindow({
 					`}</style>
 					<button
 						className="window-close"
-						aria-label="Close"
+						aria-label={visibleTexts.windowTitleBar.closeButtonLabel}
 						onClick={close}
 					>
-						×
+						{visibleTexts.windowTitleBar.closeButton}
 					</button>
 				</div>
 				{children}
@@ -441,12 +442,12 @@ function BrowseTeamDetailsModal({ logic }: { logic: ReturnType<typeof useLogic> 
 				close={logic.closeOpenedBrowsedTeam}
 			>
 				<div className="window-title">
-					Team Details
+					{visibleTexts.teamDetails.title}
 					<button
 						className="window-close"
-						aria-label="Close"
+						aria-label={visibleTexts.windowTitleBar.closeButtonLabel}
 						onClick={logic.closeOpenedBrowsedTeam}>
-						×
+						{visibleTexts.windowTitleBar.closeButton}
 					</button>
 				</div>
 				<div id="browse-team-details-body">
@@ -461,12 +462,12 @@ function BrowseTeamDetailsModal({ logic }: { logic: ReturnType<typeof useLogic> 
 								<table id="browse-team-table">
 									<thead>
 										<tr>
-											<th>Toon</th>
-											<th>Trinket A</th>
-											<th>Trinket B</th>
-											<th>Badges</th>
-											<th>Role</th>
-											<th>Player</th>
+											<th>{visibleTexts.teamTable.toonColumn}</th>
+											<th>{visibleTexts.teamTable.trinketAColumn}</th>
+											<th>{visibleTexts.teamTable.trinketBColumn}</th>
+											<th>{visibleTexts.teamTable.badgesColumn}</th>
+											<th>{visibleTexts.teamTable.roleColumn}</th>
+											<th>{visibleTexts.teamTable.playerColumn}</th>
 										</tr>
 									</thead>
 									<tbody>
@@ -532,21 +533,21 @@ function BrowseTeamDetailsModal({ logic }: { logic: ReturnType<typeof useLogic> 
 												</div>
 											))}
 											<div className="team-card-box">
-												<span className="team-card-label">Badges</span>
+												<span className="team-card-label">{visibleTexts.teamTable.badgesColumn}</span>
 												{row.noBadgesText && (
 													<span className="team-placeholder">{row.noBadgesText}</span>
 												)}
 												{row.badgeNames.map((name) => <div key={name}>{name}</div>)}
 											</div>
 											<div className="team-card-box">
-												<span className="team-card-label">Role</span>
+												<span className="team-card-label">{visibleTexts.teamTable.roleColumn}</span>
 												{row.noRolesText && (
 													<span className="team-placeholder">{row.noRolesText}</span>
 												)}
 												{row.roleNames.map((name) => <div key={name}>{name}</div>)}
 											</div>
 											<div className="team-card-box">
-												<span className="team-card-label">Player</span>
+												<span className="team-card-label">{visibleTexts.teamTable.playerColumn}</span>
 												{row.joinButton ? (
 													<BrowsedTeamJoinButton joinButton={row.joinButton} />
 												) : (
@@ -564,7 +565,7 @@ function BrowseTeamDetailsModal({ logic }: { logic: ReturnType<typeof useLogic> 
 									id="browse-looking-for-players"
 									className="team-finding"
 								>
-									Looking for players<span>...</span>
+									{visibleTexts.teamDetails.lookingForPlayers}<span>...</span>
 								</span>
 							)}
 						</>
@@ -618,10 +619,10 @@ function ChecklistWindow({
 				{title}
 				<button
 					className="window-close"
-					aria-label="Close"
+					aria-label={visibleTexts.windowTitleBar.closeButtonLabel}
 					onClick={close}
 				>
-					×
+					{visibleTexts.windowTitleBar.closeButton}
 				</button>
 			</div>
 			{/* White sunken list with one checkbox per line, with grey lines that split the badges
@@ -765,10 +766,10 @@ function ReservedWindowEntry({ chip }: {
 			{chip.showRemoveFriendButton && (
 				<button
 					className="window-close"
-					aria-label="Remove friend"
+					aria-label={visibleTexts.reservedSlots.removeFriendButtonLabel}
 					onClick={chip.removeFriend}
 				>
-					×
+					{visibleTexts.windowTitleBar.closeButton}
 				</button>
 			)}
 		</div>
@@ -835,12 +836,12 @@ function ReservedSlotsGroupBoxes({
 				}
 			`}</style>
 			<fieldset>
-				<legend>ME</legend>
+				<legend>{visibleTexts.reservedSlots.meGroupBox}</legend>
 				<ReservedWindowEntry chip={meChip} />
 			</fieldset>
 			{showVerifiedFriends && (
 				<fieldset>
-					<legend>VERIFIED FRIENDS</legend>
+					<legend>{visibleTexts.reservedSlots.verifiedFriendsGroupBox}</legend>
 					{verifiedFriendChips.map((chip) => (
 						<ReservedWindowEntry
 							key={chip.key}
@@ -852,14 +853,16 @@ function ReservedSlotsGroupBoxes({
 				</fieldset>
 			)}
 			<fieldset>
-				<legend>UNVERIFIED FRIENDS</legend>
+				<legend>{visibleTexts.reservedSlots.unverifiedFriendsGroupBox}</legend>
 				{unverifiedFriendChips.map((chip) => (
 					<ReservedWindowEntry
 						key={chip.key}
 						chip={chip}
 					/>
 				))}
-				<button onClick={addUnverifiedFriend}>+ Add unverified friend</button>
+				<button onClick={addUnverifiedFriend}>
+					{visibleTexts.reservedSlots.addUnverifiedFriendButton}
+				</button>
 			</fieldset>
 		</div>
 	)
@@ -983,7 +986,7 @@ function ToonsAndTrinketsSideWindows({
 					id={toonsWindowId}
 					className={`${sideWindowClass} team-toons-side-window`}
 				>
-					<div className="window-title">Toons</div>
+					<div className="window-title">{visibleTexts.sideWindows.toonsTitle}</div>
 					{/* Small grey "Drag onto the table" line above the tiles, with the grey "N/N Toons"
 					button on its right */}
 					<div className="team-drag-hint">
@@ -1005,13 +1008,15 @@ function ToonsAndTrinketsSideWindows({
 								onDragStart={logic.dragLeaveEmptyTile}
 								onDragEnd={logic.endDragFromSideWindow}
 							>
-								(Leave Empty)
+								{visibleTexts.teamTable.leaveEmpty}
 							</div>
 						)}
 						{ownedToons.length > 0 && (
 							<>
 								{showMissingChoices && (
-									<div className="team-palette-section-title">Owned</div>
+									<div className="team-palette-section-title">
+										{visibleTexts.sideWindows.ownedSection}
+									</div>
 								)}
 								{ownedToons.map((toon) => (
 									<img
@@ -1028,7 +1033,9 @@ function ToonsAndTrinketsSideWindows({
 						)}
 						{missingToons.length > 0 && (
 							<>
-								<div className="team-palette-section-title">Missing</div>
+								<div className="team-palette-section-title">
+									{visibleTexts.sideWindows.missingSection}
+								</div>
 								{missingToons.map((toon) => (
 									<img
 										key={toon.name}
@@ -1056,7 +1063,7 @@ function ToonsAndTrinketsSideWindows({
 						id={trinketsWindowId}
 						className={`${sideWindowClass} team-trinkets-side-window`}
 					>
-						<div className="window-title">Trinkets</div>
+						<div className="window-title">{visibleTexts.sideWindows.trinketsTitle}</div>
 						{/* Small grey "Drag onto the table" line above the tiles, with the grey "N/N
 						Trinkets" button on its right */}
 						<div className="team-drag-hint">
@@ -1073,7 +1080,9 @@ function ToonsAndTrinketsSideWindows({
 							{ownedTrinkets.length > 0 && (
 								<>
 									{showMissingChoices && (
-										<div className="team-palette-section-title">Owned</div>
+										<div className="team-palette-section-title">
+											{visibleTexts.sideWindows.ownedSection}
+										</div>
 									)}
 									{ownedTrinkets.map((trinket) => (
 										<img
@@ -1090,7 +1099,9 @@ function ToonsAndTrinketsSideWindows({
 							)}
 							{missingTrinkets.length > 0 && (
 								<>
-									<div className="team-palette-section-title">Missing</div>
+									<div className="team-palette-section-title">
+										{visibleTexts.sideWindows.missingSection}
+									</div>
 									{missingTrinkets.map((trinket) => (
 										<img
 											key={trinket.name}
@@ -1258,13 +1269,17 @@ function TeamTable({
 			>
 				<thead>
 					<tr>
-						<th>Toon</th>
-						<th>Trinket A</th>
-						<th>Trinket B</th>
-						{showBadgesColumn && <th>Badges</th>}
-						<th>Role</th>
+						<th>{visibleTexts.teamTable.toonColumn}</th>
+						<th>{visibleTexts.teamTable.trinketAColumn}</th>
+						<th>{visibleTexts.teamTable.trinketBColumn}</th>
+						{showBadgesColumn && <th>{visibleTexts.teamTable.badgesColumn}</th>}
+						<th>{visibleTexts.teamTable.roleColumn}</th>
 						{/* Player header that explains on hover which rows are left for players to find */}
-						{showPlayerColumn && <th title={logic.playerColumnHeaderTooltip}>Player</th>}
+						{showPlayerColumn && (
+							<th title={logic.playerColumnHeaderTooltip}>
+								{visibleTexts.teamTable.playerColumn}
+							</th>
+						)}
 					</tr>
 				</thead>
 				<tbody>
@@ -1289,7 +1304,7 @@ function TeamTable({
 									}}
 									onDrop={row.dropPictureOnLeftEmptyRow}
 								>
-									(Leave Empty)
+									{visibleTexts.teamTable.leaveEmpty}
 								</td>
 							)}
 							{!row.isLeftEmpty && row.pictureCells.map((cell) => (
@@ -1382,11 +1397,13 @@ function TeamTable({
 								>
 									{row.showFindingPlayerText && (
 										<span className="team-finding">
-											Finding player<span>...</span>
+											{visibleTexts.teamTable.findingPlayer}<span>...</span>
 										</span>
 									)}
 									{/* "Player found!" above the name of a player who joined from Browse Teams */}
-									{row.showPlayerFoundText && <div className="team-finding">Player found!</div>}
+									{row.showPlayerFoundText && (
+										<div className="team-finding">{visibleTexts.teamTable.playerFound}</div>
+									)}
 									{row.showPlayerName && (
 										<span className="team-finding team-placeholder">
 											{row.playerName}
@@ -1412,7 +1429,7 @@ function TeamTable({
 													event.target.checked,
 												)}
 											/>
-											Verified only
+											{visibleTexts.teamTable.verifiedOnlyCheckbox}
 										</label>
 									)}
 								</td>
@@ -1518,7 +1535,7 @@ function TeamCards({
 									className={row.leftEmptyCardBoxClass}
 									onClick={row.undoLeaveRowEmpty}
 								>
-									(Leave Empty)
+									{visibleTexts.teamTable.leaveEmpty}
 								</div>
 							)}
 							{/* Toon, Trinket A and Trinket B boxes with their label above the picture or a
@@ -1553,7 +1570,7 @@ function TeamCards({
 									onClick={row.openBadgesWindow}
 									title={row.badgesCellTooltip}
 								>
-									<span className="team-card-label">Badges</span>
+									<span className="team-card-label">{visibleTexts.teamTable.badgesColumn}</span>
 									{row.noBadgesText && (
 										<span className="team-placeholder">{row.noBadgesText}</span>
 									)}
@@ -1575,7 +1592,7 @@ function TeamCards({
 									className={row.cardBoxClass}
 									onClick={row.openRolesWindow}
 								>
-									<span className="team-card-label">Role</span>
+									<span className="team-card-label">{visibleTexts.teamTable.roleColumn}</span>
 									{row.noRolesText && (
 										<span className="team-placeholder">{row.noRolesText}</span>
 									)}
@@ -1600,17 +1617,19 @@ function TeamCards({
 									className={row.cardBoxClass}
 									onClick={row.tapPlayerCardBox}
 								>
-									<span className="team-card-label">Player</span>
+									<span className="team-card-label">{visibleTexts.teamTable.playerColumn}</span>
 									{row.findAPlayerText && (
 										<span className="team-placeholder">{row.findAPlayerText}</span>
 									)}
 									{row.showFindingPlayerText && (
 										<span className="team-finding">
-											Finding player<span>...</span>
+											{visibleTexts.teamTable.findingPlayer}<span>...</span>
 										</span>
 									)}
 									{/* "Player found!" above the name of a player who joined from Browse Teams */}
-									{row.showPlayerFoundText && <div className="team-finding">Player found!</div>}
+									{row.showPlayerFoundText && (
+										<div className="team-finding">{visibleTexts.teamTable.playerFound}</div>
+									)}
 									{row.showPlayerName && (
 										<span className="team-placeholder">{row.playerName}</span>
 									)}
@@ -1630,7 +1649,7 @@ function TeamCards({
 													event.target.checked,
 												)}
 											/>
-											Verified only
+											{visibleTexts.teamTable.verifiedOnlyCheckbox}
 										</label>
 									)}
 								</div>
@@ -1682,7 +1701,7 @@ function TeamSettingsGroupBox({
 				id={id}
 				className="team-settings"
 			>
-				<legend>TEAM SETTINGS</legend>
+				<legend>{visibleTexts.teamSettings.title}</legend>
 				{/* Column of two labeled Any / Yes / No dropdowns, Dandy Run and Early Dyle, with the
 				dropdowns lined up on the right and equally wide, that explain themselves on hover */}
 				<style>{`
@@ -1703,8 +1722,8 @@ function TeamSettingsGroupBox({
 					}
 				`}</style>
 				<div className="team-dandy-run-and-early-dyle">
-					<label title="Don't buy anything in Dandy's shop!!">
-						Dandy Run:
+					<label title={visibleTexts.teamSettings.dandyRunTooltip}>
+						{visibleTexts.teamSettings.dandyRunLabel}
 						<select
 							value={settings.chosenDandyRunDropdownOption}
 							disabled={settings.areDropdownsLocked}
@@ -1715,8 +1734,8 @@ function TeamSettingsGroupBox({
 							))}
 						</select>
 					</label>
-					<label title={`Vote the special "TIME'S UP" card as soon as it appears`}>
-						Early Dyle:
+					<label title={visibleTexts.teamSettings.earlyDyleTooltip}>
+						{visibleTexts.teamSettings.earlyDyleLabel}
 						<select
 							value={settings.chosenEarlyDyleDropdownOption}
 							disabled={settings.areDropdownsLocked}
@@ -1748,7 +1767,7 @@ function TeamSettingsGroupBox({
 				`}</style>
 				<div className="team-region-and-floor-goal">
 					<label>
-						Region:
+						{visibleTexts.teamSettings.regionLabel}
 						<select
 							value={settings.chosenRegionDropdownOption}
 							disabled={settings.areDropdownsLocked}
@@ -1769,7 +1788,7 @@ function TeamSettingsGroupBox({
 						}
 					`}</style>
 					<label>
-						Floor goal:
+						{visibleTexts.teamSettings.floorGoalLabel}
 						<span className="team-from-to-dropdowns">
 							<select
 								value={settings.chosenFloorGoalFromDropdownOption}
@@ -1782,7 +1801,7 @@ function TeamSettingsGroupBox({
 									<option key={option}>{option}</option>
 								))}
 							</select>
-							to
+							{visibleTexts.teamSettings.fromToSeparator}
 							<select
 								value={settings.chosenFloorGoalToDropdownOption}
 								disabled={settings.areDropdownsLocked}
@@ -1799,7 +1818,7 @@ function TeamSettingsGroupBox({
 					{/* Players as two dropdowns, "from" and "to", from 2 to 8, in Browse Teams only */}
 					{settings.players && (
 						<label>
-							Players:
+							{visibleTexts.teamSettings.playersLabel}
 							<span className="team-from-to-dropdowns">
 								<select
 									value={settings.players.chosenFromDropdownOption}
@@ -1812,7 +1831,7 @@ function TeamSettingsGroupBox({
 										<option key={option}>{option}</option>
 									))}
 								</select>
-								to
+								{visibleTexts.teamSettings.fromToSeparator}
 								<select
 									value={settings.players.chosenToDropdownOption}
 									disabled={settings.areDropdownsLocked}
@@ -1861,14 +1880,14 @@ createRoot(document.getElementById('root')!).render(
 						<DesktopWindow
 							id="account"
 							iconId="account-icon"
-							title="Roblox Verification"
+							title={visibleTexts.desktopIcons.robloxVerification}
 							image="/pixelated/Gossip_Bud.webp"
 							{...logic.robloxVerificationWindow}
 						>
 							{logic.isRobloxVerified ? (
 							// "Verified as <name>", the badge checklist, and Update Badges and Log out buttons
 								<>
-									<p>Verified as {logic.verifiedRobloxUsername}</p>
+									<p>{visibleTexts.robloxVerification.verifiedAs(logic.verifiedRobloxUsername)}</p>
 									{/* Dandy's World badge checklist, "Loading badges...", or an error */}
 									<style>{`
 									#account-badges {
@@ -1908,27 +1927,31 @@ createRoot(document.getElementById('root')!).render(
 									}
 								`}</style>
 									<div id="account-actions">
-										<button onClick={logic.updateRobloxBadgeChecklist}>Update Badges</button>
-										<button onClick={logic.logOutOfRoblox}>Log out</button>
+										<button onClick={logic.updateRobloxBadgeChecklist}>
+											{visibleTexts.robloxVerification.updateBadgesButton}
+										</button>
+										<button onClick={logic.logOutOfRoblox}>
+											{visibleTexts.robloxVerification.logOutButton}
+										</button>
 									</div>
 								</>
 							) : (
 							// Instructions, the code with Copy, and a username field with Check
 								<>
 									<p>
-										Verify your Roblox account to get access to all the features!
+										{visibleTexts.robloxVerification.instructionsFirstLine}
 										<br />
 										<br />
-										First, go to your{' '}
+										{visibleTexts.robloxVerification.instructionsBeforeProfileLink}{' '}
 										<a
 											href="https://www.roblox.com/users/profile/edit"
 											target="_blank"
 										>
-											Roblox profile
+											{visibleTexts.robloxVerification.profileLink}
 										</a>
-										,
+										{visibleTexts.robloxVerification.instructionsAfterProfileLink}
 										<br />
-										then click on About to change your bio and paste this emoji-code:
+										{visibleTexts.robloxVerification.instructionsCodeLine}
 									</p>
 									{/* Emoji code with a Copy button next to it */}
 									<style>{`
@@ -1964,7 +1987,7 @@ createRoot(document.getElementById('root')!).render(
 											{logic.copyButtonText}
 										</button>
 									</div>
-									<p>Then enter your username below and click [Check]:</p>
+									<p>{visibleTexts.robloxVerification.checkInstructions}</p>
 									{/* Roblox username field with Check, and any error below */}
 									<style>{`
 									#account-username input {
@@ -2000,10 +2023,10 @@ createRoot(document.getElementById('root')!).render(
 										<input
 											name="username"
 											defaultValue={logic.usernameFieldStartValue}
-											placeholder="Roblox username"
+											placeholder={visibleTexts.robloxVerification.usernameFieldPlaceholder}
 											required
 										/>
-										<button>Check</button>
+										<button>{visibleTexts.robloxVerification.checkButton}</button>
 										<p>{logic.robloxVerificationError}</p>
 									</form>
 								</>
@@ -2013,7 +2036,7 @@ createRoot(document.getElementById('root')!).render(
 						<DesktopWindow
 							id="team"
 							iconId="team-icon"
-							title="Find a Team"
+							title={visibleTexts.desktopIcons.findATeam}
 							image="/pixelated/All_Together.webp"
 							{...logic.findATeamWindow}
 						>
@@ -2044,7 +2067,7 @@ createRoot(document.getElementById('root')!).render(
 									id="team-reserved"
 									className={logic.sideWindowClass}
 								>
-									<div className="window-title">Reserved Slots</div>
+									<div className="window-title">{visibleTexts.reservedSlots.title}</div>
 									{/* Small grey "Drag onto the Player column" line above the chips */}
 									<div className="team-drag-hint">{logic.reservedWindowDragHint}</div>
 									<ReservedSlotsGroupBoxes
@@ -2061,7 +2084,7 @@ createRoot(document.getElementById('root')!).render(
 							{/* Badges window in the middle of the screen, with a checkbox for each owned badge */}
 							<ChecklistWindow
 								id="team-badges"
-								title="Badges"
+								title={visibleTexts.checklistWindows.badgesTitle}
 								checkboxes={logic.badgesWindowCheckboxes}
 								isOpen={logic.isBadgesWindowOpen}
 								close={logic.closeBadgesWindow}
@@ -2133,7 +2156,7 @@ createRoot(document.getElementById('root')!).render(
 								{logic.showServerLinkField && (
 									<div id="team-server-link-row">
 										<label>
-											Server link{" "}
+											{visibleTexts.findATeam.serverLinkLabelStart}{' '}
 											{/* "(recommended)" text that explains itself on hover */}
 											<style>{`
 										#team-server-link-recommended {
@@ -2142,11 +2165,11 @@ createRoot(document.getElementById('root')!).render(
 									`}</style>
 											<span
 												id="team-server-link-recommended"
-												title={`A match needs at least one server link, so if you share yours, it's more probable to find a team faster`}
+												title={visibleTexts.findATeam.serverLinkRecommendedTooltip}
 											>
-												(recommended)
+												{visibleTexts.findATeam.serverLinkRecommended}
 											</span>
-											:
+											{visibleTexts.findATeam.serverLinkLabelEnd}
 											<input
 												name="serverLink"
 												type="password"
@@ -2166,10 +2189,10 @@ createRoot(document.getElementById('root')!).render(
 								`}</style>
 										<a
 											id="team-server-link-help"
-											title="How do I get a server link?"
+											title={visibleTexts.findATeam.serverLinkHelpTitle}
 											onClick={logic.openServerLinkHelpWindow}
 										>
-											?
+											{visibleTexts.findATeam.serverLinkHelpLink}
 										</a>
 									</div>
 								)}
@@ -2276,7 +2299,7 @@ createRoot(document.getElementById('root')!).render(
 									className={logic.findingWithoutServerLinkHintClass}
 								>
 									{/* Warning sign left of the text */}
-									<span aria-hidden="true">⚠</span>
+									<span aria-hidden="true">{visibleTexts.findATeam.warningSign}</span>
 									{logic.findingWithoutServerLinkHint}
 								</p>
 							</form>
@@ -2309,24 +2332,24 @@ createRoot(document.getElementById('root')!).render(
 								close={logic.closeServerLinkHelpWindow}
 							>
 								<div className="window-title">
-									How do I get a server link?
+									{visibleTexts.findATeam.serverLinkHelpTitle}
 									<button
 										className="window-close"
-										aria-label="Close"
+										aria-label={visibleTexts.windowTitleBar.closeButtonLabel}
 										onClick={logic.closeServerLinkHelpWindow}
 									>
-										×
+										{visibleTexts.windowTitleBar.closeButton}
 									</button>
 								</div>
 								{/* Two screenshots, which scroll below the title bar when they are taller than the screen */}
 								<div id="team-howto-screenshots">
 									<img
 										src="/howtomakeprivateserver1.webp"
-										alt="Dandy's World page: open Servers, then Create Private Server, or Configure on an existing one"
+										alt={visibleTexts.findATeam.serverLinkHelpFirstScreenshot}
 									/>
 									<img
 										src="/howtomakeprivateserver2.webp"
-										alt="Configure Private Server page: turn on Allow Joining, then copy the Private Server Link"
+										alt={visibleTexts.findATeam.serverLinkHelpSecondScreenshot}
 									/>
 								</div>
 							</ModalWindow>
@@ -2335,7 +2358,7 @@ createRoot(document.getElementById('root')!).render(
 						<DesktopWindow
 							id="browse"
 							iconId="browse-icon"
-							title="Browse Teams"
+							title={visibleTexts.desktopIcons.browseTeams}
 							image="/browse_teams.webp"
 							{...logic.browseTeamsWindow}
 						>
@@ -2480,7 +2503,7 @@ createRoot(document.getElementById('root')!).render(
 						<DesktopWindow
 							id="upvote"
 							iconId="upvote-icon"
-							title="Upvote Players"
+							title={visibleTexts.desktopIcons.upvotePlayers}
 							image="/pixelated/Main_Character.webp"
 							{...logic.upvotePlayersWindow}
 						>
@@ -2561,13 +2584,13 @@ createRoot(document.getElementById('root')!).render(
 										<table id="upvote-table">
 											<thead>
 												<tr>
-													<th>Toon</th>
-													<th>Trinket A</th>
-													<th>Trinket B</th>
-													<th>Badges</th>
-													<th>Role</th>
-													<th>Player</th>
-													<th>Upvote</th>
+													<th>{visibleTexts.teamTable.toonColumn}</th>
+													<th>{visibleTexts.teamTable.trinketAColumn}</th>
+													<th>{visibleTexts.teamTable.trinketBColumn}</th>
+													<th>{visibleTexts.teamTable.badgesColumn}</th>
+													<th>{visibleTexts.teamTable.roleColumn}</th>
+													<th>{visibleTexts.teamTable.playerColumn}</th>
+													<th>{visibleTexts.teamTable.upvoteColumn}</th>
 												</tr>
 											</thead>
 											<tbody>
@@ -2664,7 +2687,7 @@ createRoot(document.getElementById('root')!).render(
 														{/* Badges box with the badge names stacked, or a grey "(none
 														required)" */}
 														<div className="team-card-box">
-															<span className="team-card-label">Badges</span>
+															<span className="team-card-label">{visibleTexts.teamTable.badgesColumn}</span>
 															{row.noBadgesText && (
 																<span className="team-placeholder">{row.noBadgesText}</span>
 															)}
@@ -2672,7 +2695,7 @@ createRoot(document.getElementById('root')!).render(
 														</div>
 														{/* Role box with the role names stacked, or a grey "(none required)" */}
 														<div className="team-card-box">
-															<span className="team-card-label">Role</span>
+															<span className="team-card-label">{visibleTexts.teamTable.roleColumn}</span>
 															{row.noRolesText && (
 																<span className="team-placeholder">{row.noRolesText}</span>
 															)}
@@ -2680,14 +2703,14 @@ createRoot(document.getElementById('root')!).render(
 														</div>
 														{/* Player box with the grey name of the player who took the row */}
 														<div className="team-card-box">
-															<span className="team-card-label">Player</span>
+															<span className="team-card-label">{visibleTexts.teamTable.playerColumn}</span>
 															<span className="team-placeholder">{row.playerName}</span>
 														</div>
 														{/* Upvote box with the Upvote button for the row's player, which reads
 														"Upvoted ✓" once clicked, or a grey line such as "(You cannot upvote
 														yourself)" */}
 														<div className="team-card-box">
-															<span className="team-card-label">Upvote</span>
+															<span className="team-card-label">{visibleTexts.teamTable.upvoteColumn}</span>
 															{row.cannotUpvoteText && (
 																<span className="team-placeholder">{row.cannotUpvoteText}</span>
 															)}
@@ -2712,17 +2735,17 @@ createRoot(document.getElementById('root')!).render(
 						<DesktopWindow
 							id="fan-project"
 							iconId="fan-project-icon"
-							title="This is a fan project"
+							title={visibleTexts.desktopIcons.fanProject}
 							image="/blushcrunch.webp"
 							{...logic.fanProjectWindow}
 						>
-							<p>This project was made by fans for fans, and not made by Blushcrunch.</p>
+							<p>{visibleTexts.fanProject.text}</p>
 						</DesktopWindow>
 						{/* Contact/Report icon, sixth in the row */}
 						<DesktopWindow
 							id="contact-report"
 							iconId="contact-report-icon"
-							title="Contact/Report"
+							title={visibleTexts.desktopIcons.contactReport}
 							image="/contact_report.webp"
 							{...logic.contactReportWindow}
 						>
@@ -2786,10 +2809,12 @@ createRoot(document.getElementById('root')!).render(
 									onChange={(event) => logic.typeReportMessage(event.target.value)}
 									disabled={logic.isReportMessageBoxDisabled}
 									maxLength={2000}
-									placeholder="Your message"
+									placeholder={visibleTexts.contactReport.messagePlaceholder}
 								/>
 								<div id="contact-report-send">
-									<button disabled={logic.isSendReportButtonDisabled}>Send</button>
+									<button disabled={logic.isSendReportButtonDisabled}>
+										{visibleTexts.contactReport.sendButton}
+									</button>
 									<span>{logic.reportStatusText}</span>
 								</div>
 							</form>
@@ -2798,7 +2823,7 @@ createRoot(document.getElementById('root')!).render(
 						<DesktopWindow
 							id="options"
 							iconId="options-icon"
-							title="Options"
+							title={visibleTexts.desktopIcons.options}
 							image="/options.webp"
 							{...logic.optionsWindow}
 						>
@@ -2810,7 +2835,7 @@ createRoot(document.getElementById('root')!).render(
 									checked={logic.isDarkModeCheckboxChecked}
 									onChange={(event) => logic.toggleDarkModeCheckbox(event.target.checked)}
 								/>
-								Dark mode
+								{visibleTexts.options.darkModeCheckbox}
 							</label>
 							{/* Etched "WHEN A TEAM IS FOUND" group box with a checkbox per line, and a small
 							grey line, or a red one for an error, below some of them */}
@@ -2842,7 +2867,7 @@ createRoot(document.getElementById('root')!).render(
 								}
 							`}</style>
 							<fieldset id="options-team-found">
-								<legend>WHEN A TEAM IS FOUND</legend>
+								<legend>{visibleTexts.options.teamFoundGroupBox}</legend>
 								{logic.teamFoundOptionsCheckboxes.map((checkbox) => (
 									<div key={checkbox.label}>
 										<label>
@@ -2866,7 +2891,7 @@ createRoot(document.getElementById('root')!).render(
 							<DesktopWindow
 								id="reports"
 								iconId="reports-icon"
-								title="Reports"
+								title={visibleTexts.desktopIcons.reports}
 								image="/contact_report.webp"
 								{...logic.reportsWindow}
 							>
@@ -2921,7 +2946,7 @@ createRoot(document.getElementById('root')!).render(
 					SLOT opens, with a checkbox for each role */}
 					<ChecklistWindow
 						id="team-roles"
-						title="Roles"
+						title={visibleTexts.checklistWindows.rolesTitle}
 						checkboxes={logic.rolesWindowCheckboxes}
 						isOpen={logic.isRolesWindowOpen}
 						close={logic.closeRolesWindow}
@@ -2961,10 +2986,10 @@ createRoot(document.getElementById('root')!).render(
 							{logic.pickWindowTitle}
 							<button
 								className="window-close"
-								aria-label="Close"
+								aria-label={visibleTexts.windowTitleBar.closeButtonLabel}
 								onClick={logic.closePickWindow}
 							>
-								×
+								{visibleTexts.windowTitleBar.closeButton}
 							</button>
 						</div>
 						{logic.showPickWindowTiles ? (
@@ -3089,10 +3114,10 @@ createRoot(document.getElementById('root')!).render(
 							{logic.ownedPicturesWindowTitle}
 							<button
 								className="window-close"
-								aria-label="Close"
+								aria-label={visibleTexts.windowTitleBar.closeButtonLabel}
 								onClick={logic.closeOwnedPicturesWindow}
 							>
-								×
+								{visibleTexts.windowTitleBar.closeButton}
 							</button>
 						</div>
 						{/* Small grey "Click to mark as missing or owned" line */}
@@ -3243,17 +3268,17 @@ createRoot(document.getElementById('root')!).render(
 						{/* Picture of all of the toons waiting together at the elevator, above the window */}
 						<img
 							src="/pixelated/Everyone_at_elevator.webp"
-							alt="All of the toons waiting together at the elevator"
+							alt={visibleTexts.teamFound.elevatorPicture}
 						/>
 						{/* Title bar with Team found! and a grey × button that closes the window */}
 						<div className="window-title">
-							Team found!
+							{visibleTexts.teamFound.title}
 							<button
 								className="window-close"
-								aria-label="Close"
+								aria-label={visibleTexts.windowTitleBar.closeButtonLabel}
 								onClick={logic.closeTeamFoundWindow}
 							>
-								×
+								{visibleTexts.windowTitleBar.closeButton}
 							</button>
 						</div>
 						{/* Centered text that says who joined whose team, with the host's username as a blue
@@ -3281,12 +3306,12 @@ createRoot(document.getElementById('root')!).render(
 						<table id="team-found-table">
 							<thead>
 								<tr>
-									<th>Toon</th>
-									<th>Trinket A</th>
-									<th>Trinket B</th>
-									<th>Badges</th>
-									<th>Role</th>
-									<th>Player</th>
+									<th>{visibleTexts.teamTable.toonColumn}</th>
+									<th>{visibleTexts.teamTable.trinketAColumn}</th>
+									<th>{visibleTexts.teamTable.trinketBColumn}</th>
+									<th>{visibleTexts.teamTable.badgesColumn}</th>
+									<th>{visibleTexts.teamTable.roleColumn}</th>
+									<th>{visibleTexts.teamTable.playerColumn}</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -3348,21 +3373,21 @@ createRoot(document.getElementById('root')!).render(
 											</div>
 										))}
 										<div className="team-card-box">
-											<span className="team-card-label">Badges</span>
+											<span className="team-card-label">{visibleTexts.teamTable.badgesColumn}</span>
 											{row.noBadgesText && (
 												<span className="team-placeholder">{row.noBadgesText}</span>
 											)}
 											{row.badgeNames.map((name) => <div key={name}>{name}</div>)}
 										</div>
 										<div className="team-card-box">
-											<span className="team-card-label">Role</span>
+											<span className="team-card-label">{visibleTexts.teamTable.roleColumn}</span>
 											{row.noRolesText && (
 												<span className="team-placeholder">{row.noRolesText}</span>
 											)}
 											{row.roleNames.map((name) => <div key={name}>{name}</div>)}
 										</div>
 										<div className="team-card-box">
-											<span className="team-card-label">Player</span>
+											<span className="team-card-label">{visibleTexts.teamTable.playerColumn}</span>
 											<span className="team-placeholder">{row.playerName}</span>
 										</div>
 									</div>
@@ -3376,7 +3401,7 @@ createRoot(document.getElementById('root')!).render(
 							target="_blank"
 							rel="noreferrer"
 						>
-							Click to join server
+							{visibleTexts.teamFound.joinServerButton}
 						</a>
 					</ModalWindow>
 					{/* Two white-on-black counters side by side at the bottom middle of the screen, or stacked in
