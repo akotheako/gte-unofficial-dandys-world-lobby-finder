@@ -44,6 +44,11 @@ roblox.post('/check', async (c) => {
 			excludeBannedUsers: true,
 		}),
 	})
+	// Roblox answers 429 when the server's IP address sent too many requests
+	if (!lookupRes.ok) {
+		console.error(`Roblox username lookup answered ${lookupRes.status}`)
+		return c.json({ error: 'Roblox is busy right now, try again in a minute' }, 503)
+	}
 	const { data } = await lookupRes.json() as {
 		data: {
 			id: number
@@ -52,6 +57,10 @@ roblox.post('/check', async (c) => {
 	}
 	if (!data?.length) return c.json({ error: 'No Roblox account has that username' }, 404)
 	const profileRes = await fetch(`https://users.roblox.com/v1/users/${data[0].id}`)
+	if (!profileRes.ok) {
+		console.error(`Roblox profile lookup answered ${profileRes.status}`)
+		return c.json({ error: 'Roblox is busy right now, try again in a minute' }, 503)
+	}
 	const { description } = await profileRes.json() as { description: string }
 	if (!description?.includes(code)) {
 		return c.json({ error: 'The code is not in your profile description yet' }, 400)
@@ -159,7 +168,8 @@ roblox.get('/badges', async (c) => {
 			maxAge: 60 * 60 * 24 * 30,
 		})
 		return c.json(badges)
-	} catch {
+	} catch (error) {
+		console.error('Roblox badge check failed:', (error as Error).message)
 		return c.json({ error: 'Roblox is busy right now, try again in a minute' }, 503)
 	}
 })

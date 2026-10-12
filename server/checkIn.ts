@@ -826,6 +826,7 @@ checkIn.post('/', async (c) => {
 		typeof value === 'string' ? value : JSON.stringify(value),
 	)
 	const writes: string[] = []
+	const checkInStartedAt = Date.now()
 	try {
 		// Check-ins run one at a time across every server, so two searches never take one row.
 		// Browsers run the timers of a hidden tab only once a minute, and players switch to Roblox
@@ -838,7 +839,11 @@ checkIn.post('/', async (c) => {
 			DELETE FROM open_pages WHERE last_seen_at < now() - interval '90 seconds';
 			DELETE FROM teams WHERE team_id NOT IN (SELECT page_id FROM open_pages);
 			DELETE FROM verified_friends WHERE page_id NOT IN (SELECT page_id FROM open_pages);
-			SELECT now() AS "transactionTime", count(*)::int AS "onThisPageCount" FROM open_pages;
+			SELECT
+				now() AS "transactionTime",
+				count(*)::int AS "onThisPageCount",
+				(extract(epoch FROM clock_timestamp() - now()) * 1000)::int AS "lockWaitMs"
+			FROM open_pages;
 			SELECT * FROM teams ORDER BY started_at;
 			SELECT * FROM verified_friends;
 			SELECT receiver_roblox_user_id AS "robloxUserId", count(*)::int AS "upvoteCount"
@@ -854,6 +859,7 @@ checkIn.post('/', async (c) => {
 			{ rows: [{
 				transactionTime,
 				onThisPageCount,
+				lockWaitMs,
 			}] },
 			{ rows: teams },
 			{ rows: verifiedFriends },
@@ -862,6 +868,7 @@ checkIn.post('/', async (c) => {
 			QueryResult<{
 				transactionTime: Date
 				onThisPageCount: number
+				lockWaitMs: number
 			}>,
 			QueryResult<Team>,
 			QueryResult<VerifiedFriend>,
@@ -1361,6 +1368,15 @@ checkIn.post('/', async (c) => {
 			`)
 		}
 		await client.query([...writes, 'COMMIT'].join(';\n'))
+		// Every check-in waits for the ones before it, so a long wait means that the site has more
+		// check-ins than the lock lets through, and a long hold means that each one got slower. The
+		// wait also counts the removal of gone pages, which takes a few milliseconds.
+		const checkInMs = Date.now() - checkInStartedAt
+		if (checkInMs > 1000) {
+			console.log(`Slow check-in: ${checkInMs}ms in all, ${lockWaitMs}ms waiting for the lock, ${
+				checkInMs - lockWaitMs
+			}ms holding it, ${onThisPageCount} open pages, ${teams.length} teams`)
+		}
 		const counts = {
 			onThisPageCount,
 			findingPlayersCount: teams.filter((team) => (

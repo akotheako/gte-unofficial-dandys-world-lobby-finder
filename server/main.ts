@@ -10,6 +10,12 @@ import { upvotes } from './upvotes.ts'
 // Instantiate app:
 export const app = new Hono()
 
+// Every crashed request goes into the log with its route, which Vercel shows under Logs
+app.onError((error, c) => {
+	console.error(`${c.req.method} ${c.req.path} failed:`, error)
+	return c.text('Internal Server Error', 500)
+})
+
 // Set API routes:
 app.route('/api/roblox', roblox)
 app.route('/api/check-in', checkIn)

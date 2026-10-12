@@ -61,6 +61,31 @@ The tests build the site and start the server on port 3100 with `.env` and then 
 
 Every run keeps its own folder in `test-runs/`, which git ignores, named after the time that the run started. It holds the log of the server in `server.log`, which says for every pair of searches either that they merged or why they did not, and the server's errors in `server-errors.log`. The run fails when the server logged any error, because a check-in that fails on the server can go unnoticed by the test that caused it. Every run starts by emptying the open pages, teams and verified friends of the test database, so that the searches of a stopped run cannot merge with the new ones. It also holds an HTML report, which `npx playwright show-report test-runs/<time>/report` opens, and a trace of every failed test, with each click, request, answer and console line, which `npx playwright show-trace <path of trace.zip>` opens.
 
+## When many people use the site
+
+Every check-in takes the same database lock, so check-ins run one after another across all of the Vercel functions. That lock is the first limit that a big crowd reaches. Past it, the check-ins queue up, the page's counters and searches answer later and later, and Vercel finally ends the slowest ones with a timeout. The data stays correct, because the lock is what keeps it correct. The free plans are the second limit. Vercel Hobby and Neon's free plan each allow a fixed amount of compute per month, and the site stops answering once either runs out. Roblox is the third, because it answers 429 to an IP address that sends too many requests, and Vercel's functions share a few addresses.
+
+The server logs what it needs for finding out which limit was reached. Vercel shows these lines under the project's Logs tab:
+
+- `Slow check-in: ...` is a check-in that took more than a second. It tells how long the check-in waited for the lock and how long it held it, with the number of open pages and teams. A long wait means that the lock is full, and a long hold means that each check-in got slower.
+- `GET /api/... failed:` and `POST /api/... failed:` are crashed requests, with their error and stack.
+- `Roblox username lookup answered 429`, `Roblox profile lookup answered ...` and `Roblox badge check failed: ...` are Roblox refusing or failing a verification, and the user sees "Roblox is busy right now, try again in a minute".
+- `Database connection lost: ...` is Neon dropping a connection, which the server survives.
+
+`npm run test:load` measures the lock. It opens fake pages that check in on the same schedule as the real page, where a share of them searches for players, and it prints how many check-ins the server answered per second and how long they took. It needs the server from the tests, started on the test database:
+
+```sh
+npm run build
+PORT=3100 node --env-file=.env --env-file=.env.test server/main.ts
+npm run test:load -- --pages 200 --seconds 60 --searching 0.3
+```
+
+Every fake check-in is real work for the test database, and the test database uses the same Neon free compute hours as the real one, so a load test runs for a minute or two at a time. It refuses any address other than localhost, unless `--remote` says that the address is a preview deploy that uses the test database. A run from a home computer measures less than Vercel reaches, because each round trip to Neon takes longer from there.
+
+On 12 October 2026, from a home computer, the server answered about 13 check-ins per second, and each check-in held the lock for about 180 milliseconds. 100 pages got their answers in about 130 milliseconds. 400 pages, of which 120 searched, got them in 27 seconds, because the check-ins queued for the lock and for the 10 connections of the database pool.
+
+Three things outside the code prepare the site for a crowd. Vercel's Usage tab and Neon's Billing page show how much of each monthly limit is used, and they are worth a look every few days once people use the site. Vercel Hobby emails the owner as a limit gets close and pauses the project when it is reached. The `DATABASE_URL` on Vercel uses Neon's pooled host, whose name contains `-pooler`, because every Vercel function opens connections of its own. Vercel Pro and Neon Launch raise the monthly limits once the crowd is real, and Vercel Hobby is only for projects without income, such as ads or donations.
+
 ## Recreating the project from zero
 
 These commands were run from an empty `dwlobby` folder in Git Bash, with Node 24.

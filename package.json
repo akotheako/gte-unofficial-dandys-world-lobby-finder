@@ -11,7 +11,8 @@
 		"test:other-browsers": "playwright test --project=firefox --project=webkit",
 		"test:ui": "playwright test --project=visible --ui",
 		"test:step": "playwright test --project=visible --debug",
-		"test:watch": "playwright test --project=visible"
+		"test:watch": "playwright test --project=visible",
+		"test:load": "node tests/loadTest.ts"
 	},
 	"dependencies": {
 		"@hono/node-server": "^2.1.2",

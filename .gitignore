@@ -27,3 +27,6 @@ dist-ssr
 .env.test
 test-runs
 playwright-report
+
+.vercel
+.env*
