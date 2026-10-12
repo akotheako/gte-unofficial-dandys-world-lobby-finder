@@ -279,6 +279,8 @@ These checks need two or three profiles that search at the same time.
 - Join merges the user into that team only and into the row of that button, which other browsing
   pages then show as taken. It greys out Find Players and locks YOUR SLOT and TEAM SETTINGS, and
   "Team found!" opens once every row has a player, even while Find a Team is closed.
+- "Looking for players..." appears at the bottom right below the table, with its dots appearing and disappearing as in
+  "Finding player..." of Find a Team, while the team still searches for its other slots
 - The joined row, or its card on a narrow screen, turns light blue and reads "Joined this slot"
   in bold in place of its button, and the other slots that the user fits keep their Join buttons. Clicking one of them moves the join to that slot.
 - While the host's team keeps searching, the row that the join took reads "Player found!" in the

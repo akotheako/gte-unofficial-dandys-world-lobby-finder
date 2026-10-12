@@ -2163,6 +2163,8 @@ That is a row without a chip, or an extra row that shares a chip.`
 						isTeamComplete: false,
 					})
 					: [],
+				// "Looking for players..." above the table while the user's join waits for the other slots
+				showLookingForPlayersText: joinedRowIndex !== -1 && !state.shownTeamStatus?.teamServerLink,
 				// Rows of the read-only table, with the Toon, Trinket A, Trinket B, Badges, Role and
 				// Player columns. "(Leave Empty)" rows are left out.
 				openedBrowsedTeamRows: (openedBrowsedTeam?.teamTableRows ?? []).flatMap((row, index) => (

@@ -419,6 +419,11 @@ function BrowseTeamDetailsModal({ logic }: { logic: ReturnType<typeof useLogic> 
 				.browse-joined-slot-text {
 					font-weight: bold;
 				}
+				#browse-looking-for-players {
+					max-width: none;
+					align-self: flex-end;
+					font-size: inherit;
+				}
 				#browse-team-gone,
 				#browse-error {
 					margin: 0;
@@ -552,6 +557,16 @@ function BrowseTeamDetailsModal({ logic }: { logic: ReturnType<typeof useLogic> 
 									</div>
 								))}
 							</div>
+							{/* "Looking for players..." with blinking dots at the bottom right while the
+							joined team still searches for its other slots */}
+							{logic.showLookingForPlayersText && (
+								<span
+									id="browse-looking-for-players"
+									className="team-finding"
+								>
+									Looking for players<span>...</span>
+								</span>
+							)}
 						</>
 					)}
 					{logic.browseTeamsError && <p id="browse-error">{logic.browseTeamsError}</p>}
@@ -1215,12 +1230,19 @@ function TeamTable({
 					display: inline-block;
 					width: 0;
 					overflow: hidden;
+					white-space: nowrap;
 					vertical-align: bottom;
 					animation: team-dots 1.6s steps(4) infinite;
 				}
+				/* The margin shrinks as the dots grow, so that centered or right-aligned words stay
+				still */
 				@keyframes team-dots {
+					from {
+						margin-right: 4ch;
+					}
 					to {
 						width: 4ch;
+						margin-right: 0;
 					}
 				}
 				@media (max-width: 1320px) {
