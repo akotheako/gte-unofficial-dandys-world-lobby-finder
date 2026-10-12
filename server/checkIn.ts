@@ -6,6 +6,7 @@ import { browseTeamsJoinTableRows } from '../shared/browseTeamsJoinTableRows.ts'
 import { robloxServerLinkPattern } from '../shared/robloxServerLinkPattern.ts'
 import type {
 	CheckInAnswer,
+	MergedTeamSettings,
 	PlayerInRow,
 	ReservedFor,
 	TeamTableRow,
@@ -43,6 +44,10 @@ type Team = {
 	// the user takes there, or -1 for a search of Find a Team
 	chosen_host_row_index: number
 	joined_team_id: string | null
+	// Slot of the host's merged team that each row of the table was paired with when the search
+	// joined the host, which is a row index of the host's table, or -1 for a "(Leave Empty)" row.
+	// Empty while the search has not joined a host.
+	row_pairing: number[]
 	// Status of the search's table as it was when every row of its merged team got a player, which
 	// ends the search. The check-ins answer with it from then on, so that a page that only checks in
 	// after other players of the team left still sees every player.
@@ -54,6 +59,9 @@ type Team = {
 		playersInRows: (PlayerInRow | null)[]
 		hostRowIndex: number
 		hasJoinedATeam: boolean
+		// Absent from a status that an older version of the site saved
+		teamSettings?: MergedTeamSettings
+		slotRows?: TeamTableRow[]
 	} | null
 	started_at: Date
 }
@@ -180,112 +188,357 @@ function playersOf({
 	})
 }
 
-// Puts every player into a different row of the team, or returns null when they cannot all fit.
-// The team's own players can only take a row reserved for them, and players from other teams can
-// take any row that one of their own reserved rows fits, including a reserved row that the
-// team's own player does not end up in. An empty Toon or Trinket cell means "(Any)" on both sides,
-// and a host never takes a row that asks for a picture that they marked as missing.
-function placePlayersInRows({
-	players,
+// A merged team has one slot for each row of its host's table that is not "(Leave Empty)", and
+// every search that joined the host paired each of its own rows with one of those slots when it
+// joined. A slot holds one player, who has to fit the paired row of every table at once.
+
+// Slot of the merged team that a row of a search's table belongs to, which is the host's row that
+// it was paired with, or -1 for a "(Leave Empty)" row
+function slotOfRow({
 	team,
-	teamsById,
+	host,
+	rowIndex,
 }: {
-	players: TeamPlayer[]
 	team: Team
-	teamsById: Map<string, Team>
+	host: Team
+	rowIndex: number
 }) {
-	const rows = team.team_table_rows
-	const playersInRows: (TeamPlayer | null)[] = rows.map(() => null)
-	const fits = ({
+	if (team.team_table_rows[rowIndex].isLeftEmpty) return -1
+	return team.team_id === host.team_id ? rowIndex : team.row_pairing[rowIndex] ?? -1
+}
+
+// Rows of every table of the merged team that belong to the slot
+function rowsInSlot({
+	mergedTeam,
+	host,
+	slot,
+}: {
+	mergedTeam: Team[]
+	host: Team
+	slot: number
+}) {
+	return mergedTeam.flatMap((team) => team.team_table_rows.flatMap((row, rowIndex) => (
+		slotOfRow({
+			team,
+			host,
+			rowIndex,
+		}) === slot
+			? [{
+				team,
+				row,
+				rowIndex,
+			}]
+			: []
+	)))
+}
+
+// Whether rows of different tables can share a slot, which one player then has to fit: they ask for
+// at most one toon and at most two trinkets between them
+function canRowsShareSlot(rows: TeamTableRow[]) {
+	const toons = new Set(rows.map((row) => row.toonPicture).filter(Boolean))
+	const trinkets = new Set(rows.flatMap((row) => [row.trinketAPicture, row.trinketBPicture])
+		.filter(Boolean))
+	return toons.size <= 1 && trinkets.size <= 2
+}
+
+// What a slot asks for, made of every row that belongs to it: the toon that one of them asks for,
+// every trinket, role and badge that they ask for, and "Verified only" when one of them has it.
+// Badges only count on a "Verified only" row of a verified host, since only they can see the
+// checkbox.
+function slotRowOf(slotRows: {
+	team: Team
+	row: TeamTableRow
+}[]): TeamTableRow {
+	const rows = slotRows.map(({ row }) => row)
+	const trinkets = [...new Set(rows.flatMap((row) => [row.trinketAPicture, row.trinketBPicture])
+		.filter(Boolean))]
+	const verifiedOnlyRows = slotRows.flatMap(({
+		team,
+		row,
+	}) => (row.isVerifiedPlayerRequired && team.roblox_username ? [row] : []))
+	return {
+		toonPicture: rows.find((row) => row.toonPicture)?.toonPicture ?? '',
+		trinketAPicture: trinkets[0] ?? '',
+		trinketBPicture: trinkets[1] ?? '',
+		badgeNames: [...new Set(verifiedOnlyRows.flatMap((row) => row.badgeNames))],
+		roleNames: [...new Set(rows.flatMap((row) => row.roleNames))],
+		isVerifiedPlayerRequired: verifiedOnlyRows.length > 0,
+		reservedFor: '',
+		isLeftEmpty: false,
+	}
+}
+
+// Whether a player, whose own table asks for playerRow in the slot, fits the row of another table
+// in that slot. An empty Toon or Trinket cell means "(Any)" on both sides, and a host never takes a
+// row that asks for a picture that they marked as missing.
+function doesPlayerFitRow({
+	player,
+	playerTeam,
+	playerRow,
+	row,
+	rowTeam,
+}: {
+	player: TeamPlayer
+	playerTeam: Team
+	playerRow: TeamTableRow
+	row: TeamTableRow
+	rowTeam: Team
+}) {
+	// Only the host's own page knows which pictures they own, so a friend can be any picture
+	const playerMissingToons = player.isHost ? playerTeam.missing_toons : []
+	const playerMissingTrinkets = player.isHost ? playerTeam.missing_trinkets : []
+	const playerTrinkets = [playerRow.trinketAPicture, playerRow.trinketBPicture].filter(Boolean)
+	const requiredTrinkets = [row.trinketAPicture, row.trinketBPicture].filter(Boolean)
+	const missingTrinkets = requiredTrinkets.filter((trinket) => !playerTrinkets.includes(trinket))
+	return (!row.toonPicture
+		|| ((row.toonPicture === playerRow.toonPicture || !playerRow.toonPicture)
+			&& !playerMissingToons.includes(row.toonPicture)))
+		// A player's empty trinket slot can take any trinket that the row asks for
+		&& missingTrinkets.length <= 2 - playerTrinkets.length
+		&& requiredTrinkets.every((trinket) => !playerMissingTrinkets.includes(trinket))
+		&& row.roleNames.every((role) => playerRow.roleNames.includes(role))
+		// Badges only count for a verified player, since nobody can confirm the badges of an
+		// unverified one. A harder badge of the same category also counts, such as Marathon Runner
+		// for Speed Walker. "Verified only" counts only for a team whose host is verified, since
+		// only they can see the checkbox.
+		&& (!row.isVerifiedPlayerRequired
+			|| !rowTeam.roblox_username
+			|| (player.isVerified && row.badgeNames.every((wanted) => {
+				const category = badgeCategories.find((names) => names.includes(wanted)) ?? [wanted]
+				return player.badgeNames.some((owned) => (
+					category.indexOf(owned) >= category.indexOf(wanted)
+				))
+			})))
+}
+
+// Puts every player of the merged team into a different slot, indexed by the host's rows, or
+// returns null when they cannot all fit. A player only takes a slot whose row in their own table
+// is reserved for them, and has to fit the rows of every other table in that slot.
+function placePlayersInSlots({
+	host,
+	mergedTeam,
+	players,
+}: {
+	host: Team
+	mergedTeam: Team[]
+	players: TeamPlayer[]
+}) {
+	const slotRowsBySlot = host.team_table_rows.map((_row, slot) => rowsInSlot({
+		mergedTeam,
+		host,
+		slot,
+	}))
+	const playersInSlots: (TeamPlayer | null)[] = host.team_table_rows.map(() => null)
+	const canTakeSlot = ({
 		player,
-		rowIndex,
+		slot,
 	}: {
 		player: TeamPlayer
-		rowIndex: number
+		slot: number
 	}) => {
-		const row = rows[rowIndex]
-		if (row.isLeftEmpty || playersInRows[rowIndex]) return false
-		if (player.teamId === team.team_id) return player.reservedRowIndexes.includes(rowIndex)
-		const playerTeam = teamsById.get(player.teamId)
-		// A user who clicked Join on a slot in Browse Teams takes only that slot of that host's table
+		if (host.team_table_rows[slot].isLeftEmpty || playersInSlots[slot]) return false
+		const playerTeam = mergedTeam.find((team) => team.team_id === player.teamId)
+		if (!playerTeam) return false
+		// A user who clicked Join on a slot in Browse Teams takes only that slot of that host
 		if (
 			player.isHost
-			&& playerTeam?.chosen_host_team_id === team.team_id
+			&& playerTeam.chosen_host_team_id === host.team_id
 			&& playerTeam.chosen_host_row_index !== -1
-			&& playerTeam.chosen_host_row_index !== rowIndex
+			&& playerTeam.chosen_host_row_index !== slot
 		) return false
-		const playerRows = playerTeam?.team_table_rows ?? []
-		// Only the host's own page knows which pictures they own, so a friend can be any picture
-		const playerMissingToons = player.isHost ? playerTeam?.missing_toons ?? [] : []
-		const playerMissingTrinkets = player.isHost ? playerTeam?.missing_trinkets ?? [] : []
-		return player.reservedRowIndexes.some((playerRowIndex) => {
-			const playerRow = playerRows[playerRowIndex]
-			const playerTrinkets = [playerRow.trinketAPicture, playerRow.trinketBPicture].filter(Boolean)
-			const requiredTrinkets = [row.trinketAPicture, row.trinketBPicture].filter(Boolean)
-			const missingTrinkets = requiredTrinkets
-				.filter((trinket) => !playerTrinkets.includes(trinket))
-			// A player never fills a row that asks for a picture that they marked as missing, even
-			// when their own row names it
-			return (!row.toonPicture
-				|| ((row.toonPicture === playerRow.toonPicture || !playerRow.toonPicture)
-					&& !playerMissingToons.includes(row.toonPicture)))
-				// A player's empty trinket slot can take any trinket that the row asks for
-				&& missingTrinkets.length <= 2 - playerTrinkets.length
-				&& requiredTrinkets.every((trinket) => !playerMissingTrinkets.includes(trinket))
-				&& row.roleNames.every((role) => playerRow.roleNames.includes(role))
-				// Badges only count for a verified player, since nobody can confirm the badges of
-				// an unverified one. A harder badge of the same category also counts, such as
-				// Marathon Runner for Speed Walker. "Verified only" counts only for a team whose host
-				// is verified, since only they can see the checkbox.
-				&& (!row.isVerifiedPlayerRequired
-					|| !team.roblox_username
-					|| (player.isVerified && row.badgeNames.every((wanted) => {
-						const category = badgeCategories.find((names) => names.includes(wanted)) ?? [wanted]
-						return player.badgeNames.some((owned) => (
-							category.indexOf(owned) >= category.indexOf(wanted)
-						))
-					})))
-		})
+		const ownSlotRow = slotRowsBySlot[slot].find(({ team }) => team === playerTeam)
+		return Boolean(ownSlotRow)
+			&& player.reservedRowIndexes.includes(ownSlotRow!.rowIndex)
+			&& slotRowsBySlot[slot].every((slotRow) => slotRow === ownSlotRow || doesPlayerFitRow({
+				player,
+				playerTeam,
+				playerRow: ownSlotRow!.row,
+				row: slotRow.row,
+				rowTeam: slotRow.team,
+			}))
 	}
 	const placePlayer = (playerIndex: number): boolean => {
 		if (playerIndex === players.length) return true
-		for (const rowIndex of rows.keys()) {
-			if (!fits({
+		for (const slot of host.team_table_rows.keys()) {
+			if (!canTakeSlot({
 				player: players[playerIndex],
-				rowIndex,
+				slot,
 			})) continue
-			playersInRows[rowIndex] = players[playerIndex]
+			playersInSlots[slot] = players[playerIndex]
 			if (placePlayer(playerIndex + 1)) return true
-			playersInRows[rowIndex] = null
+			playersInSlots[slot] = null
 		}
 		return false
 	}
-	return placePlayer(0) ? playersInRows : null
+	return placePlayer(0) ? playersInSlots : null
 }
 
-// Whether the players of a merged team all fit every table in it. A closed tab keeps its search
-// for up to 90 seconds, so the same verified player can search twice, and must not end up twice in
-// one team.
-function doPlayersFitMergedTeam({
+// What the slot of each row of one table of the merged team asks for, with the table's own
+// "(Leave Empty)" rows as they are
+function slotRowsOfTable({
+	team,
+	host,
 	mergedTeam,
-	players,
-	teamsById,
 }: {
+	team: Team
+	host: Team
 	mergedTeam: Team[]
+}) {
+	return team.team_table_rows.map((row, rowIndex) => (row.isLeftEmpty ? row : slotRowOf(rowsInSlot({
+		mergedTeam,
+		host,
+		slot: slotOfRow({
+			team,
+			host,
+			rowIndex,
+		}),
+	}))))
+}
+
+// Players of the slots in the rows of one table of the merged team
+function playersInRowsOf({
+	team,
+	host,
+	playersInSlots,
+}: {
+	team: Team
+	host: Team
+	playersInSlots: (TeamPlayer | null)[]
+}) {
+	return team.team_table_rows.map((_row, rowIndex) => playersInSlots[slotOfRow({
+		team,
+		host,
+		rowIndex,
+	})] ?? null)
+}
+
+// Pairs each row of a search that joins the host with a slot of the host's merged team, so that
+// the rows of every slot can share it and every player of the team fits a slot, or returns null
+// when no pairing works. The slots that the row asks the least new things of come first, and
+// among those the slots without a seated player, which leaves later searches the most room. A
+// closed tab keeps its search for up to 90 seconds, so the same verified player can search twice,
+// and must not end up twice in one team.
+function pairJoinerWithHost({
+	host,
+	mergedTeam,
+	joiner,
+	players,
+}: {
+	host: Team
+	mergedTeam: Team[]
+	joiner: Team
 	players: TeamPlayer[]
-	teamsById: Map<string, Team>
 }) {
 	const verifiedUsernames = players.flatMap(({ playerInRow }) => (
 		'robloxUsername' in playerInRow && playerInRow.robloxUsername
 			? [playerInRow.robloxUsername]
 			: []
 	))
-	return new Set(verifiedUsernames).size === verifiedUsernames.length
-		&& mergedTeam.every((team) => placePlayersInRows({
-			players,
-			team,
-			teamsById,
-		}))
+	if (new Set(verifiedUsernames).size !== verifiedUsernames.length) return null
+	const slots = [...host.team_table_rows.keys()].filter((slot) => (
+		!host.team_table_rows[slot].isLeftEmpty
+	))
+	const joinerRowIndexes = [...joiner.team_table_rows.keys()].filter((rowIndex) => (
+		!joiner.team_table_rows[rowIndex].isLeftEmpty
+	))
+	if (slots.length !== joinerRowIndexes.length) return null
+	const slotRowsBySlot = new Map(slots.map((slot) => [slot, rowsInSlot({
+		mergedTeam,
+		host,
+		slot,
+	}).map(({ row }) => row)]))
+	// Slots whose player already sits in them. A free slot can still go to the own player of a
+	// later search, who can then play what it asks for, so new requirements go to free slots first.
+	const playersInCurrentSlots = placePlayersInSlots({
+		host,
+		mergedTeam,
+		players: players.filter((player) => player.teamId !== joiner.team_id),
+	})
+	const seatedSlots = new Set(slots.filter((slot) => playersInCurrentSlots?.[slot]))
+	const pairing = joiner.team_table_rows.map(() => -1)
+	const takenSlots = new Set<number>()
+	// Number of things that the row asks for and that the slot does not ask for yet
+	const newRequirementCountOf = ({
+		row,
+		slot,
+	}: {
+		row: TeamTableRow
+		slot: number
+	}) => {
+		const slotRow = slotRowOf(slotRowsBySlot.get(slot)!.map((slotRow) => ({
+			team: host,
+			row: slotRow,
+		})))
+		return Number(Boolean(row.toonPicture) && !slotRow.toonPicture)
+			+ [row.trinketAPicture, row.trinketBPicture, ...row.roleNames].filter((name) => (
+				name && ![slotRow.trinketAPicture, slotRow.trinketBPicture, ...slotRow.roleNames]
+					.includes(name)
+			)).length
+	}
+	const pairRow = (joinerRowNumber: number): number[] | null => {
+		if (joinerRowNumber === joinerRowIndexes.length) {
+			const pairedJoiner = {
+				...joiner,
+				row_pairing: [...pairing],
+			}
+			return placePlayersInSlots({
+				host,
+				mergedTeam: [...mergedTeam, pairedJoiner],
+				players,
+			}) ? [...pairing] : null
+		}
+		const rowIndex = joinerRowIndexes[joinerRowNumber]
+		const row = joiner.team_table_rows[rowIndex]
+		const previousRowIndex = joinerRowIndexes[joinerRowNumber - 1]
+		// Two equal rows in a row would only try the same pairings in another order
+		const isSameAsPreviousRow = previousRowIndex !== undefined
+			&& JSON.stringify(joiner.team_table_rows[previousRowIndex]) === JSON.stringify(row)
+		// Two slots with equal rows would give the same result
+		const triedSlotContents = new Set<string>()
+		const candidateSlots = slots
+			.filter((slot) => !takenSlots.has(slot)
+				&& !(isSameAsPreviousRow && slot < pairing[previousRowIndex])
+				&& canRowsShareSlot([...slotRowsBySlot.get(slot)!, row]))
+			.sort((a, b) => {
+				const newRequirementCountA = newRequirementCountOf({
+					row,
+					slot: a,
+				})
+				const newRequirementCountB = newRequirementCountOf({
+					row,
+					slot: b,
+				})
+				if (newRequirementCountA !== newRequirementCountB) {
+					return newRequirementCountA - newRequirementCountB
+				}
+				// A row that asks for nothing new can go anywhere
+				if (!newRequirementCountA) return 0
+				return Number(seatedSlots.has(a)) - Number(seatedSlots.has(b))
+			})
+		for (const slot of candidateSlots) {
+			// The slot whose Join button the user clicked in Browse Teams differs from the others
+			const isChosenSlot = joiner.chosen_host_team_id === host.team_id
+				&& joiner.chosen_host_row_index === slot
+			const slotContents = JSON.stringify([isChosenSlot, ...rowsInSlot({
+				mergedTeam,
+				host,
+				slot,
+			}).map(({
+				team,
+				row,
+			}) => [team.team_id, row])])
+			if (triedSlotContents.has(slotContents)) continue
+			triedSlotContents.add(slotContents)
+			pairing[rowIndex] = slot
+			takenSlots.add(slot)
+			const result = pairRow(joinerRowNumber + 1)
+			if (result) return result
+			takenSlots.delete(slot)
+			pairing[rowIndex] = -1
+		}
+		return null
+	}
+	return pairRow(0)
 }
 
 type TeamSettings = Pick<Team, 'dandy_run' | 'early_dyle' | 'region' | 'floor_goal'>
@@ -397,6 +650,7 @@ checkIn.use(async (_c, next) => {
 		ALTER TABLE teams DROP COLUMN IF EXISTS is_early_dyle;
 		ALTER TABLE teams ADD COLUMN IF NOT EXISTS chosen_host_team_id text NOT NULL DEFAULT '';
 		ALTER TABLE teams ADD COLUMN IF NOT EXISTS chosen_host_row_index int NOT NULL DEFAULT -1;
+		ALTER TABLE teams ADD COLUMN IF NOT EXISTS row_pairing jsonb NOT NULL DEFAULT '[]';
 		-- Record of every team that got together, which Upvote Players shows
 		CREATE TABLE IF NOT EXISTS found_teams (
 			found_team_id text PRIMARY KEY,
@@ -595,6 +849,7 @@ checkIn.post('/', async (c) => {
 					? Number(sentTeam.chosenHostRowIndex)
 					: -1,
 				joined_team_id: null,
+				row_pairing: [],
 				found_status: null,
 				// now() is the time at which the transaction started, in both round trips
 				started_at: transactionTime,
@@ -662,6 +917,7 @@ checkIn.post('/', async (c) => {
 					chosen_host_team_id = excluded.chosen_host_team_id,
 					chosen_host_row_index = excluded.chosen_host_row_index,
 					joined_team_id = NULL,
+					row_pairing = '[]',
 					found_status = NULL,
 					started_at = now()
 			`)
@@ -745,6 +1001,7 @@ checkIn.post('/', async (c) => {
 				!host?.is_searching || host.found_status?.foundTeamId !== team.found_status?.foundTeamId
 			)) {
 				team.joined_team_id = null
+				team.row_pairing = []
 				changedTeams.add(team)
 			}
 		}
@@ -841,34 +1098,35 @@ checkIn.post('/', async (c) => {
 					: [myTeam, other]
 				const merge = [[olderTeam, newerTeam], [newerTeam, olderTeam]]
 					.filter(([host, joiner]) => host.server_link && mergedTeamOf(joiner).length === 1)
-					.map(([host, joiner]) => {
-						const mergedTeam = [...mergedTeamOf(host), joiner]
-						return {
+					.map(([host, joiner]) => ({
+						host,
+						joiner,
+						rowPairing: pairJoinerWithHost({
 							host,
+							mergedTeam: mergedTeamOf(host),
 							joiner,
-							mergedTeam,
-							players: allPlayersOf(mergedTeam),
-						}
-					})
-					.find(({
-						mergedTeam, players,
-					}) => doPlayersFitMergedTeam({
-						mergedTeam,
-						players,
-						teamsById,
+							players: allPlayersOf([...mergedTeamOf(host), joiner]),
+						}),
 					}))
+					.find(({ rowPairing }) => rowPairing)
 				if (!merge) {
-					console.log(`No merge of ${logNameOf(myTeam)} with ${logNameOf(other)}: the players do not fit the rows, a verified player is in both, or the only side with a server link would have to join, while others already joined the other side`)
+					console.log(`No merge of ${logNameOf(myTeam)} with ${logNameOf(other)}: no pairing of the rows lets every player fit, a verified player is in both, or the only side with a server link would have to join, while others already joined the other side`)
 					if (myTeam.chosen_host_team_id) error = 'This team has no slot for you anymore'
 					continue
 				}
 				console.log(`Merged ${logNameOf(merge.joiner)} into ${logNameOf(merge.host)}`)
 				merge.joiner.joined_team_id = merge.host.team_id
+				merge.joiner.row_pairing = merge.rowPairing!
 				changedTeams.add(merge.host)
 				changedTeams.add(merge.joiner)
 
 				const mergedTeam = mergedTeamOf(merge.host)
 				const players = allPlayersOf(mergedTeam)
+				const playersInSlots = placePlayersInSlots({
+					host: merge.host,
+					mergedTeam,
+					players,
+				}) ?? []
 				const verifiedPlayers = players.flatMap((player) => (
 					player.robloxUserId && 'robloxUsername' in player.playerInRow ? [{
 						robloxUserId: player.robloxUserId,
@@ -887,28 +1145,26 @@ checkIn.post('/', async (c) => {
 					tables: mergedTeam.map((team) => ({
 						teamId: team.team_id,
 						teamTableRows: team.team_table_rows,
-						playersInRows: (placePlayersInRows({
-							players,
+						playersInRows: playersInRowsOf({
 							team,
-							teamsById,
-						}) ?? []).map((player) => player?.playerInRow ?? null),
+							host: merge.host,
+							playersInSlots,
+						}).map((player) => player?.playerInRow ?? null),
 					})),
 					verifiedPlayers,
 				}
-				// The team is found, and its search ends, once every row of every table has a player
-				const isEveryRowTaken = foundTeam.tables.every((table) => (
-					table.teamTableRows.every((row, rowIndex) => (
-						row.isLeftEmpty || table.playersInRows[rowIndex]
-					))
+				// The team is found, and its search ends, once every slot has a player
+				const isEverySlotTaken = merge.host.team_table_rows.every((row, slot) => (
+					row.isLeftEmpty || playersInSlots[slot]
 				))
-				if (!isEveryRowTaken) break
+				if (!isEverySlotTaken) break
 				const foundTeamId = `${merge.host.team_id} ${merge.host.started_at.toISOString()}`
 				for (const team of mergedTeam) {
-					const playersInRows = placePlayersInRows({
-						players,
+					const playersInRows = playersInRowsOf({
 						team,
-						teamsById,
-					}) ?? []
+						host: merge.host,
+						playersInSlots,
+					})
 					team.found_status = {
 						foundTeamId,
 						teamServerLink: merge.host.server_link,
@@ -918,6 +1174,17 @@ checkIn.post('/', async (c) => {
 							player?.isHost && player.teamId === team.team_id
 						)),
 						hasJoinedATeam: team !== merge.host,
+						teamSettings: {
+							dandyRun: mergedTeamSettings.dandy_run,
+							earlyDyle: mergedTeamSettings.early_dyle,
+							region: mergedTeamSettings.region,
+							floorGoal: mergedTeamSettings.floor_goal,
+						},
+						slotRows: slotRowsOfTable({
+							team,
+							host: merge.host,
+							mergedTeam,
+						}),
 					}
 					changedTeams.add(team)
 				}
@@ -940,6 +1207,7 @@ checkIn.post('/', async (c) => {
 			writes.push(`
 				UPDATE teams SET
 					joined_team_id = ${team.joined_team_id ? sqlLiteral(team.joined_team_id) : 'NULL'},
+					row_pairing = ${sqlLiteral(team.row_pairing)},
 					found_status = ${team.found_status ? sqlLiteral(team.found_status) : 'NULL'},
 					server_link = ${sqlLiteral(team.server_link)}
 				WHERE team_id = ${sqlLiteral(team.team_id)}
@@ -958,10 +1226,11 @@ checkIn.post('/', async (c) => {
 		// that the user fits once every player of its merged team has a row. Each listed team comes
 		// with the free rows of its table whose Join button the user can click.
 		const browse = body.browse
-		const playersInRowsOf = (host: Team) => (placePlayersInRows({
+		// Player in each slot of the host's merged team, indexed by the host's rows
+		const playersInHostRowsOf = (host: Team) => (placePlayersInSlots({
+			host,
+			mergedTeam: mergedTeamOf(host),
 			players: allPlayersOf(mergedTeamOf(host)),
-			team: host,
-			teamsById,
 		}) ?? []).map((player) => player?.playerInRow ?? null)
 		const browsedTeams: {
 			host: Team
@@ -1016,21 +1285,20 @@ checkIn.post('/', async (c) => {
 					chosen_host_team_id: host.team_id,
 					chosen_host_row_index: rowIndex,
 					joined_team_id: host.team_id,
+					row_pairing: [],
 					found_status: null,
 					started_at: transactionTime,
 				}
-				const mergedTeam = [
-					...mergedTeamOf(host).filter((team) => team.team_id !== pageId),
-					userTeam,
-				]
-				return doPlayersFitMergedTeam({
+				const mergedTeam = mergedTeamOf(host).filter((team) => team.team_id !== pageId)
+				return pairJoinerWithHost({
+					host,
 					mergedTeam,
-					players: allPlayersOf(mergedTeam),
-					teamsById: new Map(teamsById).set(pageId, userTeam),
+					joiner: userTeam,
+					players: allPlayersOf([...mergedTeam, userTeam]),
 				}) ? [rowIndex] : []
 			})
 			if (chosenHost?.is_searching) {
-				const playersInRows = playersInRowsOf(chosenHost)
+				const playersInRows = playersInHostRowsOf(chosenHost)
 				browsedTeams.push({
 					host: chosenHost,
 					playersInRows,
@@ -1054,7 +1322,7 @@ checkIn.post('/', async (c) => {
 						teamB: browseTeamSettings,
 					}).length
 				) continue
-				const playersInRows = playersInRowsOf(host)
+				const playersInRows = playersInHostRowsOf(host)
 				const joinableRowIndexes = joinableRowIndexesOf({
 					host,
 					playersInRows,
@@ -1075,20 +1343,32 @@ checkIn.post('/', async (c) => {
 		const shownTeam = invitingTeamId ? teamsById.get(invitingTeamId) : myTeam
 		const finalHost = shownTeam?.joined_team_id ? teamsById.get(shownTeam.joined_team_id) : shownTeam
 		const shownMergedTeam = finalHost ? mergedTeamOf(finalHost) : []
-		// The merge checked that every player fits every table of the merged team, so the second
-		// try, with only the shown team's own players, is for a team that fell apart meanwhile
-		const playersInShownRows = shownTeam && (placePlayersInRows({
-			players: allPlayersOf(shownMergedTeam),
-			team: shownTeam,
-			teamsById,
-		}) ?? placePlayersInRows({
-			players: playersOf({
-				team: shownTeam,
-				verifiedFriends,
-			}),
-			team: shownTeam,
-			teamsById,
-		}))
+		// The merge checked that every player of the merged team fits a slot, so the second try,
+		// with only the shown team's own players in its own rows, is for a team that fell apart
+		// meanwhile
+		const playersInShownRows = shownTeam && finalHost && (() => {
+			const playersInSlots = placePlayersInSlots({
+				host: finalHost,
+				mergedTeam: shownMergedTeam,
+				players: allPlayersOf(shownMergedTeam),
+			})
+			if (playersInSlots) {
+				return playersInRowsOf({
+					team: shownTeam,
+					host: finalHost,
+					playersInSlots,
+				})
+			}
+			return placePlayersInSlots({
+				host: shownTeam,
+				mergedTeam: [shownTeam],
+				players: playersOf({
+					team: shownTeam,
+					verifiedFriends,
+				}),
+			})
+		})()
+		const shownMergedTeamSettings = finalHost ? mergedTeamSettingsOf(shownMergedTeam) : null
 		return c.json({
 			...counts,
 			error,
@@ -1114,6 +1394,13 @@ checkIn.post('/', async (c) => {
 					hasJoinedATeam: shownTeam.found_status.hasJoinedATeam,
 					hostRobloxUsername: shownTeam.found_status.hostRobloxUsername,
 					teamServerLink: shownTeam.found_status.teamServerLink,
+					teamSettings: shownTeam.found_status.teamSettings ?? {
+						dandyRun: shownTeam.dandy_run,
+						earlyDyle: shownTeam.early_dyle,
+						region: shownTeam.region,
+						floorGoal: shownTeam.floor_goal,
+					},
+					slotRows: shownTeam.found_status.slotRows ?? shownTeam.team_table_rows,
 				} : {
 					playersInRows: shownTeam.team_table_rows.map((_row, rowIndex) => (
 						playersInShownRows?.[rowIndex]?.playerInRow ?? null
@@ -1128,6 +1415,17 @@ checkIn.post('/', async (c) => {
 					hasJoinedATeam: Boolean(shownTeam.joined_team_id),
 					hostRobloxUsername: finalHost.roblox_username,
 					teamServerLink: '',
+					teamSettings: {
+						dandyRun: shownMergedTeamSettings!.dandy_run,
+						earlyDyle: shownMergedTeamSettings!.early_dyle,
+						region: shownMergedTeamSettings!.region,
+						floorGoal: shownMergedTeamSettings!.floor_goal,
+					},
+					slotRows: slotRowsOfTable({
+						team: shownTeam,
+						host: finalHost,
+						mergedTeam: shownMergedTeam,
+					}),
 				},
 			} : null,
 			browsedTeams: browsedTeams.map(({
@@ -1146,7 +1444,11 @@ checkIn.post('/', async (c) => {
 						floorGoal: mergedTeamSettings.floor_goal,
 					}
 				})(),
-				teamTableRows: host.team_table_rows,
+				teamTableRows: slotRowsOfTable({
+					team: host,
+					host,
+					mergedTeam: mergedTeamOf(host),
+				}),
 				playersInRows,
 				joinableRowIndexes,
 			})),

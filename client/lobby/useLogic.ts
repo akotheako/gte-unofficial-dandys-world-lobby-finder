@@ -1903,6 +1903,34 @@ That is a row without a chip, or an extra row that shares a chip.`
 				afterHost: '\'s team! Everyone meets in this server:',
 			}
 		})(),
+		// Line below the text with the TEAM SETTINGS of the whole team, which hold the most specific
+		// choice of every search in it
+		teamFoundSettingsText: state.shownTeamStatus ? [
+			`Region: ${state.shownTeamStatus.teamSettings.region}`,
+			`Floor goal: ${state.shownTeamStatus.teamSettings.floorGoal}`,
+			`Dandy Run: ${state.shownTeamStatus.teamSettings.dandyRun}`,
+			`Early Dyle: ${state.shownTeamStatus.teamSettings.earlyDyle}`,
+		].join(' · ') : '',
+		// Line with what the user's own slot asks for once the rows of every table in it count
+		// together, such as "Your slot: Poppy · Magnifying Glass · Extractor", or empty for an
+		// invited friend, whose slot is in the host's table
+		teamFoundOwnSlotText: (() => {
+			const ownSlotRow = state.shownTeamStatus?.slotRows[state.shownTeamStatus.hostRowIndex]
+			if (isInvitedFriend || !ownSlotRow) return ''
+			// "magnifying_glass.png" reads "Magnifying Glass"
+			const pictureNameOf = (picture: string) => picture.replace('.png', '').split('_')
+				.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+				.join(' ')
+			const requirements = [
+				ownSlotRow.toonPicture,
+				ownSlotRow.trinketAPicture,
+				ownSlotRow.trinketBPicture,
+			].filter(Boolean).map(pictureNameOf).concat(
+				ownSlotRow.roleNames,
+				ownSlotRow.isVerifiedPlayerRequired ? ownSlotRow.badgeNames : [],
+			)
+			return `Your slot: ${requirements.join(' · ') || 'no requirements'}`
+		})(),
 		teamServerLink,
 
 

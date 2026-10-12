@@ -175,6 +175,11 @@ test('a card shows the toons and tags of a fitting team, and Join gets its serve
 	await freeSlotJoinButton.click()
 	await expect(page.locator('#team-found')).toHaveAttribute('open', '', { timeout: 10_000 })
 	await expect(page.locator('#team-found')).toContainText('You joined a team! Join its server:')
+	// The TEAM SETTINGS of the whole team, and what the user's own slot asks for
+	await expect(page.locator('#team-found')).toContainText(
+		'Region: Europe · Floor goal: 50 to 50 · Dandy Run: Yes · Early Dyle: Any',
+	)
+	await expect(page.locator('#team-found-own-slot')).toHaveText('Your slot: Vee · Extractor')
 	await expect(page.locator('#team-found-join')).toHaveAttribute('href', serverLinkA)
 	// YOUR SLOT and its side windows stay locked until the join ends
 	await expect(page.locator('#browse-toons')).toHaveClass(/team-locked/)
@@ -428,6 +433,151 @@ test('a merged team keeps the most specific TEAM SETTINGS of its searches', asyn
 			playerCount: 1,
 		},
 	])
+})
+
+test('the rows of a merged team combine, so a search that clashes with them cannot join', async ({
+	request,
+}) => {
+	await startHostSearchWithoutBrowser({
+		request,
+		pageId: 'slots-any-host',
+		rows: [
+			{ reservedFor: 'me' },
+			{},
+			{},
+			{},
+		],
+	})
+	await startHostSearchWithoutBrowser({
+		request,
+		pageId: 'slots-boxten-joiner',
+		rows: [
+			{ reservedFor: 'me' },
+			{ toonPicture: 'boxten.png' },
+			{ toonPicture: 'boxten.png' },
+			{ toonPicture: 'boxten.png' },
+		],
+	})
+	// Each Poppy row fits the Any host on its own, but only one slot is left without Boxten
+	await startHostSearchWithoutBrowser({
+		request,
+		pageId: 'slots-poppy-search',
+		rows: [
+			{ reservedFor: 'me' },
+			{ toonPicture: 'poppy.png' },
+			{ toonPicture: 'poppy.png' },
+			{ toonPicture: 'poppy.png' },
+		],
+	})
+	const answer = await (await request.post('/api/check-in', {
+		data: {
+			pageId: 'slots-observer',
+			team: null,
+			invite: null,
+			browse: {
+				toonPicture: '',
+				trinketAPicture: '',
+				trinketBPicture: '',
+				roleNames: [],
+				missingToons: [],
+				missingTrinkets: [],
+				dandyRun: 'Any',
+				earlyDyle: 'Any',
+				region: 'Any',
+				floorGoal: '50 to 50',
+				browsedTeamCount: 20,
+			},
+		},
+	})).json()
+	expect(answer.browsedTeams.map((browsedTeam: {
+		teamTableRows: TeamTableRow[]
+		playersInRows: unknown[]
+	}) => ({
+		toons: browsedTeam.teamTableRows.filter((row) => !row.isLeftEmpty)
+			.map((row) => row.toonPicture)
+			.sort(),
+		playerCount: browsedTeam.playersInRows.filter(Boolean).length,
+	}))).toEqual([
+		// The Any host's slots now ask for the Boxten of the search that joined it
+		{
+			toons: [
+				'',
+				'boxten.png',
+				'boxten.png',
+				'boxten.png',
+			],
+			playerCount: 2,
+		},
+		{
+			toons: [
+				'',
+				'poppy.png',
+				'poppy.png',
+				'poppy.png',
+			],
+			playerCount: 1,
+		},
+	])
+})
+
+test('a new requirement goes to a free slot, which a later search\'s own player can take', async ({
+	request,
+}) => {
+	await startHostSearchWithoutBrowser({
+		request,
+		pageId: 'free-slot-host',
+		rows: [
+			{ reservedFor: 'me' },
+			{},
+			{},
+			{},
+		],
+	})
+	await startHostSearchWithoutBrowser({
+		request,
+		pageId: 'free-slot-boxten-joiner',
+		rows: [
+			{ reservedFor: 'me' },
+			{ toonPicture: 'boxten.png' },
+			{},
+			{},
+		],
+	})
+	// Its three toon rows need the host's and the first joiner's slots, so it only fits when the
+	// Boxten went to a free slot, which its own player can take
+	await startHostSearchWithoutBrowser({
+		request,
+		pageId: 'free-slot-three-toons-joiner',
+		rows: [
+			{ reservedFor: 'me' },
+			{ toonPicture: 'vee.png' },
+			{ toonPicture: 'shelly.png' },
+			{ toonPicture: 'astro.png' },
+		],
+	})
+	const answer = await (await request.post('/api/check-in', {
+		data: {
+			pageId: 'free-slot-observer',
+			team: null,
+			invite: null,
+			browse: {
+				toonPicture: '',
+				trinketAPicture: '',
+				trinketBPicture: '',
+				roleNames: [],
+				missingToons: [],
+				missingTrinkets: [],
+				dandyRun: 'Any',
+				earlyDyle: 'Any',
+				region: 'Any',
+				floorGoal: '50 to 50',
+				browsedTeamCount: 20,
+			},
+		},
+	})).json()
+	expect(answer.browsedTeams.map((browsedTeam: { playersInRows: unknown[] }) => (
+		browsedTeam.playersInRows.filter(Boolean).length
+	))).toEqual([3])
 })
 
 test('the host sees "Player found!" in the row that a Browse Teams player joined', async ({

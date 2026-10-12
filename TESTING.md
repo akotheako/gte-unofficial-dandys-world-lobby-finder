@@ -213,6 +213,11 @@ These checks need two or three profiles that search at the same time.
   still merge within 60 seconds.
 - A player fits a row only when the toon and trinkets match, where "(Any)" matches anything on
   either side, and when they do every role that the row asks for.
+- The rows of a merged team combine into slots: after a search with three Boxten rows joins an
+  all-"(Any)" host, a search with three Poppy rows no longer merges with that team, and Browse
+  Teams shows the Boxten in the host's rows.
+- "Team found!" shows the TEAM SETTINGS of the whole team and a bold "Your slot: ..." line with
+  what the user's own slot asks for, such as "Your slot: Vee · Extractor".
 - A "Me" row never takes a row that asks for a toon or trinket that the user marked as missing in
   My Toons or My Trinkets, whether its own cell is "(Any)" or names that picture, while an "(Any)"
   cell on a friend's row still matches anything.

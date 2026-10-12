@@ -16,6 +16,14 @@ export type TeamTableRow = {
 	isLeftEmpty: boolean
 }
 
+// TEAM SETTINGS of a whole merged team, which hold the most specific choice of its searches
+export type MergedTeamSettings = {
+	dandyRun: string
+	earlyDyle: string
+	region: string
+	floorGoal: string
+}
+
 // Player who fills a row, either by their Roblox username, which is empty when they did not verify,
 // or as an unverified friend of a player
 export type PlayerInRow = { robloxUsername: string } | { unverifiedFriendOf: string }
@@ -76,6 +84,10 @@ export type CheckInAnswer = {
 		hostRobloxUsername: string
 		// Empty until every row of the merged team has a player
 		teamServerLink: string
+		teamSettings: MergedTeamSettings
+		// What each row of the shown table asks for once the rows of every table that share its
+		// slot in the merged team count together
+		slotRows: TeamTableRow[]
 	} | null
 	// Searching teams that Browse Teams lists as cards, oldest first, led by the team that the user
 	// joined there. Empty while Browse Teams is closed.
@@ -88,7 +100,8 @@ export type CheckInAnswer = {
 		earlyDyle: string
 		region: string
 		floorGoal: string
-		// The host's own table, with the players of the whole merged team in its rows
+		// The host's table, where each row asks for what its slot asks for once the rows of every
+		// table of the merged team that share it count together, with the players in its rows
 		teamTableRows: TeamTableRow[]
 		playersInRows: (PlayerInRow | null)[]
 		// Free rows that the user fits, whose Player cell shows a Join button

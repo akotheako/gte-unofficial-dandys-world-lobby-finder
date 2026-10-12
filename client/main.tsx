@@ -3105,6 +3105,9 @@ createRoot(document.getElementById('root')!).render(
 						#team-found a {
 							color: var(--link);
 						}
+						#team-found #team-found-own-slot {
+							font-weight: bold;
+						}
 						#team-found #team-found-join {
 							display: block;
 							width: fit-content;
@@ -3166,6 +3169,12 @@ createRoot(document.getElementById('root')!).render(
 							)}
 							{logic.teamFoundText.afterHost}
 						</p>
+						{/* Centered line with the TEAM SETTINGS of the whole team, then a bold line with
+						what the user's own slot asks for */}
+						<p>{logic.teamFoundSettingsText}</p>
+						{logic.teamFoundOwnSlotText && (
+							<p id="team-found-own-slot">{logic.teamFoundOwnSlotText}</p>
+						)}
 						{/* Raised grey Click to join server button that opens the server in Roblox */}
 						<a
 							id="team-found-join"

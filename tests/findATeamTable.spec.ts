@@ -538,7 +538,9 @@ test.describe('after verifying', () => {
 		await page.locator('#team-badges .window-close').click()
 		const hissyFit = firstRow.locator('.team-badge-or-role', { hasText: 'Hissy Fit' })
 		await expect(hissyFit).toHaveAttribute('data-crossed-out', 'true')
-		await expect(hissyFit).toHaveAttribute('title', /Check "Verified only"/)
+		// The tooltip covers the whole Badges cell
+		await expect(firstRow.locator('td').nth(3))
+			.toHaveAttribute('title', 'Only verified players can require badges.')
 		await firstRow.locator('.team-verified-only input').check()
 		await expect(hissyFit).toHaveAttribute('data-crossed-out', 'false')
 	})
