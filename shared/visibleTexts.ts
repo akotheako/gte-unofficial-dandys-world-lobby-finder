@@ -380,6 +380,14 @@ Verify your account in Roblox Verification, and the players of the last team tha
 	// This is a fan project window
 	fanProject: {
 		text: 'This project was made by fans for fans, and not made by Blushcrunch.',
+		// Second paragraph, where the game name is a link to its Roblox page
+		madeByBeforeLink: 'The game ',
+		gameLink: `Dandy's World`,
+		madeByAfterLink: ` on ROBLOX is made by Blushcrunch, and all the images and icons in the website, too.`,
+		// Description of the Blushcrunch logo below the second paragraph
+		logoDescription: 'Blushcrunch logo',
+		// Line below the Blushcrunch logo
+		thankYou: 'Thank you Blushcrunch for an amazing game!!',
 	},
 
 	// Contact/Report window
@@ -397,7 +405,7 @@ Verify your account in Roblox Verification, and the players of the last team tha
 		sendButton: 'Send',
 		// Line right of Send
 		sending: 'Sending...',
-		sent: 'Sent! Thank you for your message.',
+		sent: 'Sent!',
 		// Errors right of Send
 		onlyForThisWebsiteError: 'This form is only for issues about this website',
 		emptyMessageError: 'Write a message first',

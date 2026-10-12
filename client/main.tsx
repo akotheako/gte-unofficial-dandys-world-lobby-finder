@@ -2740,6 +2740,40 @@ createRoot(document.getElementById('root')!).render(
 							{...logic.fanProjectWindow}
 						>
 							<p>{visibleTexts.fanProject.text}</p>
+							{/* Line that credits Blushcrunch, with the game name as a link */}
+							<p>
+								{visibleTexts.fanProject.madeByBeforeLink}
+								<a
+									id="fan-project-game-link"
+									href="https://www.roblox.com/games/16116270224/Dandys-World"
+									target="_blank"
+									rel="noreferrer"
+								>
+									{visibleTexts.fanProject.gameLink}
+								</a>
+								{visibleTexts.fanProject.madeByAfterLink}
+							</p>
+							<style>{`
+								#fan-project-game-link {
+									color: var(--link);
+								}
+								#fan-project-logo {
+									display: block;
+									width: 96px;
+									margin: 0 auto;
+								}
+								#fan-project-thank-you {
+									text-align: center;
+								}
+							`}</style>
+							{/* Blushcrunch logo, centered */}
+							<img
+								id="fan-project-logo"
+								src="/blushcrunch.webp"
+								alt={visibleTexts.fanProject.logoDescription}
+							/>
+							{/* Centered thank-you line below the logo */}
+							<p id="fan-project-thank-you">{visibleTexts.fanProject.thankYou}</p>
 						</DesktopWindow>
 						{/* Contact/Report icon, sixth in the row */}
 						<DesktopWindow
