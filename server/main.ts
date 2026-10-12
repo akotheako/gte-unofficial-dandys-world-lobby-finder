@@ -23,11 +23,10 @@ app.route('/api/images', images)
 app.route('/api/upvotes', upvotes)
 app.route('/api/reports', reports)
 
-// Set frontend route:
-app.use('/*', serveStatic({ root: './dist' }))
-
-// Start server, except on Vercel, which serves dist itself and runs the app through api/:
+// Serve the frontend and start the server, except on Vercel, which serves dist itself and runs
+// the app through api/:
 if (!process.env.VERCEL) {
+	app.use('/*', serveStatic({ root: './dist' }))
 	const port = Number(process.env.PORT ?? 3000)
 	serve({
 		fetch: app.fetch,

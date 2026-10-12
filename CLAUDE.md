@@ -6,7 +6,8 @@ show. `server/main.ts` is the wiring file for the backend. Each backend feature 
 module next to it, such as `server/roblox.ts`, and `server/main.ts` mounts it. Code that both the
 frontend and the backend can use goes in `shared/`.
 `README.md` explains how to run the project and how to recreate it from zero. `TESTING.md` lists every
-check of the site, and the Playwright tests in `tests/` automate them.
+check of the site, and the Playwright tests in `tests/` automate them. `PRODUCTION.md` describes the
+live site on Vercel and Neon, its limits and log lines, and the steps of a check of production.
 
 ## Claude rules
 
@@ -19,6 +20,9 @@ check of the site, and the Playwright tests in `tests/` automate them.
   changes that the user made by hand, as long as they are directly related to that work. Leave
   every unrelated change uncommitted. Commit the files as they are, without modifying anything and
   without running lint, the build or the tests first.
+- When the user asks about production, such as "how's production?" or "what's the status of
+  production?", go through every step of "Checking production" in `PRODUCTION.md`, report on each
+  step, including the ones that you could not do, and write the report to `production-reports/`.
 - Whenever you change the code, update every piece of documentation that the change affects, such
   as `README.md`, this file and code comments, in the same task. The documentation describes only
   what exists now, so leave out anything that has been removed or replaced, and write no negative
