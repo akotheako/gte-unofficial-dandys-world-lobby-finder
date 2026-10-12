@@ -2513,7 +2513,7 @@ On an iPhone, add this site to the Home Screen first.`
 			})(),
 			{
 				label: 'Join the server automatically',
-				hint: 'Experimental, might not work, sorry',
+				hint: 'Opens up the server link automatically to join',
 				isError: false,
 				isDisabled: false,
 				isChecked: state.isJoinAutomaticallyCheckboxChecked,
