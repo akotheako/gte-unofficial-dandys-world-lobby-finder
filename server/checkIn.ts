@@ -795,6 +795,8 @@ checkIn.post('/', async (c) => {
 			earlyDyle: string
 			region: string
 			floorGoal: string
+			playersFrom: number
+			playersTo: number
 			browsedTeamCount: number
 		} | null
 	}>()
@@ -1486,6 +1488,11 @@ checkIn.post('/', async (c) => {
 					|| host.chosen_slot.length
 					// The page's own merged search
 					|| mergedTeamOf(host).some((team) => team.team_id === pageId)
+					// The Players range of Browse Teams counts the slots of the host's table
+					|| host.team_table_rows.filter((row) => !row.isLeftEmpty).length
+						< (Number(browse.playersFrom) || 2)
+					|| host.team_table_rows.filter((row) => !row.isLeftEmpty).length
+						> (Number(browse.playersTo) || 8)
 					|| teamSettingsDifferences({
 						teamA: mergedTeamSettingsOf(mergedTeamOf(host)),
 						teamB: browseTeamSettings,

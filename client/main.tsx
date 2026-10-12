@@ -1644,7 +1644,8 @@ function TeamCards({
 }
 
 // Old-style etched group box titled "TEAM SETTINGS", with Dandy Run and Early Dyle on the left and
-// Region and Floor goal on the right, in Find a Team and in Browse Teams
+// Region and Floor goal on the right, in Find a Team and in Browse Teams, where Players follows
+// Floor goal
 function TeamSettingsGroupBox({
 	id,
 	settings,
@@ -1760,7 +1761,7 @@ function TeamSettingsGroupBox({
 					</label>
 					{/* Floor goal as two dropdowns, "from" and "to" */}
 					<style>{`
-						.team-floor-goal-range {
+						.team-from-to-dropdowns {
 							display: grid;
 							grid-template-columns: 1fr auto 1fr;
 							align-items: center;
@@ -1769,7 +1770,7 @@ function TeamSettingsGroupBox({
 					`}</style>
 					<label>
 						Floor goal:
-						<span className="team-floor-goal-range">
+						<span className="team-from-to-dropdowns">
 							<select
 								value={settings.chosenFloorGoalFromDropdownOption}
 								disabled={settings.areDropdownsLocked}
@@ -1795,6 +1796,37 @@ function TeamSettingsGroupBox({
 							</select>
 						</span>
 					</label>
+					{/* Players as two dropdowns, "from" and "to", from 2 to 8, in Browse Teams only */}
+					{settings.players && (
+						<label>
+							Players:
+							<span className="team-from-to-dropdowns">
+								<select
+									value={settings.players.chosenFromDropdownOption}
+									disabled={settings.areDropdownsLocked}
+									onChange={(event) => (
+										settings.players!.chooseFromDropdownOption(event.target.value)
+									)}
+								>
+									{settings.players.fromDropdownOptions.map((option) => (
+										<option key={option}>{option}</option>
+									))}
+								</select>
+								to
+								<select
+									value={settings.players.chosenToDropdownOption}
+									disabled={settings.areDropdownsLocked}
+									onChange={(event) => (
+										settings.players!.chooseToDropdownOption(event.target.value)
+									)}
+								>
+									{settings.players.toDropdownOptions.map((option) => (
+										<option key={option}>{option}</option>
+									))}
+								</select>
+							</span>
+						</label>
+					)}
 				</div>
 			</fieldset>
 		</>

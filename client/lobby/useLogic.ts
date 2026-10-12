@@ -308,6 +308,9 @@ export function useLogic() {
 		// YOUR SLOT, a table with one row that holds "Me"
 		browseTeamsTableRows: TeamTableRow[]
 		browseTeamsChosenSettings: TeamSettingsChosenOptions
+		// "Players" range of Browse Teams, which lists only the teams with that many slots
+		browseTeamsChosenPlayersFromDropdownOption: string
+		browseTeamsChosenPlayersToDropdownOption: string
 		// null until the first check-in after Browse Teams opened answers
 		browsedTeams: CheckInAnswer['browsedTeams'] | null
 		hasMoreBrowsedTeams: boolean
@@ -421,6 +424,8 @@ export function useLogic() {
 			floorGoalFrom: '10',
 			floorGoalTo: '100+',
 		},
+		browseTeamsChosenPlayersFromDropdownOption: localStorage.getItem('browseTeamsPlayersFrom') ?? '2',
+		browseTeamsChosenPlayersToDropdownOption: localStorage.getItem('browseTeamsPlayersTo') ?? '8',
 		browsedTeams: null,
 		hasMoreBrowsedTeams: false,
 		browsedTeamCount: 20,
@@ -490,6 +495,8 @@ export function useLogic() {
 		state.missingTrinkets,
 		state.browsedTeamCount,
 		state.browseTeamsChosenSettings,
+		state.browseTeamsChosenPlayersFromDropdownOption,
+		state.browseTeamsChosenPlayersToDropdownOption,
 	])
 	useEffect(() => checkInWithServer({
 		pageId: getSyncState().pageId,
@@ -532,6 +539,8 @@ export function useLogic() {
 			floorGoal: `${getSyncState().browseTeamsChosenSettings.floorGoalFrom} to ${
 				getSyncState().browseTeamsChosenSettings.floorGoalTo
 			}`,
+			playersFrom: Number(getSyncState().browseTeamsChosenPlayersFromDropdownOption),
+			playersTo: Number(getSyncState().browseTeamsChosenPlayersToDropdownOption),
 			browsedTeamCount: getSyncState().browsedTeamCount,
 		} : null),
 		getOpenedBrowsedSearchIds: () => getSyncState().openedBrowsedSearchIds,
@@ -573,6 +582,13 @@ export function useLogic() {
 		'browseTeamsSettings',
 		JSON.stringify(state.browseTeamsChosenSettings),
 	), [state.browseTeamsChosenSettings])
+	useEffect(() => {
+		localStorage.setItem('browseTeamsPlayersFrom', state.browseTeamsChosenPlayersFromDropdownOption)
+		localStorage.setItem('browseTeamsPlayersTo', state.browseTeamsChosenPlayersToDropdownOption)
+	}, [
+		state.browseTeamsChosenPlayersFromDropdownOption,
+		state.browseTeamsChosenPlayersToDropdownOption,
+	])
 	const { invitingTeam } = state
 	// A join in Browse Teams gets the status of its own one-slot table, which Find a Team leaves out
 	const shownTeamStatus = state.joinedBrowsedTeam ? null : state.shownTeamStatus
@@ -690,11 +706,12 @@ export function useLogic() {
 
 	// "TEAM SETTINGS" group box of Find a Team and of Browse Teams, which each keep their own chosen
 	// options: Dandy Run and Early Dyle in the left column, where Any matches a team with either
-	// choice, and Region and Floor goal in the right column
+	// choice, and Region, Floor goal and, in Browse Teams only, Players in the right column
 	const teamSettingsGroupBoxOf = ({
 		areDropdownsLocked,
 		chosenOptions,
 		chooseOption,
+		players,
 	}: {
 		areDropdownsLocked: boolean
 		chosenOptions: TeamSettingsChosenOptions
@@ -702,9 +719,38 @@ export function useLogic() {
 			setting: keyof TeamSettingsChosenOptions
 			chosenOption: string
 		}) => void
+		players: {
+			chosenFromOption: string
+			chosenToOption: string
+			chooseFromOption: (chosenOption: string) => void
+			chooseToOption: (chosenOption: string) => void
+		} | null
 	}) => {
+		const playersDropdownOptions = [
+			'2',
+			'3',
+			'4',
+			'5',
+			'6',
+			'7',
+			'8',
+		]
 		return {
 			areDropdownsLocked,
+			// Each dropdown of Players offers only the counts that keep "from" at or below "to"
+			players: players && {
+				fromDropdownOptions: playersDropdownOptions.slice(
+					0,
+					playersDropdownOptions.indexOf(players.chosenToOption) + 1,
+				),
+				chosenFromDropdownOption: players.chosenFromOption,
+				chooseFromDropdownOption: players.chooseFromOption,
+				toDropdownOptions: playersDropdownOptions.slice(
+					playersDropdownOptions.indexOf(players.chosenFromOption),
+				),
+				chosenToDropdownOption: players.chosenToOption,
+				chooseToDropdownOption: players.chooseToOption,
+			},
 			dandyRunAndEarlyDyleDropdownOptions: [
 				'Any',
 				'Yes',
@@ -1856,6 +1902,7 @@ export function useLogic() {
 				}),
 				chosenOption,
 			}),
+			players: null,
 		}),
 
 		// Find Players button at the bottom right of Find a Team, with its spinner and the red
@@ -2064,6 +2111,16 @@ That is a row without a chip, or an extra row that shares a chip.`
 					[setting]: chosenOption,
 				},
 			}),
+			players: {
+				chosenFromOption: state.browseTeamsChosenPlayersFromDropdownOption,
+				chosenToOption: state.browseTeamsChosenPlayersToDropdownOption,
+				chooseFromOption: (chosenOption) => setState({
+					browseTeamsChosenPlayersFromDropdownOption: chosenOption,
+				}),
+				chooseToOption: (chosenOption) => setState({
+					browseTeamsChosenPlayersToDropdownOption: chosenOption,
+				}),
+			},
 		}),
 
 		// List of team cards below TEAM SETTINGS, which scrolls, and loads 20 more cards whenever it

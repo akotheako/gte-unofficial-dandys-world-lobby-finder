@@ -354,6 +354,60 @@ test('the tags of a searching team show its floor goal range and explain No choi
 	await page.context().close()
 })
 
+test('the Players range lists only the teams with that many slots', async ({
+	browser,
+	request,
+}) => {
+	await startHostSearchWithoutBrowser({
+		request,
+		pageId: 'two-slot-host',
+		rows: [
+			{ reservedFor: 'me' },
+			{},
+		],
+	})
+	await startHostSearchWithoutBrowser({
+		request,
+		pageId: 'four-slot-host',
+		rows: [
+			{ reservedFor: 'me' },
+			{},
+			{},
+			{},
+		],
+	})
+	const page = await openBrowseTeams({ browser })
+	const card = page.locator('.browse-card')
+	await expect(card).toHaveCount(2, { timeout: 10_000 })
+	// Find a Team has no Players range
+	await expect(page.locator('#team-settings label', { hasText: 'Players:' })).toHaveCount(0)
+	const playersDropdowns = page.locator('#browse-settings label', { hasText: 'Players:' })
+		.locator('select')
+	await expect(playersDropdowns.nth(0)).toHaveValue('2')
+	await expect(playersDropdowns.nth(1)).toHaveValue('8')
+	await playersDropdowns.nth(0).selectOption('3')
+	await expect(card).toHaveCount(1, { timeout: 10_000 })
+	// "to" never offers a count below "from"
+	await expect(playersDropdowns.nth(1).locator('option')).toHaveText([
+		'3',
+		'4',
+		'5',
+		'6',
+		'7',
+		'8',
+	])
+	await playersDropdowns.nth(1).selectOption('3')
+	await expect(page.getByText('No teams match these settings right now.')).toBeVisible({
+		timeout: 10_000,
+	})
+	// The range survives a reload
+	await page.reload()
+	await page.locator('#browse-icon').click()
+	await expect(playersDropdowns.nth(0)).toHaveValue('3')
+	await expect(playersDropdowns.nth(1)).toHaveValue('3')
+	await page.context().close()
+})
+
 test('Browse Teams side windows only show owned choices', async ({ browser }) => {
 	const page = await openBrowseTeams({
 		browser,

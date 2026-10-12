@@ -254,6 +254,9 @@ These checks need two or three profiles that search at the same time.
 - The Toon and Trinket side windows and pickers of YOUR SLOT show only owned pictures, with "(Any)"
   in the picker, and the slot survives a reload.
 - TEAM SETTINGS of Browse Teams and of Find a Team are kept apart, and both survive a reload.
+- Only the TEAM SETTINGS of Browse Teams have a Players range, which starts on 2 to 8, keeps
+  "from" at or below "to", survives a reload, and lists only the teams whose number of rows that
+  are not "(Leave Empty)" lies within it.
 - A card lists a searching team with a server link whose free slot the user fits, with its toons
   and a tag for every TEAM SETTING that is not Any, plus a "Floor Goal: 10 to 100+" tag, or
   "Floor Goal: 50" for a single floor. The tags alternate between two blues, or two indigos in

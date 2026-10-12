@@ -64,6 +64,9 @@ export function checkInWithServer({
 		earlyDyle: string
 		region: string
 		floorGoal: string
+		// Browse Teams lists only the teams with this many slots, from 2 to 8
+		playersFrom: number
+		playersTo: number
 		browsedTeamCount: number
 	} | null
 	getOpenedBrowsedSearchIds: () => string[] | null
