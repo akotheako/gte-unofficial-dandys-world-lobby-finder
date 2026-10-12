@@ -294,25 +294,45 @@ function ModalWindow({
 	)
 }
 
-// Row of small grey-bordered tags for the TEAM SETTINGS that are not Any, such as "Dandy Run" or
-// "Floors 50 to 60", on the Browse Teams cards, in "Team found!" and in Upvote Players
-function TeamSettingsTags({ tags }: { tags: string[] }) {
+// Row of small bold tags for the TEAM SETTINGS that are not Any, such as "Dandy Run" or
+// "Floor Goal: 50", on the Browse Teams cards, in Team Details, in "Team found!" and in Upvote
+// Players. The tags
+// alternate between the light blue of the user's own row and a deeper blue, or between two indigos
+// in dark mode. A tag with a tooltip shows a question mark cursor on hover.
+function TeamSettingsTags({ tags }: {
+	tags: ReturnType<typeof useLogic>['teamFoundSettingsTags']
+}) {
 	return (
 		<>
 			<style>{`
 				.team-settings-tags {
 					display: flex;
 					flex-wrap: wrap;
-					gap: 4px;
+					gap: 6px;
 				}
 				.team-settings-tags span {
-					padding: 0 4px;
-					background: var(--window-face);
-					border: 1px solid var(--table-line);
+					padding: 1px 8px;
+					background: var(--joined-slot);
+					color: var(--window-text);
+					border: 1px solid var(--bevel-shadow);
+					box-shadow: inset -1px -1px var(--bevel-shadow);
+					font-weight: bold;
+				}
+				.team-settings-tags span:nth-child(even) {
+					background: var(--joined-slot-deeper);
+				}
+				.team-settings-tags span[title]:not([title=""]) {
+					cursor: help;
 				}
 			`}</style>
 			<span className="team-settings-tags">
-				{tags.map((tag) => <span key={tag}>{tag}</span>)}
+				{tags.map((tag) => (
+					<span
+						key={tag.text}
+						title={tag.tooltip}>
+						{tag.text}
+					</span>
+				))}
 			</span>
 		</>
 	)
@@ -3342,6 +3362,7 @@ createRoot(document.getElementById('root')!).render(
 							--field: #fff;
 							--field-hover: #e0e0e0;
 							--joined-slot: #c4e4ff;
+							--joined-slot-deeper: #93c8f5;
 							--button-hover: #dcdcdc;
 							--title-bar: #000080;
 							--link: #00e;
@@ -3360,6 +3381,7 @@ createRoot(document.getElementById('root')!).render(
 							--field: #1a1826;
 							--field-hover: #2c2840;
 							--joined-slot: #3a3480;
+							--joined-slot-deeper: #5048a8;
 							--button-hover: #423c5c;
 							--title-bar: #5a2a8c;
 							--link: #9cc0ff;

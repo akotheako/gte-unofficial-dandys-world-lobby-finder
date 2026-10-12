@@ -148,22 +148,82 @@ function playerNameOf(playerInRow: PlayerInRow | null) {
 		: 'Unverified friend'
 }
 
+// Floors of the "from" and "to" dropdowns of the Floor goal in TEAM SETTINGS
+const floorGoalDropdownOptions = [
+	'10',
+	'20',
+	'25',
+	'30',
+	'40',
+	'50',
+	'60',
+	'70',
+	'80',
+	'90',
+	'100',
+	'100+',
+]
+
 // Small tags for the TEAM SETTINGS that are not Any, such as "Dandy Run", "No Early Dyle", the
-// region, and "Floors 50 to 60", which the Browse Teams cards, "Team found!" and Upvote Players
-// show
-function teamSettingsTagsOf(teamSettings: MergedTeamSettings) {
+// region, and "Floor Goal: 40 to 60", which the Browse Teams cards, Team Details, "Team found!" and
+// Upvote Players show. Dandy Run and Early Dyle explain themselves on hover.
+function teamSettingsTagsOf({
+	teamSettings,
+	isTeamComplete,
+}: {
+	teamSettings: MergedTeamSettings
+	// A complete team plays to one floor, the one in the middle of its floor goal range
+	isTeamComplete: boolean
+}) {
+	// A floor goal reads "40 to 60", or "50 to 50" for a single floor. The middle of a range is the
+	// floor of the dropdowns within it that is closest to its middle, or the higher one of two that
+	// are equally close, where "100+" counts as 101.
+	const [fromOption, toOption = fromOption] = teamSettings.floorGoal.split(' to ')
+	const floorOf = (option: string) => parseInt(option) + (option.endsWith('+') ? 1 : 0)
+	const middleFloor = (floorOf(fromOption) + floorOf(toOption)) / 2
+	const floorGoalText = (() => {
+		if (fromOption === toOption) return fromOption
+		if (!isTeamComplete) return `${fromOption} to ${toOption}`
+		return floorGoalDropdownOptions
+			.filter((option) => floorOf(option) >= floorOf(fromOption) && floorOf(option) <= floorOf(toOption))
+			.reduce((closest, option) => (
+				Math.abs(floorOf(option) - middleFloor) <= Math.abs(floorOf(closest) - middleFloor)
+					? option
+					: closest
+			))
+	})()
+	const dandyRunTag = {
+		Yes: {
+			text: 'Dandy Run',
+			tooltip: 'Don\'t buy anything in Dandy\'s shop!!',
+		},
+		No: {
+			text: 'No Dandy Run',
+			tooltip: 'Buying things in Dandy\'s shop is fine',
+		},
+	}[teamSettings.dandyRun]
+	const earlyDyleTag = {
+		Yes: {
+			text: 'Early Dyle',
+			tooltip: 'Vote the special "TIME\'S UP" card as soon as it appears',
+		},
+		No: {
+			text: 'No Early Dyle',
+			tooltip: 'Don\'t vote the special "TIME\'S UP" card',
+		},
+	}[teamSettings.earlyDyle]
 	return [
+		...dandyRunTag ? [dandyRunTag] : [],
+		...earlyDyleTag ? [earlyDyleTag] : [],
+		...teamSettings.region === 'Any' ? [] : [{
+			text: teamSettings.region,
+			tooltip: '',
+		}],
 		{
-			Yes: 'Dandy Run',
-			No: 'No Dandy Run',
-		}[teamSettings.dandyRun] ?? '',
-		{
-			Yes: 'Early Dyle',
-			No: 'No Early Dyle',
-		}[teamSettings.earlyDyle] ?? '',
-		teamSettings.region === 'Any' ? '' : teamSettings.region,
-		`Floors ${teamSettings.floorGoal}`,
-	].filter(Boolean)
+			text: `Floor Goal: ${floorGoalText}`,
+			tooltip: '',
+		},
+	]
 }
 
 export function useLogic() {
@@ -644,20 +704,6 @@ export function useLogic() {
 			chosenOption: string
 		}) => void
 	}) => {
-		const floorGoalDropdownOptions = [
-			'10',
-			'20',
-			'25',
-			'30',
-			'40',
-			'50',
-			'60',
-			'70',
-			'80',
-			'90',
-			'100',
-			'100+',
-		]
 		return {
 			areDropdownsLocked,
 			dandyRunAndEarlyDyleDropdownOptions: [
@@ -1937,7 +1983,10 @@ That is a row without a chip, or an extra row that shares a chip.`
 		// Tags below the text with the TEAM SETTINGS of the whole team, which hold the most specific
 		// choice of every search in it
 		teamFoundSettingsTags: state.shownTeamStatus
-			? teamSettingsTagsOf(state.shownTeamStatus.teamSettings)
+			? teamSettingsTagsOf({
+				teamSettings: state.shownTeamStatus.teamSettings,
+				isTeamComplete: true,
+			})
 			: [],
 		// Rows of the read-only table of the whole team, one for each slot, with what the slot asks
 		// for once the rows of every table in it count together, and the player in it. The user's
@@ -2038,12 +2087,21 @@ That is a row without a chip, or an extra row that shares a chip.`
 				src: row.toonPicture ? `/pixelated/toons/${row.toonPicture}` : '',
 				title: row.toonPicture.replace('.png', ''),
 			}])),
+			// A "Joined" tag comes first on the card of the team that the user joined
 			tags: [
-				browsedTeam.searchIds.some((searchId) => (
+				...browsedTeam.searchIds.some((searchId) => (
 					state.joinedBrowsedTeam?.searchIds.includes(searchId)
-				)) ? 'Joined' : '',
-				...teamSettingsTagsOf(browsedTeam),
-			].filter(Boolean),
+				))
+					? [{
+						text: 'Joined',
+						tooltip: '',
+					}]
+					: [],
+				...teamSettingsTagsOf({
+					teamSettings: browsedTeam,
+					isTeamComplete: false,
+				}),
+			],
 			open: () => setState({
 				openedBrowsedSearchIds: browsedTeam.searchIds,
 				browseTeamsError: '',
@@ -2101,7 +2159,10 @@ That is a row without a chip, or an extra row that shares a chip.`
 					: 'This team stopped searching, filled up, or has no slot for you anymore.',
 				// Tags below the host's name with the TEAM SETTINGS of the whole team
 				openedBrowsedTeamSettingsTags: openedBrowsedTeam
-					? teamSettingsTagsOf(openedBrowsedTeam)
+					? teamSettingsTagsOf({
+						teamSettings: openedBrowsedTeam,
+						isTeamComplete: false,
+					})
 					: [],
 				// Rows of the read-only table, with the Toon, Trinket A, Trinket B, Badges, Role and
 				// Player columns. "(Leave Empty)" rows are left out.
@@ -2220,7 +2281,12 @@ Verify your account in Roblox Verification, and the players of the last team tha
 		})(),
 		showLastFoundTeam: isRobloxVerified && Boolean(state.lastFoundTeam),
 		// TEAM SETTINGS and server link of the last found team, below the line at the top
-		lastFoundTeamSettingsTags: state.lastFoundTeam ? teamSettingsTagsOf(state.lastFoundTeam) : [],
+		lastFoundTeamSettingsTags: state.lastFoundTeam
+			? teamSettingsTagsOf({
+				teamSettings: state.lastFoundTeam,
+				isTeamComplete: true,
+			})
+			: [],
 		lastFoundTeamServerLink: state.lastFoundTeam?.serverLink ?? '',
 		// Rows of the read-only table, with the same columns as Find a Team once verified and an
 		// Upvote column at the end. "(Leave Empty)" rows are left out.

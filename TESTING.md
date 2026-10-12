@@ -256,7 +256,13 @@ These checks need two or three profiles that search at the same time.
   in the picker, and the slot survives a reload.
 - TEAM SETTINGS of Browse Teams and of Find a Team are kept apart, and both survive a reload.
 - A card lists a searching team with a server link whose free slot the user fits, with its toons
-  and a tag for every TEAM SETTING that is not Any.
+  and a tag for every TEAM SETTING that is not Any, plus a "Floor Goal: 10 to 100+" tag, or
+  "Floor Goal: 50" for a single floor. The tags alternate between two blues, or two indigos in
+  dark mode, and the Dandy Run and Early Dyle tags show a tooltip for Yes and a different one for
+  No.
+- In "Team found!" and Upvote Players, the floor goal tag shows the floor of the dropdowns within
+  the range that is closest to its middle, such as "Floor Goal: 60" for 10 to 100+, and the
+  higher of two equally close floors, such as "Floor Goal: 60" for 50 to 60.
 - Clicking a card opens its team details in a modal above Browse Teams. The wide layout uses a table,
   the narrow layout uses labeled cards, and the TEAM SETTINGS appear as the same tags as on the
   cards.

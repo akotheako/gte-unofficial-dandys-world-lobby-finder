@@ -740,6 +740,34 @@ test.describe('Upvote Players', () => {
 		await expect(page.locator('#upvote-table')).toHaveCount(0)
 	})
 
+	test('a found team shows the floor of its range nearest the middle, the higher on a tie', async ({
+		browser,
+	}) => {
+		// 50 to 60 has its middle at 55, which is as close to 50 as to 60
+		const hostPage = await startSearch({
+			browser,
+			username: 'HostPlayer',
+			rows: meAndOneOpenRow,
+			serverLink: serverLinkA,
+			floorGoalFrom: '50',
+			floorGoalTo: '60',
+		})
+		const joinerPage = await startSearch({
+			browser,
+			username: 'JoinerPlayer',
+			rows: meAndOneOpenRow,
+			floorGoalFrom: '50',
+			floorGoalTo: '60',
+		})
+		await expect(hostPage.locator('#team-found')).toHaveAttribute('open', '', { timeout: 20_000 })
+		await expect(hostPage.locator('#team-found-settings')).toContainText('Floor Goal: 60')
+		await closeTeamFoundWindow(hostPage)
+		await openUpvotePlayers(hostPage)
+		await expect(hostPage.locator('#upvote-settings')).toContainText('Floor Goal: 60')
+		await hostPage.context().close()
+		await joinerPage.context().close()
+	})
+
 	test('a found team shows as a record, and an upvote can be given and taken back', async ({
 		browser,
 	}) => {
@@ -768,7 +796,7 @@ test.describe('Upvote Players', () => {
 		await closeTeamFoundWindow(hostPage)
 		await openUpvotePlayers(hostPage)
 		// The record holds the floors that both ranges share
-		await expect(hostPage.locator('#upvote-settings')).toContainText('Floors 80 to 80')
+		await expect(hostPage.locator('#upvote-settings')).toContainText('Floor Goal: 80')
 		await expect(hostPage.locator('#upvote-settings a')).toHaveText(serverLinkA)
 		const recordRows = hostPage.locator('#upvote-table tbody tr')
 		await expect(recordRows.nth(0).locator('img')).toHaveAttribute('title', 'bobette')

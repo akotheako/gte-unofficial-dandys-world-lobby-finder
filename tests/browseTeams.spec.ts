@@ -38,6 +38,7 @@ async function startHostSearchWithoutBrowser({
 	region,
 	dandyRun,
 	earlyDyle,
+	floorGoal,
 	serverLink,
 }: {
 	request: APIRequestContext
@@ -46,6 +47,8 @@ async function startHostSearchWithoutBrowser({
 	region?: string
 	dandyRun?: string
 	earlyDyle?: string
+	// "50 to 50" unless it is given
+	floorGoal?: string
 	serverLink?: string
 }) {
 	const response = await request.post('/api/check-in', {
@@ -71,7 +74,7 @@ async function startHostSearchWithoutBrowser({
 				dandyRun: dandyRun ?? 'Any',
 				earlyDyle: earlyDyle ?? 'Any',
 				region: region ?? 'Any',
-				floorGoal: '50 to 50',
+				floorGoal: floorGoal ?? '50 to 50',
 				isFindingPlayers: true,
 				searchId: `${pageId}-search`,
 			},
@@ -266,8 +269,11 @@ test('a card shows the toons and tags of a fitting team, and Join gets its serve
 	await expect(card.locator('.team-settings-tags span')).toHaveText([
 		'Dandy Run',
 		'Europe',
-		'Floors 50 to 50',
+		'Floor Goal: 50',
 	])
+	// Dandy Run explains itself on hover
+	await expect(card.locator('.team-settings-tags span', { hasText: 'Dandy Run' }))
+		.toHaveAttribute('title', 'Don\'t buy anything in Dandy\'s shop!!')
 	await card.click()
 	await expect(page.locator('#browse-team-table tbody tr')).toHaveCount(2)
 	// The free slot that the user fits has a Join button in its Player cell
@@ -285,7 +291,7 @@ test('a card shows the toons and tags of a fitting team, and Join gets its serve
 	await expect(page.locator('#team-found-settings .team-settings-tags span')).toHaveText([
 		'Dandy Run',
 		'Europe',
-		'Floors 50 to 50',
+		'Floor Goal: 50',
 	])
 	const teamFoundRows = page.locator('#team-found-table tbody tr')
 	await expect(teamFoundRows).toHaveCount(2)
@@ -303,6 +309,48 @@ test('a card shows the toons and tags of a fitting team, and Join gets its serve
 	// Closing "Team found!" ends the join and unlocks the slot
 	await page.locator('#team-found .window-close').click()
 	await expect(page.locator('#browse-toons')).not.toHaveClass(/team-locked/)
+	await page.context().close()
+})
+
+test('the tags of a searching team show its floor goal range and explain No choices', async ({
+	browser,
+	request,
+}) => {
+	await startHostSearchWithoutBrowser({
+		request,
+		pageId: 'tags-host',
+		rows: [
+			{ reservedFor: 'me' },
+			{},
+		],
+		dandyRun: 'No',
+		earlyDyle: 'No',
+		floorGoal: '10 to 100+',
+	})
+	const page = await openBrowseTeams({ browser })
+	const card = page.locator('.browse-card')
+	const cardTags = card.locator('.team-settings-tags span')
+	// A team that still searches shows its whole floor goal range
+	await expect(cardTags).toHaveText([
+		'No Dandy Run',
+		'No Early Dyle',
+		'Floor Goal: 10 to 100+',
+	], { timeout: 10_000 })
+	await expect(cardTags.nth(0)).toHaveAttribute('title', 'Buying things in Dandy\'s shop is fine')
+	await expect(cardTags.nth(1)).toHaveAttribute('title', 'Don\'t vote the special "TIME\'S UP" card')
+	// The tags alternate between two colors
+	const backgroundOf = (tagIndex: number) => cardTags.nth(tagIndex).evaluate((tag) => (
+		getComputedStyle(tag).backgroundColor
+	))
+	expect(await backgroundOf(0)).not.toBe(await backgroundOf(1))
+	expect(await backgroundOf(0)).toBe(await backgroundOf(2))
+	// Team Details shows the same tags
+	await card.click()
+	await expect(page.locator('#browse-team-details .team-settings-tags span')).toHaveText([
+		'No Dandy Run',
+		'No Early Dyle',
+		'Floor Goal: 10 to 100+',
+	])
 	await page.context().close()
 })
 
