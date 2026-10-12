@@ -255,7 +255,6 @@ export function useLogic() {
 		serverLink: string
 		isDarkModeCheckboxChecked: boolean
 		isDingSoundCheckboxChecked: boolean
-		isFlashTabCheckboxChecked: boolean
 		isNotificationCheckboxChecked: boolean
 		notificationCheckboxError: string
 		isJoinAutomaticallyCheckboxChecked: boolean
@@ -349,7 +348,6 @@ export function useLogic() {
 		serverLink: localStorage.getItem('serverLink') ?? '',
 		isDarkModeCheckboxChecked: localStorage.getItem('darkMode') === 'true',
 		isDingSoundCheckboxChecked: localStorage.getItem('dingSound') === 'true',
-		isFlashTabCheckboxChecked: localStorage.getItem('flashTab') === 'true',
 		// The browser's permission can be taken back in its settings at any time
 		isNotificationCheckboxChecked: localStorage.getItem('notification') === 'true'
 			&& 'Notification' in window
@@ -607,7 +605,7 @@ export function useLogic() {
 	}
 
 	// Opens the team found window as soon as the server link of the team arrives, together with the
-	// Ding!, the flashing tab, the notification and the automatic join that Options turned on. Team
+	// Ding!, the notification and the automatic join that Options turned on. Team
 	// Details of Browse Teams closes, since a found team leaves the list of searching teams.
 	const teamServerLink = state.shownTeamStatus?.teamServerLink ?? ''
 	useEffect(() => {
@@ -619,7 +617,6 @@ export function useLogic() {
 		return announceTeamFound({
 			teamServerLink,
 			isDingSoundCheckboxChecked: getSyncState().isDingSoundCheckboxChecked,
-			isFlashTabCheckboxChecked: getSyncState().isFlashTabCheckboxChecked,
 			isNotificationCheckboxChecked: getSyncState().isNotificationCheckboxChecked,
 			isJoinAutomaticallyCheckboxChecked: getSyncState().isJoinAutomaticallyCheckboxChecked,
 		})
@@ -2469,18 +2466,6 @@ Verify your account in Roblox Verification, and the players of the last team tha
 				toggle: (isChecked: boolean) => toggleOptionsCheckbox({
 					localStorageKey: 'dingSound',
 					setIsChecked: (isDingSoundCheckboxChecked) => setState({ isDingSoundCheckboxChecked }),
-					isChecked,
-				}),
-			},
-			{
-				label: 'Flash the browser tab',
-				hint: '',
-				isError: false,
-				isDisabled: false,
-				isChecked: state.isFlashTabCheckboxChecked,
-				toggle: (isChecked: boolean) => toggleOptionsCheckbox({
-					localStorageKey: 'flashTab',
-					setIsChecked: (isFlashTabCheckboxChecked) => setState({ isFlashTabCheckboxChecked }),
 					isChecked,
 				}),
 			},

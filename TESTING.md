@@ -27,8 +27,6 @@ and what should happen.
 - Every checkbox of "WHEN A TEAM IS FOUND" in Options stays as it was after a reload. With each of
   them checked, a found team then:
   - plays one of the four bell sounds, picked at random each time,
-  - makes the tab title switch between "Team found!" and the page's title while another tab is in
-    front, until the user comes back to the tab,
   - shows a "Team found!" notification, also on Android, and clicking it opens the server in
     Roblox,
   - opens the server in a new tab once pop-ups are allowed for the site.

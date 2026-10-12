@@ -1,17 +1,15 @@
 import { robloxServerLinkPattern } from '../../shared/robloxServerLinkPattern.ts'
 
-// Plays the Ding!, flashes the tab title, shows the notification and joins the server, as far as
-// the Options window turned them on. Returns a function that stops the flashing.
+// Plays the Ding!, shows the notification and joins the server, as far as the Options window
+// turned them on
 export function announceTeamFound({
 	teamServerLink,
 	isDingSoundCheckboxChecked,
-	isFlashTabCheckboxChecked,
 	isNotificationCheckboxChecked,
 	isJoinAutomaticallyCheckboxChecked,
 }: {
 	teamServerLink: string
 	isDingSoundCheckboxChecked: boolean
-	isFlashTabCheckboxChecked: boolean
 	isNotificationCheckboxChecked: boolean
 	isJoinAutomaticallyCheckboxChecked: boolean
 }) {
@@ -29,13 +27,19 @@ export function announceTeamFound({
 		&& 'Notification' in window
 		&& Notification.permission === 'granted'
 	) {
+		// showNotification throws until the worker is active, which takes a moment after the first
+		// registration
 		navigator.serviceWorker.register('/teamFoundNotificationWorker.js')
+			.then(() => navigator.serviceWorker.ready)
 			.then((registration) => registration.showNotification('Team found!', {
 				body: isRobloxServerLink ? 'Click to join the server' : '',
 				icon: '/pixelated/Everyone_at_elevator.webp',
 				tag: 'team-found',
+				// Without it, a notification that replaces an earlier one with the same tag pops up
+				// silently in the notification center only
+				renotify: true,
 				data: { teamServerLink: isRobloxServerLink ? teamServerLink : '' },
-			}))
+			} as NotificationOptions))
 			.catch(() => {})
 	}
 
@@ -43,19 +47,4 @@ export function announceTeamFound({
 	if (isJoinAutomaticallyCheckboxChecked && isRobloxServerLink) {
 		open(teamServerLink, '_blank', 'noreferrer')
 	}
-
-	// The tab title switches between "Team found!" and the page's title every second until the user
-	// comes back to the page
-	if (!isFlashTabCheckboxChecked || document.hasFocus()) return () => {}
-	const pageTitle = document.title
-	const flashInterval = setInterval(() => {
-		document.title = document.title === pageTitle ? 'Team found!' : pageTitle
-	}, 1000)
-	const stopFlashing = () => {
-		clearInterval(flashInterval)
-		document.title = pageTitle
-		removeEventListener('focus', stopFlashing)
-	}
-	addEventListener('focus', stopFlashing)
-	return stopFlashing
 }

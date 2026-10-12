@@ -71,7 +71,7 @@ test('Options remembers its checkboxes, and a refused notification stays uncheck
 	await page.reload()
 	await expect(teamFoundBox.getByLabel('Play a "Ding!" sound')).toBeChecked()
 	await expect(teamFoundBox.getByLabel('Join the server automatically')).toBeChecked()
-	await expect(teamFoundBox.getByLabel('Flash the browser tab')).not.toBeChecked()
+	await expect(teamFoundBox.getByLabel('Show a notification')).not.toBeChecked()
 
 	await page.evaluate(() => {
 		Notification.requestPermission = async () => 'denied'
