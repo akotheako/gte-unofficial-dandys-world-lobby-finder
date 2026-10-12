@@ -1,6 +1,6 @@
 import { robloxServerLinkPattern } from '../../shared/robloxServerLinkPattern.ts'
 
-// Plays the Ding!, shows the notification and joins the server, as far as the Options window
+// Plays the bell, shows the notification and joins the server, as far as the Options window
 // turned them on
 export function announceTeamFound({
 	teamServerLink,

@@ -275,7 +275,7 @@ These checks need two or three profiles that search at the same time.
 - The team details show the host's name and the team's table. Each free row that the user fits has
   a Join button in its Player cell, or in its Player box on a narrow screen, every other free row
   shows "(Requirements incompatible with you)", and every taken row shows "(Slot filled)".
-- With no fitting team, the list shows "Searching...".
+- With no fitting team, the list shows "No teams match these settings right now.".
 - Join merges the user into that team only and into the row of that button, which other browsing
   pages then show as taken. It greys out Find Players and locks YOUR SLOT and TEAM SETTINGS, and
   "Team found!" opens once every row has a player, even while Find a Team is closed.

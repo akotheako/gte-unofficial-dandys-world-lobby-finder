@@ -607,7 +607,7 @@ export function useLogic() {
 	}
 
 	// Opens the team found window as soon as the server link of the team arrives, together with the
-	// Ding!, the notification and the automatic join that Options turned on. Team
+	// bell!, the notification and the automatic join that Options turned on. Team
 	// Details of Browse Teams closes, since a found team leaves the list of searching teams.
 	const teamServerLink = state.shownTeamStatus?.teamServerLink ?? ''
 	useEffect(() => {
@@ -2072,7 +2072,7 @@ That is a row without a chip, or an extra row that shares a chip.`
 		browseTeamsListText: (() => {
 			if (!state.browsedTeams) return 'Looking for teams...'
 			if (!state.browsedTeams.length) {
-				return 'Searching...'
+				return 'No teams match these settings right now.'
 			}
 			return 'Teams that are looking for players and have a slot for you. Click one to see it.'
 		})(),
@@ -2460,7 +2460,7 @@ Verify your account in Roblox Verification, and the players of the last team tha
 		// below it when it needs one
 		teamFoundOptionsCheckboxes: [
 			{
-				label: 'Play a "Ding!" sound',
+				label: 'Play a "bell!" sound',
 				hint: '',
 				isError: false,
 				isDisabled: false,

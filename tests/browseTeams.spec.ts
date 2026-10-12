@@ -431,7 +431,8 @@ test('only fitting teams are listed, and a team that stops searching disappears'
 	await expect(card.locator('img')).toHaveAttribute('src', '/pixelated/toons/shelly.png')
 	await request.post('/api/check-in/leave', { data: { pageId: 'browse-fitting' } })
 	await expect(card).toHaveCount(0, { timeout: 10_000 })
-	await expect(page.locator('#browse-contents')).toContainText('Searching...')
+	await expect(page.locator('#browse-contents'))
+		.toContainText('No teams match these settings right now.')
 	// Find a Team keeps its own TEAM SETTINGS
 	await page.locator('#team-icon').click()
 	await expect(page.locator('#team-settings select').nth(2)).toHaveValue('Any')

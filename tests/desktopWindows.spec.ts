@@ -66,10 +66,10 @@ test('Options remembers its checkboxes, and a refused notification stays uncheck
 	await page.goto('/')
 	await page.locator('#options-icon').click()
 	const teamFoundBox = page.locator('#options-team-found')
-	await teamFoundBox.getByLabel('Play a "Ding!" sound').check()
+	await teamFoundBox.getByLabel('Play a "bell!" sound').check()
 	await teamFoundBox.getByLabel('Join the server automatically').check()
 	await page.reload()
-	await expect(teamFoundBox.getByLabel('Play a "Ding!" sound')).toBeChecked()
+	await expect(teamFoundBox.getByLabel('Play a "bell!" sound')).toBeChecked()
 	await expect(teamFoundBox.getByLabel('Join the server automatically')).toBeChecked()
 	await expect(teamFoundBox.getByLabel('Show a notification')).not.toBeChecked()
 
