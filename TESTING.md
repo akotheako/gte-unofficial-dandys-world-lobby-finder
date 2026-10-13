@@ -325,7 +325,7 @@ These checks need two or three profiles that search at the same time.
 
 - The fourth icon opens "This is a fan project", which says "This project was made by fans for
   fans, and not made by Blushcrunch.", followed by the credit line whose "Dandy's World" links to
-  `https://www.roblox.com/games/16116270224/Dandys-World`, the Blushcrunch logo, and "Thank you
+  `https://www.roblox.com/games/16116270224/Dandys-World`, the thankyou.webp picture, and "Thank you
   Blushcrunch for an amazing game!!"
 - The fifth icon opens "Contact/Report", whose dropdown starts on "Report a bug in the website".
 - "Report a bug in the game" and "Report a player" grey out the message box and Send, and show

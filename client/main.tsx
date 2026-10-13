@@ -967,6 +967,12 @@ function ToonsAndTrinketsSideWindows({
 					color: var(--faded-text);
 					cursor: default;
 				}
+				/* Small upvoted.webp picture after "Upvoted ✓", as tall as the text */
+				.upvoted-picture {
+					height: 1em;
+					vertical-align: -0.125em;
+					margin-left: 4px;
+				}
 				.team-drag-hint {
 					display: flex;
 					align-items: center;
@@ -2653,6 +2659,13 @@ createRoot(document.getElementById('root')!).render(
 																	onClick={row.upvoteButton.toggleUpvote}
 																>
 																	{row.upvoteButton.text}
+																	{row.upvoteButton.upvotedPictureSrc && (
+																		<img
+																			className="upvoted-picture"
+																			src={row.upvoteButton.upvotedPictureSrc}
+																			alt=""
+																		/>
+																	)}
 																</button>
 															)}
 														</td>
@@ -2736,6 +2749,13 @@ createRoot(document.getElementById('root')!).render(
 																	onClick={row.upvoteButton.toggleUpvote}
 																>
 																	{row.upvoteButton.text}
+																	{row.upvoteButton.upvotedPictureSrc && (
+																		<img
+																			className="upvoted-picture"
+																			src={row.upvoteButton.upvotedPictureSrc}
+																			alt=""
+																		/>
+																	)}
 																</button>
 															)}
 														</div>
@@ -2773,7 +2793,7 @@ createRoot(document.getElementById('root')!).render(
 								#fan-project-game-link {
 									color: var(--link);
 								}
-								#fan-project-logo {
+								#fan-project-thank-you-picture {
 									display: block;
 									width: 96px;
 									margin: 0 auto;
@@ -2782,13 +2802,13 @@ createRoot(document.getElementById('root')!).render(
 									text-align: center;
 								}
 							`}</style>
-							{/* Blushcrunch logo, centered */}
+							{/* Thank-you picture, centered */}
 							<img
-								id="fan-project-logo"
-								src="/blushcrunch.webp"
-								alt={visibleTexts.fanProject.logoDescription}
+								id="fan-project-thank-you-picture"
+								src="/thankyou.webp"
+								alt={visibleTexts.fanProject.thankYouPictureDescription}
 							/>
-							{/* Centered thank-you line below the logo */}
+							{/* Centered thank-you line below the picture */}
 							<p id="fan-project-thank-you">{visibleTexts.fanProject.thankYou}</p>
 						</DesktopWindow>
 						{/* Contact/Report icon, sixth in the row */}

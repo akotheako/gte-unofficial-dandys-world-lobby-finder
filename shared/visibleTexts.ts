@@ -390,9 +390,9 @@ Verify your account in Roblox Verification, and the players of the last team tha
 		madeByBeforeLink: 'The game ',
 		gameLink: `Dandy's World`,
 		madeByAfterLink: ` on ROBLOX is made by Blushcrunch, and all the images and icons in the website, too.`,
-		// Description of the Blushcrunch logo below the second paragraph
-		logoDescription: 'Blushcrunch logo',
-		// Line below the Blushcrunch logo
+		// Description of the thank-you picture below the second paragraph
+		thankYouPictureDescription: 'Thank you',
+		// Line below the thank-you picture
 		thankYou: 'Thank you Blushcrunch for an amazing game!!',
 	},
 

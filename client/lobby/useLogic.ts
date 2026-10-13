@@ -2459,6 +2459,7 @@ export function useLogic() {
 					text: player.isUpvoted
 						? visibleTexts.upvotePlayers.upvotedButton
 						: visibleTexts.upvotePlayers.upvoteButton,
+					upvotedPictureSrc: player.isUpvoted ? '/upvoted.webp' : null,
 					title: player.isUpvoted ? visibleTexts.upvotePlayers.upvotedButtonTooltip : '',
 					toggleUpvote: () => toggleUpvote({
 						robloxUserId: player.robloxUserId,
